@@ -40,6 +40,8 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 				rpc = werror.NewRPCError(v.Id(), codes.InvalidArgument, v.RPCError())
 			case werror.DBInternalError:
 				rpc = werror.NewRPCError(v.Id(), codes.Internal, v.RPCError())
+			case *werror.RPCError:
+				rpc = v
 			}
 
 			if rpc == nil {
