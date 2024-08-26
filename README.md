@@ -2,8 +2,6 @@
 
 # Webitel WFM: Workforce Management system
 
-___
-
 [![License](https://img.shields.io/github/license/webitel/webitel-wfm)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/webitel/webitel-wfm)](https://goreportcard.com/report/github.com/webitel/webitel-wfm)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/webitel/webitel-wfm)

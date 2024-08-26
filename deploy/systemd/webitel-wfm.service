@@ -8,6 +8,7 @@ Restart=always
 LimitNOFILE=64000
 TimeoutStartSec=0
 EnvironmentFile=/etc/default/webitel
+Environment="BIND_ADDRESS=127.0.0.1:10022"
 ExecStart=/usr/local/bin/webitel-wfm api
 
 [Install]
