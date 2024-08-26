@@ -1,0 +1,11 @@
+{
+  "datacenter": "dc1",
+  "data_dir": "/consul/data",
+  "server": true,
+  "log_level":"INFO",
+  "ui": true,
+  "bootstrap_expect": 1,
+  "addresses": {
+    "http" : "0.0.0.0"
+  }
+}

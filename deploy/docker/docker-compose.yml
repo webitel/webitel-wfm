@@ -1,0 +1,164 @@
+version: "3.9"
+
+networks:
+  webitel:
+
+volumes:
+  postgres-1-data:
+  postgres-2-data:
+  rabbitmq:
+
+services:
+  pg-1:
+    image: docker.io/bitnami/postgresql-repmgr:15.5.0
+    container_name: postgres-1
+    networks:
+      webitel:
+    ports:
+      - "6432:5432"
+    volumes:
+      - postgres-1-data:/bitnami/postgresql
+    environment:
+      - POSTGRESQL_POSTGRES_PASSWORD=webitel
+      - POSTGRESQL_USERNAME=webitel
+      - POSTGRESQL_PASSWORD=webitel
+      - POSTGRESQL_DATABASE=webitel
+      - REPMGR_PASSWORD=repmgrpassword
+      - REPMGR_PRIMARY_HOST=pg-1
+      - REPMGR_PRIMARY_PORT=5432
+      - REPMGR_PARTNER_NODES=pg-1,pg-2:5432
+      - REPMGR_NODE_NAME=pg-1
+      - REPMGR_NODE_NETWORK_NAME=pg-1
+      - REPMGR_PORT_NUMBER=5432
+      - REPMGR_CONNECT_TIMEOUT=1
+      - REPMGR_RECONNECT_ATTEMPTS=2
+      - REPMGR_RECONNECT_INTERVAL=1
+      - REPMGR_MASTER_RESPONSE_TIMEOUT=5
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U webitel -d webitel" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+
+  pg-2:
+    image: docker.io/bitnami/postgresql-repmgr:15.5.0
+    container_name: postgres-2
+    networks:
+      webitel:
+    ports:
+      - "6433:5432"
+    volumes:
+      - postgres-2-data:/bitnami/postgresql
+    environment:
+      - POSTGRESQL_POSTGRES_PASSWORD=webitel
+      - POSTGRESQL_USERNAME=webitel
+      - POSTGRESQL_PASSWORD=webitel
+      - POSTGRESQL_DATABASE=webitel
+      - REPMGR_PASSWORD=repmgrpassword
+      - REPMGR_PRIMARY_HOST=pg-1
+      - REPMGR_PRIMARY_PORT=5432
+      - REPMGR_PARTNER_NODES=pg-1,pg-2:5432
+      - REPMGR_NODE_NAME=pg-2
+      - REPMGR_NODE_NETWORK_NAME=pg-2
+      - REPMGR_PORT_NUMBER=5432
+      - REPMGR_CONNECT_TIMEOUT=1
+      - REPMGR_RECONNECT_ATTEMPTS=2
+      - REPMGR_RECONNECT_INTERVAL=1
+      - REPMGR_MASTER_RESPONSE_TIMEOUT=5
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U webitel -d webitel" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+
+  consul-server:
+    image: hashicorp/consul:1.15
+    container_name: consul-server
+    restart: always
+    volumes:
+      - ./config/consul.json:/consul/config/server.json:ro
+    networks:
+      webitel:
+    ports:
+      - "8500:8500"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    command: "agent"
+
+  rabbitmq:
+    image: rabbitmq:3.12.12-management
+    container_name: rabbitmq
+    restart: always
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=webitel
+      - RABBITMQ_DEFAULT_PASS=webitel
+    networks:
+      webitel:
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+
+  wfm:
+    build:
+      context: ../../
+      dockerfile: ./Dockerfile
+    container_name: wfm
+    restart: always
+    command:
+      - api
+      - -l debug
+      - -c consul-server:8500
+      - -b 0.0.0.0:10122
+      - -d "postgres://webitel:webitel@pg-1:5432/webitel?application_name=wfm&sslmode=disable&connect_timeout=10"
+      - -s "postgres://webitel:webitel@pg-2:5433/webitel?application_name=wfm&sslmode=disable&connect_timeout=10"
+    networks:
+      webitel:
+    ports:
+      - "10122:10122"
+
+  webitel-app:
+    build:
+      context: ../../../
+      dockerfile: ./webitel.go/Dockerfile
+    container_name: webitel-api
+    restart: always
+    command:
+      - ./webitel
+      - api
+    environment:
+      - USER=webitel
+      - MICRO_REGISTRY=consul
+      - MICRO_REGISTRY_ADDRESS=consul-server
+      - MICRO_BROKER=rabbitmq
+      - MICRO_BROKER_ADDRESS=amqp://webitel:webitel@rabbitmq:5672/
+      - MICRO_CLIENT_REQUEST_TIMEOUT=50s
+      - WEBITEL_DBO_ADDRESS=postgres://webitel:webitel@pg-1:5432/webitel?sslmode=disable
+      - OPENSIPS_MI_ADDRESS=http://127.0.0.1:8000/mi
+      - OPENSIPS_SIP_ADDRESS=1.1.1.1
+      - WBTL_AUTH_URL=https://stage.webitel.com/api
+      - WBTL_LOGIN_URL=https://stage.webitel.com/auth
+      - WBTL_LOGOUT_URL=https://stage.webitel.com/auth
+      - WBTL_COOKIE_KEYS=Qm8WQ0qmG4JD0Zo1Vu87vBROO0mOl4fU,JhGe7J91m3wH5fa1rWhsl4fU25CrPoW0
+      - WBTL_COMPETITIVE_TOKEN_TTL=168h
+      - WBTL_SESSION_TTL=720h
+      - WBTL_TOKEN_TTL=168h
+    networks:
+      webitel:
+    ports:
+      - "10022:10022"

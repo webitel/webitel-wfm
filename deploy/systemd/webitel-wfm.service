@@ -1,0 +1,14 @@
+[Unit]
+Description=Engine Startup process
+After=network.target consul.service rabbitmq-server.service postgresql.service engine.service call_center.service
+
+[Service]
+Type=simple
+Restart=always
+LimitNOFILE=64000
+TimeoutStartSec=0
+EnvironmentFile=/etc/default/webitel
+ExecStart=/usr/local/bin/webitel-wfm api
+
+[Install]
+WantedBy=default.target

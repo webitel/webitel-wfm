@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+project_name: webitel-wfm
+
+before:
+  hooks:
+    - go generate
+    - go mod tidy
+
+snapshot:
+  name_template: 'SNAPSHOT-{{ .Commit }}'
+
+report_sizes: true
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/webitel/webitel-wfm/cmd.version={{ .Version }}
+      - -X github.com/webitel/webitel-wfm/cmd.commit={{ .Commit }}
+      - -X github.com/webitel/webitel-wfm/cmd.commitDate={{ .CommitDate }}
+
+universal_binaries:
+  - replace: false
+
+checksum:
+  name_template: '{{ .ProjectName }}-{{ .Version }}-checksums.txt'
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: Dependency updates
+      regexp: '^.*?(feat|fix)\(deps\)!?:.+$'
+      order: 300
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 100
+    - title: 'Security updates'
+      regexp: '^.*?sec(\([[:word:]]+\))??!?:.+$'
+      order: 150
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 200
+    - title: 'Documentation updates'
+      regexp: ^.*?doc(\([[:word:]]+\))??!?:.+$
+      order: 400
+    - title: 'Build process updates'
+      regexp: ^.*?build(\([[:word:]]+\))??!?:.+$
+      order: 400
+    - title: Other work
+      order: 9999
+
+archives:
+  - name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}'
+    builds_info:
+      group: root
+      owner: root
+    files:
+      - README.md
+
+nfpms:
+  - id: webitel-wfm
+    vendor: Webitel Ltd.
+    homepage: https://webitel.com
+    maintainer: Webitel <cloud@webitel.com>
+    description: |-
+      Webitel WFM package.
+
+    license: Apache 2.0
+    formats:
+      - deb
+
+    umask: 0o002
+    bindir: /usr/local/bin
+    release: "{{ .Version }}"
+    section: default
+    priority: extra
+    meta: false
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+milestones:
+  - close: true
+
+release:
+  footer: |
+    **Full Changelog**: https://github.com/webitel/webitel-wfm/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    * * *
+
+    <a href="https://webitel.com"><img src="https://raw.githubusercontent.com/webitel/webitel-wfm/main/assets/img/webitel-header.png" with="100%" alt="Webitel logo"></a>
