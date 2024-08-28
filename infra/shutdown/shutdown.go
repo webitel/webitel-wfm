@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"reflect"
-	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -348,14 +345,4 @@ func (t *Tracker) exitOnCompletion(p *Process) {
 		t.log.Debug("graceful shutdown window closed, forcing shutdown")
 		os.Exit(1)
 	}
-}
-
-func functionName(fn any) (rtn string) {
-	defer func() {
-		if r := recover(); r != nil && rtn == "" {
-			rtn = fmt.Sprintf("<panic getting function name: %v>", r)
-		}
-	}()
-
-	return strings.TrimSuffix(runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name(), "-fm")
 }

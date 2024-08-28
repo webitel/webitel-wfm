@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 
 	"github.com/jackc/pgerrcode"
@@ -79,8 +78,4 @@ func findForeignKeyTable(detail string) string {
 		return ""
 	}
 	return results[1]
-}
-
-func formatPgError(err *pgconn.PgError) string {
-	return fmt.Sprintf("%s: %s", err.Code, err.Message)
 }
