@@ -2,12 +2,12 @@ package storage
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
@@ -28,27 +28,37 @@ func NewAgentAbsence(db cluster.Store, manager cache.Manager) *AgentAbsence {
 	}
 }
 
-func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (int64, error) {
+func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error) {
 	var id int64
-	columns := map[string]any{
-		"domain_id":       user.DomainId,
-		"created_by":      user.Id,
-		"updated_by":      user.Id,
-		"absent_at":       in.Absence.AbsentAt,
-		"agent_id":        in.Agent.Id,
-		"absence_type_id": in.Absence.AbsenceTypeId,
-	}
 
-	sql, args := a.db.SQL().Insert(agentAbsenceTable, columns).SQL("RETURNING id").Build()
+	sql, args := a.createAgentAbsenceQuery(user, in)
 	if err := a.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		return 0, err
+		return nil, err
 	}
-	go a.cache.Key(user.DomainId, 0, user).Delete(ctx)
 
-	return id, nil
+	out, err := a.ReadAgentAbsence(ctx, user, &model.SearchItem{Id: id})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
-func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) error {
+func (a *AgentAbsence) ReadAgentAbsence(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.AgentAbsence, error) {
+	item, err := a.ReadAgentAbsences(ctx, user, &model.AgentAbsenceSearch{SearchItem: *search})
+	if err != nil {
+		return nil, err
+	}
+
+	out := &model.AgentAbsence{
+		Agent:   item.Agent,
+		Absence: item.Absence[0],
+	}
+
+	return out, nil
+}
+
+func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error) {
 	ub := a.db.SQL().Update(agentAbsenceTable)
 	assignments := []string{
 		ub.Assign("updated_by", user.Id),
@@ -64,10 +74,15 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.Signe
 
 	sql, args := ub.Set(assignments...).Where(clauses...).AddWhereClause(a.db.SQL().RBAC(user.UseRBAC, agentAbsenceAcl, in.Absence.Id, user.DomainId, user.Groups, user.Access)).Build()
 	if err := a.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	out, err := a.ReadAgentAbsence(ctx, user, &model.SearchItem{Id: in.Agent.Id})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error {
@@ -86,45 +101,57 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.Signe
 	return nil
 }
 
-func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]int64, error) {
-	var ids []int64
+func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error) {
+	batch := a.db.Primary().WithBatch()
+	for _, agentId := range agentIds {
+		for _, absence := range in {
+			start := model.NewDate(absence.AbsentAtFrom)
+			end := model.NewDate(absence.AbsentAtTo)
 
-	absences := a.db.SQL().Values()
-	for _, v := range in {
-		// TODO: int to string conversion used for emitting error "unable to encode 2 (as int arg) into text format for text"
-		absences.Values(strconv.FormatInt(v.AbsenceTypeId, 10), strconv.FormatInt(v.AbsentAtFrom, 10), strconv.FormatInt(v.AbsentAtTo, 10))
+			for d := start; d.Time.After(end.Time) == false; d.Time = d.Time.AddDate(0, 0, 1) {
+				req := &model.AgentAbsence{
+					Agent: model.LookupItem{
+						Id: agentId,
+					},
+					Absence: model.Absence{
+						AbsenceTypeId: absence.AbsenceTypeId,
+						AbsentAt:      d,
+					},
+				}
+
+				batch.Queue(a.createAgentAbsenceQuery(user, req))
+			}
+		}
 	}
 
-	cte := a.db.SQL().CTE(
-		a.db.SQL().With("agents").As(
-			a.db.SQL().Format("select unnest($?::int[]) id", agentIds),
-		),
-		a.db.SQL().With("absences").As(
-			a.db.SQL().Format("select absence_type_id::bigint, to_timestamp(absent_at_from::bigint) absent_at_from, to_timestamp(absent_at_to::bigint) absent_at_to from ($?) x (absence_type_id, absent_at_from, absent_at_to)", absences),
-		),
-		a.db.SQL().With("record").As(
-			a.db.SQL().Format("select $?::int as domain_id, $?::bigint as created_by, $?::bigint as updated_by", user.DomainId, user.Id, user.Id),
-		),
-	)
-
-	sb := a.db.SQL().Select("r.domain_id", "r.created_by", "r.updated_by", "s", "a.id", "ab.absence_type_id").With(cte)
-	sb.From(
-		sb.As("record", "r"),
-		sb.As("agents", "a"),
-		sb.As("absences", "ab"),
-		sb.As("generate_series(ab.absent_at_from::date, ab.absent_at_to::date, '1d'::interval)", "s"),
-	)
-
-	ib := a.db.SQL().Insert("wfm.agent_absence", nil).Cols("domain_id", "created_by", "updated_by", "absent_at", "agent_id", "absence_type_id")
-	sib := ib.Select("*")
-	sib.From(sib.BuilderAs(sb, "x")).SQL("RETURNING id")
-
-	sql, args := ib.Build()
-	if err := a.db.Primary().Select(ctx, &ids, sql, args...); err != nil {
+	var ids []int64
+	if err := batch.Select(ctx, &ids); err != nil {
 		return nil, err
 	}
 
-	return ids, nil
+	out, err := a.SearchAgentsAbsences(ctx, user, &model.AgentAbsenceSearch{Ids: ids})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) (*model.AgentAbsences, error) {
+	items, err := a.SearchAgentsAbsences(ctx, user, search)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) > 1 {
+		return nil, werror.NewDBEntityConflictError("storage.agent_absence.read.conflict")
+	}
+
+	if len(items) == 0 {
+		return nil, werror.NewDBNoRowsErr("storage.agent_absence.read")
+	}
+
+	return items[0], nil
 }
 
 func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) ([]*model.AgentAbsences, error) {
@@ -168,4 +195,17 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 	}
 
 	return items, nil
+}
+
+func (a *AgentAbsence) createAgentAbsenceQuery(user *model.SignedInUser, in *model.AgentAbsence) (string, []any) {
+	columns := map[string]any{
+		"domain_id":       user.DomainId,
+		"created_by":      user.Id,
+		"updated_by":      user.Id,
+		"absent_at":       in.Absence.AbsentAt,
+		"agent_id":        in.Agent.Id,
+		"absence_type_id": in.Absence.AbsenceTypeId,
+	}
+
+	return a.db.SQL().Insert(agentAbsenceTable, columns).SQL("RETURNING id").Build()
 }

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -319,7 +320,7 @@ func (t *Tracker) runShutdownHandlers(p *Process) {
 					}
 
 					addShutdownErr(err)
-					t.log.Error("panic encountered during shutdown hook", wlog.Err(err))
+					t.log.Error(fmt.Sprintf("panic encountered during shutdown hook: %s", debug.Stack()), wlog.Err(err))
 				}
 			}()
 

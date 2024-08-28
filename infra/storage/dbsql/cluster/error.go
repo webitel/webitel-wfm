@@ -14,7 +14,7 @@ import (
 
 func ParseError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
-		return werror.NewDBNoRowsErr("dbsql.pg.query.no_rows")
+		return werror.NewDBNoRowsErr("dbsql.pg.Query.no_rows")
 	}
 
 	var pgErr *pgconn.PgError
@@ -31,7 +31,7 @@ func ParseError(err error) error {
 		}
 	}
 
-	return werror.NewDBInternalError("dbsql.pg.query", err)
+	return werror.NewDBInternalError("dbsql.pg.Query", err)
 }
 
 var columnFinder = regexp.MustCompile(`Key \((.+)\)=`)

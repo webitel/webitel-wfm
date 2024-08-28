@@ -4,74 +4,71 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
+	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/compare"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type AgentAbsenceManager interface {
-	CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (int64, error)
-	UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) error
+	CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
+	ReadAgentAbsence(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.AgentAbsence, error)
+	UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
 	DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error
 
-	CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]int64, error)
+	CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error)
+	ReadAgentAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) (*model.AgentAbsences, error)
 	SearchAgentsAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) ([]*model.AgentAbsences, error)
 }
 
 type AgentAbsence struct {
 	store  AgentAbsenceManager
+	audit  *logger.Audit
 	engine *engine.Client
 }
 
-func NewAgentAbsence(store AgentAbsenceManager, engine *engine.Client) *AgentAbsence {
+func NewAgentAbsence(store AgentAbsenceManager, audit *logger.Audit, engine *engine.Client) *AgentAbsence {
 	return &AgentAbsence{
 		store:  store,
+		audit:  audit,
 		engine: engine,
 	}
 }
 
-func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (int64, error) {
+func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error) {
 	_, err := a.engine.Agent(ctx, in.Agent.Id)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err := a.store.CreateAgentAbsence(ctx, user, in)
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
-func (a *AgentAbsence) ReadAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId int64, search *model.SearchItem) (*model.AgentAbsence, error) {
-	items, err := a.ReadAgentAbsences(ctx, user, &model.AgentAbsenceSearch{SearchItem: *search, AgentIds: []int64{agentId}})
 	if err != nil {
 		return nil, err
 	}
 
-	if len(items.Absence) > 1 {
-		return nil, werror.NewDBEntityConflictError("service.agent_absence.read.conflict")
+	out, err := a.store.CreateAgentAbsence(ctx, user, in)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(items.Absence) == 0 {
-		return nil, werror.NewDBNoRowsErr("service.agent_absence.read")
+	if err := a.audit.Create(ctx, user, map[int64]any{out.Absence.Id: out}); err != nil {
+		return nil, err
 	}
 
-	return &model.AgentAbsence{Agent: items.Agent, Absence: items.Absence[0]}, nil
+	return out, nil
 }
 
-func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) error {
+func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error) {
 	_, err := a.engine.Agent(ctx, in.Agent.Id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := a.store.UpdateAgentAbsence(ctx, user, in); err != nil {
-		return err
+	out, err := a.store.UpdateAgentAbsence(ctx, user, in)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	if err := a.audit.Update(ctx, user, map[int64]any{out.Absence.Id: out}); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error {
@@ -81,6 +78,10 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.Signe
 	}
 
 	if err := a.store.DeleteAgentAbsence(ctx, user, agentId, id); err != nil {
+		return err
+	}
+
+	if err := a.audit.Delete(ctx, user, map[int64]any{id: nil}); err != nil {
 		return err
 	}
 
@@ -109,7 +110,7 @@ func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, user *model.Signed
 	return items[0], nil
 }
 
-func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]int64, error) {
+func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error) {
 	agents, err := a.engine.Agents(ctx, &model.AgentSearch{Ids: agentIds})
 	if err != nil {
 		return nil, err
@@ -120,12 +121,23 @@ func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model
 		return nil, werror.NewAuthForbiddenError("service.agent_absence.check_agents", "cc_agent", "read")
 	}
 
-	ids, err := a.store.CreateAgentsAbsencesBulk(ctx, user, agents, in)
+	out, err := a.store.CreateAgentsAbsencesBulk(ctx, user, agents, in)
 	if err != nil {
 		return nil, err
 	}
 
-	return ids, nil
+	records := make(map[int64]any)
+	for _, item := range out {
+		for _, absence := range item.Absence {
+			records[absence.Id] = absence
+		}
+	}
+
+	if err := a.audit.Create(ctx, user, records); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) ([]*model.AgentAbsences, bool, error) {

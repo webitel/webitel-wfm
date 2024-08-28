@@ -105,18 +105,18 @@ func (m *migrator) run(ctx context.Context) error {
 	return nil
 }
 
-type logger struct {
+type migrateLogger struct {
 	log *wlog.Logger
 }
 
-func newLogger(log *wlog.Logger) *logger {
-	return &logger{log: log}
+func newLogger(log *wlog.Logger) *migrateLogger {
+	return &migrateLogger{log: log}
 }
 
-func (l *logger) Printf(format string, args ...interface{}) {
+func (l *migrateLogger) Printf(format string, args ...interface{}) {
 	l.log.Info(fmt.Sprintf(format, args...))
 }
 
-func (l *logger) Fatalf(format string, args ...interface{}) {
+func (l *migrateLogger) Fatalf(format string, args ...interface{}) {
 	l.log.Error(fmt.Sprintf(format, args...))
 }

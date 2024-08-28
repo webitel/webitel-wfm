@@ -27,12 +27,12 @@ func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster,
 		return nil, err
 	}
 
-	conn, err := mockQueryer(t, db)
+	conn, err := mockDatabase(t, db)
 	if err != nil {
 		return nil, err
 	}
 
-	cl, err := cluster.NewCluster(log, map[string]cluster.Queryer{"mock": conn}, cluster.WithUpdate(false))
+	cl, err := cluster.NewCluster(log, map[string]cluster.Database{"mock": conn}, cluster.WithUpdate(false))
 	if err != nil {
 		return nil, err
 	}
@@ -56,9 +56,8 @@ func (t *TestStorageCluster) Mock() pgxmock.PgxPoolIface {
 	return t.dbmock
 }
 
-func mockQueryer(t *testing.T, db pgxmock.PgxPoolIface) (cluster.Queryer, error) {
-	conn := dbsqlmock.NewMockQueryer(t)
-	conn.EXPECT().Close().Return().Maybe()
+func mockDatabase(t *testing.T, db pgxmock.PgxPoolIface) (cluster.Database, error) {
+	conn := dbsqlmock.NewMockDatabase(t)
 	conn.EXPECT().Exec(mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(args []any) bool { return true })).
 		RunAndReturn(func(ctx context.Context, sql string, args []any) error {
 			if _, err := db.Exec(ctx, sql, args...); err != nil {

@@ -39,7 +39,7 @@ const (
 // NodeChecker is a signature for functions that check if a specific node is alive and is primary.
 // Returns true for primary and false if not.
 // If error is returned, the node is considered dead.
-// Check function can be used to perform a query returning single boolean value that signals
+// Check function can be used to perform a Query returning single boolean value that signals
 // if node is primary or not.
 type NodeChecker func(ctx context.Context, db Node) (bool, error)
 
@@ -47,59 +47,44 @@ type NodeChecker func(ctx context.Context, db Node) (bool, error)
 // Nodes passed to the picker function are sorted according to latency (from lowest to greatest).
 type NodePicker func(nodes []Node) Node
 
-// Queryer is an abstract database interface that can execute queries.
-// This is used to decouple from any particular database library.
-type Queryer interface {
-	Stdlib() *sql.DB
-	Close()
-
-	Exec(ctx context.Context, query string, args []any) error
-	Query(ctx context.Context, query string, args []any) (Rows, error)
-}
-
-// Rows is an abstract database rows that dbscan can iterate over and get the data from.
-// This interface is used to decouple from any particular database library.
-type Rows interface {
-	Close() error
-	Err() error
-	Next() bool
-	Columns() ([]string, error)
-	Scan(dest ...interface{}) error
-	NextResultSet() bool
-}
-
 // Node of single Cluster
 type Node interface {
 	Addr() string
-	Stdlib() *sql.DB
+	State() NodeState
+	SetState(state NodeState)
+	CompareState(state NodeState) bool
 	Close()
+	Stdlib() *sql.DB
 
 	Select(ctx context.Context, dest interface{}, query string, args ...any) error
 	Get(ctx context.Context, dest interface{}, query string, args ...any) error
 	Exec(ctx context.Context, query string, args ...any) error
-
-	State() NodeState
-	SetState(state NodeState)
-	CompareState(state NodeState) bool
+	WithBatch() Batcher
 }
 
 var _ Node = &sqlNode{}
 
 type sqlNode struct {
-	state   NodeState
-	addr    string
-	db      Queryer
+	state NodeState
+	addr  string
+
+	db      Database
+	queryer Queryer
 	scanner *dbscan.API
 }
 
 // newNode constructs node from Connection
-func newNode(addr string, db Queryer) (*sqlNode, error) {
+func newNode(addr string, db Database) (*sqlNode, error) {
 	scanner, err := dbscan.NewAPI()
 	if err != nil {
 		return nil, fmt.Errorf("create scan API client: %v", err)
 	}
 
-	return &sqlNode{addr: addr, db: db, scanner: scanner}, nil
+	return &sqlNode{addr: addr, db: db, queryer: db, scanner: scanner}, nil
+}
+
+func (n *sqlNode) WithBatch() Batcher {
+	return newSqlNodeBatch(n.db, n.scanner)
 }
 
 // Addr returns node's address
@@ -125,7 +110,7 @@ func (n *sqlNode) String() string {
 }
 
 func (n *sqlNode) Select(ctx context.Context, dest interface{}, query string, args ...any) error {
-	rows, err := n.db.Query(ctx, query, args)
+	rows, err := n.queryer.Query(ctx, query, args)
 	if err != nil {
 		return err
 	}
@@ -142,7 +127,7 @@ func (n *sqlNode) Select(ctx context.Context, dest interface{}, query string, ar
 }
 
 func (n *sqlNode) Get(ctx context.Context, dest interface{}, query string, args ...any) error {
-	rows, err := n.db.Query(ctx, query, args)
+	rows, err := n.queryer.Query(ctx, query, args)
 	if err != nil {
 		return err
 	}
@@ -155,7 +140,7 @@ func (n *sqlNode) Get(ctx context.Context, dest interface{}, query string, args 
 }
 
 func (n *sqlNode) Exec(ctx context.Context, query string, args ...any) error {
-	if err := n.db.Exec(ctx, query, args); err != nil {
+	if err := n.queryer.Exec(ctx, query, args); err != nil {
 		return err
 	}
 

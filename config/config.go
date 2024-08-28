@@ -35,6 +35,10 @@ type Consul struct {
 	Address string
 }
 
+type Pubsub struct {
+	Address string
+}
+
 // Tracing contains the OpenTelemetry address and propagation config values.
 type Tracing struct {
 	Type        string
@@ -60,6 +64,7 @@ type Config struct {
 	Cache    Cache
 
 	Consul Consul
+	Pubsub Pubsub
 }
 
 func New() *Config {

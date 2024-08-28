@@ -28,8 +28,8 @@ import (
 //
 // 2. Shut down infrastructure resources
 //
-// When all active tasks and [Handler.Shutdown] calls have completed, Encore begins shutting down
-// infrastructure resources. Encore automatically closes all open database connections, cache connections,
+// When all active tasks and [Handler.Shutdown] calls have completed, the Application begins shutting down
+// infrastructure resources. The Application automatically closes all open database connections, cache connections,
 // Pub/Sub connections, and other infrastructure resources.
 //
 // This phase continues until all infrastructure resources have been closed or the ForceShutdown deadline

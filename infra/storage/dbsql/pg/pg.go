@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
@@ -13,7 +14,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 )
 
-var _ cluster.Queryer = &Database{}
+var _ cluster.Database = &Database{}
 
 type Database struct {
 	log *wlog.Logger
@@ -39,16 +40,16 @@ func NewDatabase(ctx context.Context, log *wlog.Logger, dsn string) (*Database, 
 	return &Database{log: log, cli: dbpool}, nil
 }
 
-func (c *Database) Exec(ctx context.Context, query string, args []any) error {
-	if _, err := c.cli.Exec(ctx, query, args...); err != nil {
+func (db *Database) Exec(ctx context.Context, query string, args []any) error {
+	if _, err := db.cli.Exec(ctx, query, args...); err != nil {
 		return cluster.ParseError(err)
 	}
 
 	return nil
 }
 
-func (c *Database) Query(ctx context.Context, query string, args []any) (cluster.Rows, error) {
-	r, err := c.cli.Query(ctx, query, args...)
+func (db *Database) Query(ctx context.Context, query string, args []any) (cluster.Rows, error) {
+	r, err := db.cli.Query(ctx, query, args...)
 	if err != nil {
 		return nil, cluster.ParseError(err)
 	}
@@ -56,10 +57,19 @@ func (c *Database) Query(ctx context.Context, query string, args []any) (cluster
 	return NewRowsAdapter(r), nil
 }
 
-func (c *Database) Close() {
-	c.cli.Close()
+func (db *Database) SendBatch(ctx context.Context, queries []*cluster.Query) cluster.BatchResults {
+	b := pgx.Batch{}
+	for _, query := range queries {
+		b.Queue(query.SQL, query.Args...)
+	}
+
+	return NewBatchResultsAdapter(db.cli.SendBatch(ctx, &b))
 }
 
-func (c *Database) Stdlib() *sql.DB {
-	return stdlib.OpenDBFromPool(c.cli)
+func (db *Database) Close() {
+	db.cli.Close()
+}
+
+func (db *Database) Stdlib() *sql.DB {
+	return stdlib.OpenDBFromPool(db.cli)
 }

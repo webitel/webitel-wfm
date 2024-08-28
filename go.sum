@@ -12,6 +12,11 @@ buf.build/gen/go/webitel/engine/grpc/go v1.4.0-20240704112916-e6cc7cc3a9e3.2 h1:
 buf.build/gen/go/webitel/engine/grpc/go v1.4.0-20240704112916-e6cc7cc3a9e3.2/go.mod h1:VBmb7+XHB5xiS0WabDnJUFyaERCPhC0oR7sf6FeMrdE=
 buf.build/gen/go/webitel/engine/protocolbuffers/go v1.34.2-20240704112916-e6cc7cc3a9e3.2 h1:6iF+51IsOre3SJum1B2FZb7oFymMBlTHp1JKkYzD8dg=
 buf.build/gen/go/webitel/engine/protocolbuffers/go v1.34.2-20240704112916-e6cc7cc3a9e3.2/go.mod h1:87Yvj5Lb9Is4XRdFNpf9kSbLLLpa0mn1DMigt4QI/4M=
+buf.build/gen/go/webitel/logger/grpc/go v1.3.0-20240404135439-f6c7830c29dd.2 h1:VjuNgC5IBxiluubJlzotMDz7+X2OL6/y5f8qf2n33ys=
+buf.build/gen/go/webitel/logger/grpc/go v1.3.0-20240404135439-f6c7830c29dd.2/go.mod h1:L4+39Aj7/OPFWr3kvrhZhq4kciRq17/REXPvJoeime4=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.28.1-20240404135439-f6c7830c29dd.4/go.mod h1:T9sR5sIH4wvakg1gQF4NYUTYXIJ3I3yGmrGzp3i/bzE=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.33.0-20240404135439-f6c7830c29dd.1 h1:PfRFnl1amxgJ5ROwsTAMcDqMSG45DT26zgdPi/mzpRk=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.33.0-20240404135439-f6c7830c29dd.1/go.mod h1:DQNAvpN0IoKlFRfsE4Dov4hTDgeQoF2T/OdHhLCilFk=
 buf.build/gen/go/webitel/webitel-go/grpc/go v1.3.0-20240503115012-a17a535809fe.3 h1:AEh9BwbEusDH6wZrYkAJlJDh4J119b6pzRdWdfrT+KY=
 buf.build/gen/go/webitel/webitel-go/grpc/go v1.3.0-20240503115012-a17a535809fe.3/go.mod h1:3V2MSnUuiTPY4rWE0u32d8/GELCXvWN81ejYPIMAOEE=
 buf.build/gen/go/webitel/webitel-go/protocolbuffers/go v1.34.0-20240503115012-a17a535809fe.1 h1:QlC7e4ozSosnVOWwIn62T3ekMSgXMDCUQnOO3tojTJk=
@@ -1606,6 +1611,8 @@ github.com/prometheus/common v0.9.1/go.mod h1:yhUN8i9wzaXS3w1O07YhxHEBxD+W35wd8b
 github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d/go.mod h1:c3At6R/oaqEKCNdg8wHV1ftS6bRYblBhIjjI8uT2IGk=
 github.com/prometheus/procfs v0.0.2/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsTZCD3I8kEA=
 github.com/prometheus/procfs v0.0.8/go.mod h1:7Qr8sr6344vo1JqZ6HhLceV9o3AJ1Ff+GxbHq6oeK9A=
+github.com/rabbitmq/amqp091-go v1.10.0 h1:STpn5XsHlHGcecLmMFCtg7mqq0RnD+zFr4uzukfVhBw=
+github.com/rabbitmq/amqp091-go v1.10.0/go.mod h1:Hy4jKW5kQART1u+JkDTF9YYOQUHXqMuhrgxOEeS7G4o=
 github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
@@ -2520,6 +2527,7 @@ google.golang.org/protobuf v1.28.1/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqw
 google.golang.org/protobuf v1.29.1/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.30.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.31.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
+google.golang.org/protobuf v1.33.0/go.mod h1:c6P6GXX6sHbq/GpV6MGZEdwhWPcYBgnhAHhKbcUYpos=
 google.golang.org/protobuf v1.34.0/go.mod h1:c6P6GXX6sHbq/GpV6MGZEdwhWPcYBgnhAHhKbcUYpos=
 google.golang.org/protobuf v1.34.2 h1:6xV6lTsCfpGD21XK49h7MhtcApnLqkfYgPcdHftf6hg=
 google.golang.org/protobuf v1.34.2/go.mod h1:qYOHts0dSfpeUzUFpOMr/WGzszTmLH+DiWniOlNbLDw=

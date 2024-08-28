@@ -44,6 +44,7 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 			Token:    session.Id,
 			DomainId: session.DomainId,
 			Id:       session.UserId,
+			Object:   objClass,
 			UseRBAC:  useRBAC,
 			RbacOptions: model.RbacOptions{
 				Groups: session.GetAclRoles(),

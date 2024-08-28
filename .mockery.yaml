@@ -13,6 +13,7 @@ packages:
       AuthManager:
   github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster:
     interfaces:
+      Database:
       Queryer:
   github.com/webitel/webitel-wfm/internal/handler:
     interfaces:

@@ -9,12 +9,11 @@ import (
 )
 
 type AgentAbsenceManager interface {
-	CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (int64, error)
-	ReadAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId int64, search *model.SearchItem) (*model.AgentAbsence, error)
-	UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) error
+	CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
+	UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
 	DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error
 
-	CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]int64, error)
+	CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error)
 	ReadAgentAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) (*model.AgentAbsences, error)
 	SearchAgentsAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) ([]*model.AgentAbsences, bool, error)
 }
@@ -33,12 +32,7 @@ func NewAgentAbsence(svc AgentAbsenceManager) *AgentAbsence {
 
 func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, in *pb.CreateAgentAbsenceRequest) (*pb.CreateAgentAbsenceResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := a.svc.CreateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := a.svc.ReadAgentAbsence(ctx, s.SignedInUser, in.Item.Agent.Id, &model.SearchItem{Id: id})
+	out, err := a.svc.CreateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
 	if err != nil {
 		return nil, err
 	}
@@ -48,11 +42,7 @@ func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, in *pb.CreateAgen
 
 func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, in *pb.UpdateAgentAbsenceRequest) (*pb.UpdateAgentAbsenceResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	if err := a.svc.UpdateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item)); err != nil {
-		return nil, err
-	}
-
-	out, err := a.svc.ReadAgentAbsence(ctx, s.SignedInUser, in.Item.Agent.Id, &model.SearchItem{Id: in.Item.Absence.Id})
+	out, err := a.svc.UpdateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +82,7 @@ func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, in *pb.Crea
 		return nil, err
 	}
 
-	return &pb.CreateAgentsAbsencesBulkResponse{Items: out}, nil
+	return &pb.CreateAgentsAbsencesBulkResponse{Items: marshalAgentsAbsences(out)}, nil
 }
 
 func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, in *pb.SearchAgentsAbsencesRequest) (*pb.SearchAgentsAbsencesResponse, error) {

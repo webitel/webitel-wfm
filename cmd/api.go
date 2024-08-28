@@ -27,12 +27,14 @@ import (
 	"github.com/webitel/webitel-wfm/config"
 	pb "github.com/webitel/webitel-wfm/gen/go/api"
 	"github.com/webitel/webitel-wfm/infra/health"
+	"github.com/webitel/webitel-wfm/infra/pubsub"
 	"github.com/webitel/webitel-wfm/infra/server"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
+	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/internal/handler"
 )
 
@@ -96,6 +98,15 @@ func apiFlags(cfg *config.Config) []cli.Flag {
 			Aliases:     []string{"c"},
 			EnvVars:     []string{"MICRO_REGISTRY_ADDRESS"},
 		},
+		&cli.StringFlag{
+			Name:        "pubsub",
+			Category:    "service/pubsub",
+			Usage:       "publish/subscribe rabbitmq broker connection string",
+			Value:       "amqp://webitel:webitel@127.0.0.1:5672/",
+			Destination: &cfg.Pubsub.Address,
+			Aliases:     []string{"p"},
+			EnvVars:     []string{"MICRO_BROKER_ADDRESS"},
+		},
 		&cli.Int64Flag{
 			Name:        "cache-size",
 			Category:    "storage/cache",
@@ -142,11 +153,14 @@ type app struct {
 }
 
 type resources struct {
-	storage cluster.Store
-	cache   cache.Manager
-	authcli authmanager.AuthManager
-	engine  *engine.Client
-	sd      discovery.ServiceDiscovery
+	storage   cluster.Store
+	cache     cache.Manager
+	authcli   authmanager.AuthManager
+	engine    *engine.Client
+	loggercli *logger.Client
+	audit     *logger.Audit
+	sd        discovery.ServiceDiscovery
+	ps        *pubsub.Manager
 }
 
 type handlers struct {
@@ -242,6 +256,18 @@ func (a *app) run(ctx context.Context) error {
 	})
 
 	a.eg.Go(func() error {
+		return a.resources.ps.Start()
+	})
+
+	a.eg.Go(func() error {
+		if err := a.resources.loggercli.Сonn.Start(); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	a.eg.Go(func() error {
 		l, err := net.Listen("tcp", a.cfg.Service.Address)
 		if err != nil {
 			return err
@@ -328,7 +354,7 @@ func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, healt
 		return nil, err
 	}
 
-	conn, err := cluster.NewCluster(log, conns)
+	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate(true))
 	if err != nil {
 		return nil, err
 	}
@@ -397,4 +423,25 @@ func rpcServer(log *wlog.Logger, h *handlers, authcli authmanager.AuthManager, t
 	pb.RegisterAgentAbsenceServiceServer(srv, h.agentAbsence)
 
 	return srv, nil
+}
+
+func pubsubConn(log *wlog.Logger, cfg *config.Config, tracker *shutdown.Tracker) (*pubsub.Manager, error) {
+	ps, err := pubsub.New(log, cfg.Pubsub.Address)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tracker.RegisterShutdownHandler("pubsub", ps); err != nil {
+		return nil, err
+	}
+
+	return ps, nil
+}
+
+func webitelLogger(log *wlog.Logger, sd discovery.ServiceDiscovery) (*logger.Client, error) {
+	return logger.New(log, sd)
+}
+
+func audit(svc *logger.Client, pub *pubsub.Manager) *logger.Audit {
+	return logger.NewAudit(svc.ConfigService, pub)
 }

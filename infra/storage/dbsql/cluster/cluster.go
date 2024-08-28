@@ -84,7 +84,7 @@ type Cluster struct {
 
 // NewCluster constructs Cluster object representing a single 'Cluster' of SQL database.
 // Close function must be called when a Cluster isn't necessary anymore.
-func NewCluster(log *wlog.Logger, conns map[string]Queryer, opts ...Option) (*Cluster, error) {
+func NewCluster(log *wlog.Logger, conns map[string]Database, opts ...Option) (*Cluster, error) {
 	if len(conns) == 0 {
 		return nil, errors.New("please provide at least one database connection")
 	}

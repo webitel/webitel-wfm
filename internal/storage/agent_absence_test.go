@@ -98,12 +98,12 @@ func (s *agentAbsenceTestSuite) TestCreateAgentAbsence() {
 
 			rows := pgxmock.NewRows([]string{"id"}).AddRow(int64(1))
 			s.cluster.Mock().ExpectQuery(sql).WithArgs(args...).WillReturnRows(rows)
-			id, err := s.store.CreateAgentAbsence(ctx, tt.user, tt.in)
+			out, err := s.store.CreateAgentAbsence(ctx, tt.user, tt.in)
 			if err != nil {
 				s.T().Error(err)
 			}
 
-			s.Equal(id, tt.expected.out)
+			s.Equal(tt.expected.out, out.Absence.Id)
 		})
 	}
 
@@ -172,7 +172,8 @@ func (s *agentAbsenceTestSuite) TestUpdateAgentAbsence() {
 			}
 
 			s.cluster.Mock().ExpectExec(sql).WithArgs(args...).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
-			if err := s.store.UpdateAgentAbsence(ctx, tt.user, tt.in); err != nil {
+			_, err := s.store.UpdateAgentAbsence(ctx, tt.user, tt.in)
+			if err != nil {
 				s.T().Error(err)
 			}
 		})

@@ -20,7 +20,7 @@ import (
 
 var wireResourceSet = wire.NewSet(
 	sqlStorage, wire.Bind(new(cluster.Store), new(*cluster.Cluster)),
-	inmemoryCache, serviceDiscovery, auth, webitelEngine,
+	inmemoryCache, serviceDiscovery, auth, webitelEngine, pubsubConn, webitelLogger, audit,
 )
 
 var wireHandlersSet = wire.NewSet(
@@ -53,7 +53,7 @@ func initResources(context.Context, *config.Config, *wlog.Logger, *health.CheckR
 
 func initHandlers(*wlog.Logger, *resources) (*handlers, error) {
 	wire.Build(wireHandlersSet,
-		wire.FieldsOf(new(*resources), "cache", "storage", "engine"),
+		wire.FieldsOf(new(*resources), "cache", "storage", "engine", "audit"),
 		wire.Struct(new(handlers), "*"),
 	)
 

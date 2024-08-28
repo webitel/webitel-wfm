@@ -24,12 +24,8 @@ type Tracer struct {
 
 func DefaultTracer(log *wlog.Logger) Tracer {
 	return Tracer{
-		UpdateNodes: func() {
-			log.Debug("started updating nodes")
-		},
-		UpdatedNodes: func(nodes AliveNodes) {
-			log.Debug("finished updating nodes", wlog.Any("alive.nodes", nodes))
-		},
+		UpdateNodes:  func() {},
+		UpdatedNodes: func(_ AliveNodes) {},
 		NodeDead: func(node Node, err error) {
 			log.Warn("node is dead", wlog.Any("node", node), wlog.Err(err))
 		},

@@ -68,6 +68,7 @@ type AgentAbsenceSearch struct {
 	AbsentAtFrom pgtype.Timestamp
 	AbsentAtTo   pgtype.Timestamp
 
+	Ids           []int64
 	AgentIds      []int64
 	SupervisorIds []int64
 	TeamIds       []int64
@@ -86,6 +87,10 @@ func (a *AgentAbsenceSearch) Where(search string) *builder.WhereClause {
 
 	if len(a.AgentIds) > 0 {
 		wb.AddWhereExpr(wb.Args, wb.Any("(agent ->> 'id')::bigint", "=", a.AgentIds))
+	}
+
+	if len(a.Ids) > 0 {
+		wb.AddWhereExpr(wb.Args, wb.Any("id", "=", a.Ids))
 	}
 
 	return wb

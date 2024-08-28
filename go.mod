@@ -6,6 +6,8 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.34.2-20240508200655-46a4cf4ba109.2
 	buf.build/gen/go/webitel/engine/grpc/go v1.4.0-20240704112916-e6cc7cc3a9e3.2
 	buf.build/gen/go/webitel/engine/protocolbuffers/go v1.34.2-20240704112916-e6cc7cc3a9e3.2
+	buf.build/gen/go/webitel/logger/grpc/go v1.3.0-20240404135439-f6c7830c29dd.2
+	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.33.0-20240404135439-f6c7830c29dd.1
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/bufbuild/protovalidate-go v0.6.3
 	github.com/georgysavva/scany/v2 v2.1.3
@@ -18,6 +20,7 @@ require (
 	github.com/kirychukyurii/protoc-gen-go-webitel v0.0.0-20240704133532-5da4da45701d
 	github.com/pashagolub/pgxmock/v4 v4.2.0
 	github.com/pressly/goose/v3 v3.21.1
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.4
 	github.com/webitel/engine v0.0.0-20240620111912-86e1807cf401
