@@ -260,7 +260,7 @@ func (a *app) run(ctx context.Context) error {
 	})
 
 	a.eg.Go(func() error {
-		if err := a.resources.loggercli.Сonn.Start(); err != nil {
+		if err := a.resources.loggercli.Conn.Start(); err != nil {
 			return err
 		}
 

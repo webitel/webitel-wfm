@@ -16,7 +16,7 @@ var serviceName = "logger"
 type Client struct {
 	*ConfigService
 
-	Сonn *webitel.ConnectionManager[*webitel.Connection]
+	Conn *webitel.ConnectionManager[*webitel.Connection]
 }
 
 func New(log *wlog.Logger, sd discovery.ServiceDiscovery) (*Client, error) {
@@ -30,17 +30,17 @@ func New(log *wlog.Logger, sd discovery.ServiceDiscovery) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{Сonn: c, ConfigService: cfgSvc}, nil
+	return &Client{Conn: c, ConfigService: cfgSvc}, nil
 }
 
 func (c *Client) Shutdown(p *shutdown.Process) error {
-	c.Сonn.Stop()
+	c.Conn.Stop()
 
 	return nil
 }
 
 func (c *Client) HealthCheck(ctx context.Context) []health.CheckResult {
-	_, err := c.Сonn.Connection()
+	_, err := c.Conn.Connection()
 	if err != nil {
 		return []health.CheckResult{{Name: serviceName, Err: err}}
 	}
