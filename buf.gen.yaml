@@ -21,7 +21,7 @@ plugins:
     out: gen/openapiv2
 
   # Generate Webitel Service APIs specification (such as objclass, method permission access, ...)
-  - local: ["go", "run", "github.com/webitel/webitel-go-kit/cmd/protoc-gen-go-webitel"]
+  - local: ["go", "run", "github.com/webitel/webitel-go-kit/cmd/protoc-gen-go-webitel@v0.0.17"]
     out: gen/go/api
 
 inputs:
