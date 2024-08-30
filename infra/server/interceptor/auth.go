@@ -34,9 +34,22 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 			return nil, werror.NewAuthInvalidSessionError("interceptor.auth.session", token, err)
 		}
 
-		objClass, action := objClassWithAction(info)
+		objClass, licenses, action := objClassWithAction(info)
+		if len(licenses) > 0 {
+			nfl := make([]string, 0, len(licenses)) // not found licenses
+			for _, license := range licenses {
+				if !session.HasLicense(license) {
+					nfl = append(nfl, license)
+				}
+			}
+
+			if len(nfl) > 0 {
+				return nil, werror.NewAuthLicenseRequiredError("interceptor.auth.license", objClass, nfl)
+			}
+		}
+
 		ok, useRBAC := validateSessionPermission(session, objClass, action)
-		if ok { // FIXME: must be !ok
+		if !ok { // FIXME: must be !ok
 			return nil, werror.NewAuthForbiddenError("interceptor.auth.permission", action.Name(), objClass)
 		}
 
@@ -91,12 +104,13 @@ func validateSession(authcli auth_manager.AuthManager, token string) (*auth_mana
 	return session, nil
 }
 
-func objClassWithAction(info *grpc.UnaryServerInfo) (string, auth_manager.PermissionAccess) {
+func objClassWithAction(info *grpc.UnaryServerInfo) (string, []string, auth_manager.PermissionAccess) {
 	service, method := splitFullMethodName(info.FullMethod)
 	objClass := pb.WebitelAPI[service].ObjClass
+	licenses := pb.WebitelAPI[service].AdditionalLicenses
 	action := pb.WebitelAPI[service].WebitelMethods[method].Access
 
-	return objClass, auth_manager.PermissionAccess(action)
+	return objClass, licenses, auth_manager.PermissionAccess(action)
 }
 
 func validateSessionPermission(session *auth_manager.Session, objClass string, action auth_manager.PermissionAccess) (bool, bool) {

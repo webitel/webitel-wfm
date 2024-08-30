@@ -17,8 +17,13 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 			var rpc *werror.RPCError
 
 			switch v := err.(type) {
-			case werror.AuthForbiddenError:
-				rpc = werror.NewRPCError(v.Id(), codes.PermissionDenied, v.RPCError())
+			case werror.AuthForbiddenError, werror.AuthLicenseRequiredError:
+				if e, ok := v.(interface {
+					Id() string
+					RPCError() string
+				}); ok {
+					rpc = werror.NewRPCError(e.Id(), codes.PermissionDenied, e.RPCError())
+				}
 			case werror.AuthInvalidSessionError, werror.AuthInvalidTokenError:
 				if e, ok := v.(interface {
 					Id() string

@@ -2,6 +2,7 @@ package werror
 
 import (
 	"fmt"
+	"strings"
 )
 
 type AuthInvalidTokenError struct {
@@ -52,6 +53,37 @@ func (e AuthInvalidSessionError) RPCError() string {
 }
 
 func (e AuthInvalidSessionError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Id(), e.RPCError())
+}
+
+type AuthLicenseRequiredError struct {
+	id       string
+	Scope    string
+	Licenses []string
+}
+
+func NewAuthLicenseRequiredError(id string, scope string, licenses []string) AuthLicenseRequiredError {
+	return AuthLicenseRequiredError{
+		id:       id,
+		Scope:    scope,
+		Licenses: licenses,
+	}
+}
+
+func (e AuthLicenseRequiredError) Id() string {
+	return e.id
+}
+
+func (e AuthLicenseRequiredError) RPCError() string {
+	w := "license"
+	if len(e.Licenses) > 1 {
+		w = "licenses"
+	}
+
+	return fmt.Sprintf("%s %s required on resource %s", w, strings.Join(e.Licenses, ", "), e.Scope)
+}
+
+func (e AuthLicenseRequiredError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Id(), e.RPCError())
 }
 
