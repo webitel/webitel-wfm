@@ -11,18 +11,14 @@ import (
 	authmanager "github.com/webitel/engine/auth_manager"
 	"github.com/webitel/engine/discovery"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
-	otelsdk "github.com/webitel/webitel-go-kit/otel/sdk"
-	otellog "go.opentelemetry.io/otel/log"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"golang.org/x/sync/errgroup"
 
-	_ "github.com/webitel/webitel-go-kit/otel/sdk/log/otlp"
-	_ "github.com/webitel/webitel-go-kit/otel/sdk/log/stdout"
-	_ "github.com/webitel/webitel-go-kit/otel/sdk/metric/otlp"
-	_ "github.com/webitel/webitel-go-kit/otel/sdk/metric/stdout"
-	_ "github.com/webitel/webitel-go-kit/otel/sdk/trace/otlp"
-	_ "github.com/webitel/webitel-go-kit/otel/sdk/trace/stdout"
+	// _ "github.com/webitel/webitel-go-kit/otel/sdk/log/otlp"
+	// _ "github.com/webitel/webitel-go-kit/otel/sdk/log/stdout"
+	// _ "github.com/webitel/webitel-go-kit/otel/sdk/metric/otlp"
+	// _ "github.com/webitel/webitel-go-kit/otel/sdk/metric/stdout"
+	// _ "github.com/webitel/webitel-go-kit/otel/sdk/trace/otlp"
+	// _ "github.com/webitel/webitel-go-kit/otel/sdk/trace/stdout"
 
 	"github.com/webitel/webitel-wfm/config"
 	pb "github.com/webitel/webitel-wfm/gen/go/api"
@@ -179,20 +175,20 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 	defer close(startedCh)
 
 	check := health.NewCheckRegistry(log)
-	service := otelsdk.WithResource(resource.NewSchemaless(semconv.ServiceName(serviceName),
-		semconv.ServiceVersion(version),
-		semconv.ServiceInstanceID(cfg.Service.NodeID),
-		semconv.ServiceNamespace("webitel"),
-	))
+	// service := otelsdk.WithResource(resource.NewSchemaless(semconv.ServiceName(serviceName),
+	// 	semconv.ServiceVersion(version),
+	// 	semconv.ServiceInstanceID(cfg.Service.NodeID),
+	// 	semconv.ServiceNamespace("webitel"),
+	// ))
+	//
+	// shutdownFunc, err := otelsdk.Setup(ctx, service, otelsdk.WithLogLevel(otellog.SeverityDebug))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	shutdownFunc, err := otelsdk.Setup(ctx, service, otelsdk.WithLogLevel(otellog.SeverityDebug))
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tracker.RegisterShutdownHandlerFunc("otel", func(p *shutdown.Process) error { return shutdownFunc(ctx) }); err != nil {
-		return nil, err
-	}
+	// if err := tracker.RegisterShutdownHandlerFunc("otel", func(p *shutdown.Process) error { return shutdownFunc(ctx) }); err != nil {
+	// 	return nil, err
+	// }
 
 	// Initialize all application resources (database, cache, servers, etc...)
 	// using generated code by github.com/google/wire.
