@@ -51,7 +51,7 @@ CREATE TRIGGER tg_pause_template_set_rbac_acl
     AFTER INSERT
     ON wfm.pause_template
     FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_obj_default_rbac('pause_template_acl');
+EXECUTE PROCEDURE wfm.tg_obj_default_rbac('pause_templates');
 
 CREATE VIEW wfm.pause_template_v AS
 SELECT t.id                                    AS id

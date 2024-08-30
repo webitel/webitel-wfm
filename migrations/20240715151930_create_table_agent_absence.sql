@@ -52,7 +52,7 @@ CREATE TRIGGER tg_agent_absence_set_rbac_acl
     AFTER INSERT
     ON wfm.agent_absence
     FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_obj_default_rbac('agent_absence_acl');
+EXECUTE PROCEDURE wfm.tg_obj_default_rbac('agent_absences');
 
 CREATE VIEW wfm.agent_absence_v AS
 SELECT t.id                                                            AS id

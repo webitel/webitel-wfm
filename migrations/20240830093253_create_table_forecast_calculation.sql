@@ -52,7 +52,7 @@ CREATE TRIGGER tg_forecast_calculation_set_rbac_acl
     AFTER INSERT
     ON wfm.forecast_calculation
     FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_obj_default_rbac('forecast_calculation_acl');
+EXECUTE PROCEDURE wfm.tg_obj_default_rbac('forecast_calculations');
 
 CREATE VIEW wfm.forecast_calculation_v AS
 SELECT t.id                                    AS id

@@ -70,7 +70,7 @@ CREATE TRIGGER tg_working_condition_set_rbac_acl
     AFTER INSERT
     ON wfm.working_condition
     FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_obj_default_rbac('working_condition_acl');
+EXECUTE PROCEDURE wfm.tg_obj_default_rbac('working_conditions');
 
 CREATE VIEW wfm.working_condition_v AS
 SELECT t.id                                        AS id

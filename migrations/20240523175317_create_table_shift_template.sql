@@ -51,7 +51,7 @@ CREATE TRIGGER tg_shift_template_set_rbac_acl
     AFTER INSERT
     ON wfm.shift_template
     FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_obj_default_rbac('shift_template_acl');
+EXECUTE PROCEDURE wfm.tg_obj_default_rbac('shift_templates');
 
 CREATE VIEW wfm.shift_template_v AS
 SELECT t.id                                    AS id
