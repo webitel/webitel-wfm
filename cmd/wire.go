@@ -55,7 +55,7 @@ func initResources(context.Context, *config.Config, *wlog.Logger, *health.CheckR
 	return &resources{}, nil
 }
 
-func initHandlers(*wlog.Logger, *resources) (*handlers, error) {
+func initHandlers(*wlog.Logger, *resources, cluster.ForecastStore) (*handlers, error) {
 	wire.Build(wireHandlersSet,
 		wire.FieldsOf(new(*resources), "cache", "storage", "engine", "audit"),
 		wire.Struct(new(handlers), "*"),

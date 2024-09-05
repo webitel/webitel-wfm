@@ -1,4 +1,4 @@
-package cluster
+package errors
 
 import (
 	"errors"
@@ -13,24 +13,24 @@ import (
 
 func ParseError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
-		return werror.NewDBNoRowsErr("dbsql.pg.Query.no_rows")
+		return werror.NewDBNoRowsErr("dbsql.errors.query.no_rows")
 	}
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case pgerrcode.UniqueViolation:
-			return werror.NewDBUniqueViolationError("dbsql.pg.unique_violation", findColumn(pgErr.Detail), findValue(pgErr.Detail))
+			return werror.NewDBUniqueViolationError("dbsql.errors.unique_violation", findColumn(pgErr.Detail), findValue(pgErr.Detail))
 		case pgerrcode.ForeignKeyViolation:
-			return werror.NewDBForeignKeyViolationError("dbsql.pg.foreign_key_violation", pgErr.ColumnName, findValue(pgErr.Detail), findForeignKeyTable(pgErr.Detail))
+			return werror.NewDBForeignKeyViolationError("dbsql.errors.foreign_key_violation", pgErr.ColumnName, findValue(pgErr.Detail), findForeignKeyTable(pgErr.Detail))
 		case pgerrcode.CheckViolation:
-			return werror.NewDBCheckViolationError("dbsql.pg.check_violation", pgErr.ConstraintName)
+			return werror.NewDBCheckViolationError("dbsql.errors.check_violation", pgErr.ConstraintName)
 		case pgerrcode.NotNullViolation:
-			return werror.NewDBNotNullViolationError("dbsql.pg.not_null_violation", pgErr.ColumnName)
+			return werror.NewDBNotNullViolationError("dbsql.errors.not_null_violation", pgErr.ColumnName)
 		}
 	}
 
-	return werror.NewDBInternalError("dbsql.pg.Query", err)
+	return werror.NewDBInternalError("dbsql.errors", err)
 }
 
 var columnFinder = regexp.MustCompile(`Key \((.+)\)=`)

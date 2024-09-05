@@ -12,6 +12,8 @@ import (
 	otelpgx "github.com/webitel/webitel-go-kit/tracing/pgx"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/errors"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 var _ cluster.Database = &Database{}
@@ -40,18 +42,23 @@ func NewDatabase(ctx context.Context, log *wlog.Logger, dsn string) (*Database, 
 	return &Database{log: log, cli: dbpool}, nil
 }
 
-func (db *Database) Exec(ctx context.Context, query string, args []any) error {
-	if _, err := db.cli.Exec(ctx, query, args...); err != nil {
-		return cluster.ParseError(err)
+func (db *Database) Exec(ctx context.Context, query string, args ...any) error {
+	res, err := db.cli.Exec(ctx, query, args...)
+	if err != nil {
+		return errors.ParseError(err)
+	}
+
+	if res.RowsAffected() == 0 {
+		return werror.NewDBNoRowsErr("pg.exec.rows_affected")
 	}
 
 	return nil
 }
 
-func (db *Database) Query(ctx context.Context, query string, args []any) (cluster.Rows, error) {
+func (db *Database) Query(ctx context.Context, query string, args ...any) (cluster.Rows, error) {
 	r, err := db.cli.Query(ctx, query, args...)
 	if err != nil {
-		return nil, cluster.ParseError(err)
+		return nil, errors.ParseError(err)
 	}
 
 	return NewRowsAdapter(r), nil

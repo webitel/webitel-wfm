@@ -14,6 +14,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 )
 
 // Default values for Cluster config
@@ -57,6 +58,9 @@ type Store interface {
 	SQL() *builder.Builder
 }
 
+// ForecastStore is a type alias for plumbing it through Wire.
+type ForecastStore Store
+
 // Cluster consists of number of 'nodes' of a single SQL database.
 // Background goroutine periodically checks nodes and updates their status.
 type Cluster struct {
@@ -80,6 +84,7 @@ type Cluster struct {
 	waiters   []nodeWaiter
 
 	builder *builder.Builder
+	scanner scanner.Scanner
 }
 
 // NewCluster constructs Cluster object representing a single 'Cluster' of SQL database.
@@ -89,14 +94,9 @@ func NewCluster(log *wlog.Logger, conns map[string]Database, opts ...Option) (*C
 		return nil, errors.New("please provide at least one database connection")
 	}
 
-	nodes := make([]Node, 0, len(conns))
-	for i, c := range conns {
-		n, err := newNode(i, c)
-		if err != nil {
-			return nil, err
-		}
-
-		nodes = append(nodes, n)
+	s, err := scanner.NewDBScan()
+	if err != nil {
+		return nil, fmt.Errorf("create scan API client: %v", err)
 	}
 
 	cl := &Cluster{
@@ -106,20 +106,30 @@ func NewCluster(log *wlog.Logger, conns map[string]Database, opts ...Option) (*C
 		updateTimeout:  DefaultUpdateTimeout,
 		checker:        PostgreSQL,
 		picker:         PickNodeClosest(),
-		nodes:          nodes,
+		nodes:          make([]Node, 0, len(conns)),
 		errCollector:   newErrorsCollector(),
 		builder:        builder.NewBuilder(sqlbuilder.PostgreSQL),
+		scanner:        s,
 	}
 
 	for _, opt := range opts {
 		opt(cl)
 	}
 
+	for i, c := range conns {
+		n, err := newNode(i, c, cl.scanner)
+		if err != nil {
+			return nil, err
+		}
+
+		cl.nodes = append(cl.nodes, n)
+	}
+
 	// Store initial nodes state.
 	cl.aliveNodes.Store(AliveNodes{
-		Alive:     nodes,
-		Primaries: nodes,
-		Standbys:  nodes,
+		Alive:     cl.nodes,
+		Primaries: cl.nodes,
+		Standbys:  cl.nodes,
 	})
 
 	if cl.update {

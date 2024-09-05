@@ -12,6 +12,7 @@ type ForecastCalculationManager interface {
 	SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, error)
 	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) ([]*model.ForecastCalculationResult, error)
 }
 
 type ForecastCalculation struct {
@@ -70,6 +71,15 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 	out, err := f.storage.DeleteForecastCalculation(ctx, user, id)
 	if err != nil {
 		return 0, err
+	}
+
+	return out, nil
+}
+
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) ([]*model.ForecastCalculationResult, error) {
+	out, err := f.storage.ExecuteForecastCalculation(ctx, user, id)
+	if err != nil {
+		return nil, err
 	}
 
 	return out, nil

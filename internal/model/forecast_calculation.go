@@ -1,6 +1,10 @@
 package model
 
-import pb "github.com/webitel/webitel-wfm/gen/go/api"
+import (
+	"fmt"
+
+	pb "github.com/webitel/webitel-wfm/gen/go/api"
+)
 
 type ForecastCalculation struct {
 	DomainRecord
@@ -30,4 +34,23 @@ func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
 	}
 
 	return out
+}
+
+type ForecastCalculationResult struct {
+	Name   string
+	Type   string
+	Values []any
+}
+
+func (f *ForecastCalculationResult) MarshalProto() *pb.ExecuteForecastCalculationResponse_Field {
+	val := make([]string, 0, len(f.Values))
+	for _, v := range f.Values {
+		val = append(val, fmt.Sprintf("%v", v))
+	}
+
+	return &pb.ExecuteForecastCalculationResponse_Field{
+		Name:   f.Name,
+		Type:   f.Type,
+		Values: val,
+	}
 }

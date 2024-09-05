@@ -15,7 +15,7 @@ type ForecastCalculationManager interface {
 	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
-	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) error
+	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) ([]*model.ForecastCalculationResult, error)
 }
 
 type ForecastCalculation struct {
@@ -89,19 +89,35 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req
 }
 
 func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, req *pb.ExecuteForecastCalculationRequest) (*pb.ExecuteForecastCalculationResponse, error) {
-	panic("implement me")
+	s := grpccontext.FromContext(ctx)
+	out, err := f.svc.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ExecuteForecastCalculationResponse{Fields: marshalForecastCalculationResultsProto(out)}, nil
 }
 
 func unmarshalForecastCalculationProto(in *pb.ForecastCalculation) *model.ForecastCalculation {
 	return &model.ForecastCalculation{
-		Name:        in.GetName(),
-		Description: in.Description,
-		Query:       in.Query,
+		DomainRecord: model.DomainRecord{Id: in.Id},
+		Name:         in.GetName(),
+		Description:  in.Description,
+		Query:        in.Query,
 	}
 }
 
 func marshalForecastCalculationBulkProto(in []*model.ForecastCalculation) []*pb.ForecastCalculation {
 	out := make([]*pb.ForecastCalculation, 0, len(in))
+	for _, i := range in {
+		out = append(out, i.MarshalProto())
+	}
+
+	return out
+}
+
+func marshalForecastCalculationResultsProto(in []*model.ForecastCalculationResult) []*pb.ExecuteForecastCalculationResponse_Field {
+	out := make([]*pb.ExecuteForecastCalculationResponse_Field, 0, len(in))
 	for _, i := range in {
 		out = append(out, i.MarshalProto())
 	}

@@ -103,6 +103,14 @@ func apiFlags(cfg *config.Config) []cli.Flag {
 			Aliases:     []string{"p"},
 			EnvVars:     []string{"MICRO_BROKER_ADDRESS"},
 		},
+		&cli.StringFlag{
+			Name:        "forecast-calculation",
+			Category:    "storage/database",
+			Usage:       "persistent database driver name and a driver-specific data source name for executing forecast calculation queries",
+			Value:       "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable",
+			Destination: &cfg.Database.ForecastCalculationDSN,
+			Aliases:     []string{"fc"},
+		},
 		&cli.Int64Flag{
 			Name:        "cache-size",
 			Category:    "storage/cache",
@@ -165,6 +173,7 @@ type handlers struct {
 	workingCondition       *handler.WorkingCondition
 	agentWorkingConditions *handler.AgentWorkingConditions
 	agentAbsence           *handler.AgentAbsence
+	forecastCalculation    *handler.ForecastCalculation
 }
 
 func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *shutdown.Tracker) (*app, error) {
@@ -197,15 +206,22 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 		return nil, err
 	}
 
+	// Initialize database cluster with checks for executing forecast
+	// calculation queries.
+	fs, err := forecastStorage(ctx, cfg, log, check, tracker)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create handlers for gRPC service using generated code
 	// by github.com/google/wire.
-	h, err := initHandlers(log, res)
+	h, err := initHandlers(log, res, fs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create gRPC server and register handlers.
-	grpcServer, err := rpcServer(log, h, res.authcli, tracker)
+	grpcServer, err := rpcServer(log, cfg, h, res.authcli, tracker)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +366,28 @@ func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, healt
 		return nil, err
 	}
 
-	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate(true))
+	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tracker.RegisterShutdownHandler(scope, conn); err != nil {
+		return nil, err
+	}
+
+	health.Register(conn)
+
+	return conn, nil
+}
+
+func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*cluster.Cluster, error) {
+	const scope = "forecast-sql-storage"
+	conns, err := dbsql.NewConnections(ctx, log, cfg.Database.ForecastCalculationDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate(), cluster.WithFrameScan())
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +437,7 @@ func webitelEngine(log *wlog.Logger, sd discovery.ServiceDiscovery, health *heal
 	return conn, nil
 }
 
-func rpcServer(log *wlog.Logger, h *handlers, authcli authmanager.AuthManager, tracker *shutdown.Tracker) (*server.Server, error) {
+func rpcServer(log *wlog.Logger, cfg *config.Config, h *handlers, authcli authmanager.AuthManager, tracker *shutdown.Tracker) (*server.Server, error) {
 	const scope = "grpc-server"
 	srv, err := server.New(log, authcli)
 	if err != nil {
@@ -417,6 +454,7 @@ func rpcServer(log *wlog.Logger, h *handlers, authcli authmanager.AuthManager, t
 	pb.RegisterWorkingConditionServiceServer(srv, h.workingCondition)
 	pb.RegisterAgentWorkingConditionsServiceServer(srv, h.agentWorkingConditions)
 	pb.RegisterAgentAbsenceServiceServer(srv, h.agentAbsence)
+	pb.RegisterForecastCalculationServiceServer(srv, h.forecastCalculation)
 
 	return srv, nil
 }

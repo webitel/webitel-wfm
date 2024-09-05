@@ -17,14 +17,16 @@ const (
 )
 
 type ForecastCalculation struct {
-	db    cluster.Store
-	cache *cache.Scope[model.ForecastCalculation]
+	db         cluster.Store
+	forecastDB cluster.ForecastStore
+	cache      *cache.Scope[model.ForecastCalculation]
 }
 
-func NewForecastCalculation(db cluster.Store, manager cache.Manager) *ForecastCalculation {
+func NewForecastCalculation(db cluster.Store, manager cache.Manager, forecastDB cluster.ForecastStore) *ForecastCalculation {
 	return &ForecastCalculation{
-		db:    db,
-		cache: cache.NewScope[model.ForecastCalculation](manager, forecastCalculationTable),
+		db:         db,
+		cache:      cache.NewScope[model.ForecastCalculation](manager, forecastCalculationTable),
+		forecastDB: forecastDB,
 	}
 }
 
@@ -136,4 +138,18 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 	}
 
 	return id, nil
+}
+
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) ([]*model.ForecastCalculationResult, error) {
+	item, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: id})
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*model.ForecastCalculationResult
+	if err := f.forecastDB.Alive().Select(ctx, &out, item.Query); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/georgysavva/scany/v2/dbscan"
-
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/errors"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -23,12 +23,12 @@ type Query struct {
 
 type sqlNodeBatch struct {
 	db      Database
-	scanner *dbscan.API
+	scanner scanner.Scanner
 	queue   []*Query
 }
 
-func newSqlNodeBatch(db Database, scanner *dbscan.API) *sqlNodeBatch {
-	return &sqlNodeBatch{db: db, scanner: scanner, queue: make([]*Query, 0)}
+func newSqlNodeBatch(db Database) *sqlNodeBatch {
+	return &sqlNodeBatch{db: db, scanner: scanner.MustNewBatchScan(), queue: make([]*Query, 0)}
 }
 
 func (n *sqlNodeBatch) Queue(sql string, args []any) {
@@ -54,11 +54,11 @@ func (n *sqlNodeBatch) Select(ctx context.Context, dest any) error {
 	for range n.queue {
 		rows, err := queryer.Query(ctx, "", nil)
 		if err != nil {
-			return ParseError(err)
+			return errors.ParseError(err)
 		}
 
 		if err := n.scanner.ScanAll(dest, rows); err != nil {
-			return ParseError(err)
+			return errors.ParseError(err)
 		}
 
 		v = reflect.AppendSlice(v, destSlice.Elem())
@@ -74,7 +74,7 @@ func (n *sqlNodeBatch) Exec(ctx context.Context) error {
 	queryer := n.db.SendBatch(ctx, n.queue)
 	for range n.queue {
 		if err := queryer.Exec(ctx, "", nil); err != nil {
-			return ParseError(err)
+			return errors.ParseError(err)
 		}
 	}
 

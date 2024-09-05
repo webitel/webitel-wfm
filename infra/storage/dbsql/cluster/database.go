@@ -22,8 +22,8 @@ type Batcher interface {
 // Queryer is an abstract database interface that can execute queries.
 // This is used to decouple from any particular database library.
 type Queryer interface {
-	Exec(ctx context.Context, query string, args []any) error
-	Query(ctx context.Context, query string, args []any) (Rows, error)
+	Exec(ctx context.Context, query string, args ...any) error
+	Query(ctx context.Context, query string, args ...any) (Rows, error)
 }
 
 // Rows is an abstract database rows that dbscan can iterate over and get the data from.
@@ -33,6 +33,7 @@ type Rows interface {
 	Err() error
 	Next() bool
 	Columns() ([]string, error)
+	Types() ([]string, error)
 	Scan(dest ...interface{}) error
 	NextResultSet() bool
 	Values() ([]any, error)

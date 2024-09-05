@@ -22,7 +22,8 @@ type Service struct {
 }
 
 type Database struct {
-	DSN string
+	DSN                    string
+	ForecastCalculationDSN string
 }
 
 type Cache struct {
