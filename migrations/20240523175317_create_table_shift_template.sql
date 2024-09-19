@@ -18,7 +18,10 @@ CREATE TABLE wfm.shift_template
     FOREIGN KEY (domain_id, created_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL,
     FOREIGN KEY (domain_id, updated_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL,
 
-    CHECK ( char_length(name) <= 250 )
+    CHECK ( char_length(name) <= 250 ),
+    CHECK ( (times ->> 'start')::int between 0 and 1440 ),
+    CHECK ( (times ->> 'end')::int between 0 and 1440 ),
+    CHECK ( (times ->> 'start')::int < (times ->> 'end')::int )
 );
 
 CREATE TRIGGER tg_populate_updated_at_column
