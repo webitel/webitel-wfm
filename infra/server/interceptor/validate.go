@@ -18,7 +18,7 @@ func ValidateUnaryServerInterceptor(val *protovalidate.Validator) grpc.UnaryServ
 			if err := val.Validate(v); err != nil {
 				var ve *protovalidate.ValidationError
 				if ok := errors.As(err, &ve); ok {
-					return nil, werror.NewValidationError("server.interceptor.validate", fmt.Sprintf("%T", v),
+					return nil, werror.NewValidationError("interceptor.validate", fmt.Sprintf("%T", v),
 						ve.Violations[0].GetFieldPath(), ve.Violations[0].GetConstraintId(), ve.Violations[0].GetMessage())
 				}
 

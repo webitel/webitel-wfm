@@ -2,6 +2,9 @@ package storage
 
 import (
 	"context"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
@@ -38,7 +41,7 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 		"updated_by":  user.Id,
 		"name":        in.Name,
 		"description": in.Description,
-		"query":       in.Query,
+		"procedure":   in.Procedure,
 	}
 
 	sql, args := f.db.SQL().Insert(forecastCalculationTable, columns).SQL("RETURNING id").Build()
@@ -99,20 +102,20 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, use
 }
 
 func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error) {
-	ub := f.db.SQL().Update(forecastCalculationTable)
-	assignments := []string{
-		ub.Assign("updated_by", user.Id),
-		ub.Assign("name", in.Name),
-		ub.Assign("description", in.Description),
-		ub.Assign("query", in.Query),
+	columns := map[string]any{
+		"updated_by":  user.Id,
+		"name":        in.Name,
+		"description": in.Description,
+		"procedure":   in.Procedure,
 	}
 
+	ub := f.db.SQL().Update(forecastCalculationTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Set(assignments...).Where(clauses...).AddWhereClause(f.db.SQL().RBAC(user.UseRBAC, forecastCalculationAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).AddWhereClause(f.db.SQL().RBAC(user.UseRBAC, forecastCalculationAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
 	if err := f.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return nil, err
 	}
@@ -140,16 +143,38 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 	return id, nil
 }
 
-func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) ([]*model.ForecastCalculationResult, error) {
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64, timeFilter *model.ForecastCalculationExecution) ([]*model.ForecastCalculationResult, error) {
 	item, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: id})
 	if err != nil {
 		return nil, err
 	}
 
 	var out []*model.ForecastCalculationResult
-	if err := f.forecastDB.Alive().Select(ctx, &out, item.Query); err != nil {
+	sql, args := f.forecastDB.SQL().Format("CALL ?", interpolateProcedure(item.Procedure, timeFilter)).Build()
+	if err := f.forecastDB.Alive().Select(ctx, &out, sql, args...); err != nil {
 		return nil, err
 	}
 
 	return out, nil
+}
+
+// interpolateProcedure adds default time filter for SQL based on the starting and ending query time range.
+//
+// Example:
+//
+//	$__timeFrom() => 1000000000
+//	$__timeTo() => 1000000000
+func interpolateProcedure(proc string, timeFilter *model.ForecastCalculationExecution) string {
+	if timeFilter.ForecastFrom == 0 {
+		timeFilter.ForecastFrom = time.Now().Unix()
+	}
+
+	if timeFilter.ForecastTo == 0 {
+		timeFilter.ForecastTo = time.Now().Unix()
+	}
+
+	proc = strings.Replace(proc, "$__timeFrom()", strconv.FormatInt(timeFilter.ForecastFrom, 10), 1)
+	proc = strings.Replace(proc, "$__timeTo()", strconv.FormatInt(timeFilter.ForecastTo, 10), 1)
+
+	return proc
 }

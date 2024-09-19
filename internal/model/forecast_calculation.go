@@ -1,8 +1,6 @@
 package model
 
 import (
-	"fmt"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api"
 )
 
@@ -11,7 +9,7 @@ type ForecastCalculation struct {
 
 	Name        string  `json:"name" db:"name"`
 	Description *string `json:"description" db:"description"`
-	Query       string  `json:"query" db:"query"`
+	Procedure   string  `json:"procedure" db:"procedure"`
 }
 
 func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
@@ -20,7 +18,7 @@ func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
 		DomainId:    p.DomainId,
 		Name:        p.Name,
 		Description: p.Description,
-		Query:       p.Query,
+		Procedure:   p.Procedure,
 		CreatedBy:   p.CreatedBy.MarshalProto(),
 		UpdatedBy:   p.UpdatedBy.MarshalProto(),
 	}
@@ -37,20 +35,18 @@ func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
 }
 
 type ForecastCalculationResult struct {
-	Name   string
-	Type   string
-	Values []any
+	Timestamp int64
+	Agents    int64
 }
 
-func (f *ForecastCalculationResult) MarshalProto() *pb.ExecuteForecastCalculationResponse_Field {
-	val := make([]string, 0, len(f.Values))
-	for _, v := range f.Values {
-		val = append(val, fmt.Sprintf("%v", v))
+func (f *ForecastCalculationResult) MarshalProto() *pb.ExecuteForecastCalculationResponse_Forecast {
+	return &pb.ExecuteForecastCalculationResponse_Forecast{
+		Timestamp: f.Timestamp,
+		Agents:    f.Agents,
 	}
+}
 
-	return &pb.ExecuteForecastCalculationResponse_Field{
-		Name:   f.Name,
-		Type:   f.Type,
-		Values: val,
-	}
+type ForecastCalculationExecution struct {
+	ForecastFrom int64
+	ForecastTo   int64
 }

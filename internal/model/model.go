@@ -41,3 +41,9 @@ func (l *LookupItem) MarshalProto() *pb.LookupEntity {
 		Name: l.Name,
 	}
 }
+
+type Column struct {
+	Name   string
+	Type   string
+	Values []any
+}

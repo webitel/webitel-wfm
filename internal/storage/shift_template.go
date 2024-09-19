@@ -6,6 +6,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
@@ -32,6 +33,7 @@ func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.Sig
 		"updated_by":  user.Id,
 		"name":        in.Name,
 		"description": in.Description,
+		"times":       in.Times,
 	}
 
 	sql, args := s.db.SQL().Insert(shiftTemplateTable, columns).SQL("RETURNING id").Build()
@@ -40,6 +42,23 @@ func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.Sig
 	}
 
 	return id, nil
+}
+
+func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.ShiftTemplate, error) {
+	items, err := s.SearchShiftTemplate(ctx, user, &model.SearchItem{Id: id, Fields: fields})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) > 1 {
+		return nil, werror.NewDBEntityConflictError("storage.shift_template.read.conflict")
+	}
+
+	if len(items) == 0 {
+		return nil, werror.NewDBNoRowsErr("storage.shift_template.read")
+	}
+
+	return items[0], nil
 }
 
 func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ShiftTemplate, error) {
@@ -70,19 +89,20 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.Sig
 }
 
 func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error {
-	ub := s.db.SQL().Update(shiftTemplateTable)
-	assignments := []string{
-		ub.Assign("updated_by", user.Id),
-		ub.Assign("name", in.Name),
-		ub.Assign("description", in.Description),
+	columns := map[string]any{
+		"updated_by":  user.Id,
+		"name":        in.Name,
+		"description": in.Description,
+		"times":       in.Times,
 	}
 
+	ub := s.db.SQL().Update(shiftTemplateTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Set(assignments...).Where(clauses...).AddWhereClause(s.db.SQL().RBAC(user.UseRBAC, shiftTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).AddWhereClause(s.db.SQL().RBAC(user.UseRBAC, shiftTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
 	if err := s.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return err
 	}
@@ -103,14 +123,4 @@ func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, user *model.Sig
 	}
 
 	return id, nil
-}
-
-func (s *ShiftTemplate) SearchShiftTemplateTime(ctx context.Context, user *model.SignedInUser, shiftTemplateId int64, search *model.SearchItem) ([]*model.ShiftTemplateTime, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (s *ShiftTemplate) UpdateShiftTemplateTimeBulk(ctx context.Context, user *model.SignedInUser, shiftTemplateId int64, in []*model.ShiftTemplateTime) error {
-	// TODO implement me
-	panic("implement me")
 }

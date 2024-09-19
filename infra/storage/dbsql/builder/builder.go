@@ -44,8 +44,29 @@ func (b *Builder) Insert(table string, args map[string]any) *sqlbuilder.InsertBu
 	return ib
 }
 
-func (b *Builder) Update(table string) *sqlbuilder.UpdateBuilder {
-	return b.flavor.NewUpdateBuilder().Update(table)
+// Update creates UpdateBuilder using a specified table and list of arguments.
+// Args representing as SET "field = value" in UPDATE.
+//
+//	Update("test", map[string]any{"foo": "bar"})
+//	// Resulting to: UPDATE test SET foo = "bar"
+func (b *Builder) Update(table string, args map[string]any) *sqlbuilder.UpdateBuilder {
+	ub := b.flavor.NewUpdateBuilder().Update(table)
+	if len(args) > 0 {
+		keys := make([]string, 0, len(args))
+		for k := range args {
+			keys = append(keys, k)
+		}
+
+		slices.Sort(keys)
+		vs := make([]string, 0, len(args))
+		for _, k := range keys {
+			vs = append(vs, ub.Assign(k, args[k]))
+		}
+
+		ub.Set(vs...)
+	}
+
+	return ub
 }
 
 func (b *Builder) Delete(table string) *sqlbuilder.DeleteBuilder {
@@ -67,10 +88,6 @@ func (b *Builder) Values(value ...any) *sqlbuilder.InsertBuilder {
 		vb.Values(value...)
 	}
 	return vb
-}
-
-func (b *Builder) Struct(value any) *sqlbuilder.Struct {
-	return sqlbuilder.NewStruct(value)
 }
 
 func (b *Builder) RBAC(use bool, acl string, id int64, domain int64, groups []int, access uint32) *sqlbuilder.WhereClause {

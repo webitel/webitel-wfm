@@ -40,9 +40,9 @@ func (f *FrameScan) ScanOne(dst any, rows Rows) error {
 }
 
 func (f *FrameScan) ScanAll(dst any, rows Rows) error {
-	out, ok := dst.(*[]*model.ForecastCalculationResult)
+	out, ok := dst.(*[]*model.Column)
 	if !ok {
-		panic(fmt.Errorf("frame scan: expected dst to be a []*ForecastCalculationResult, got %T", dst))
+		panic(fmt.Errorf("frame scan: expected dst to be a []*Column, got %T", dst))
 	}
 
 	columns, err := rows.Columns()
@@ -55,9 +55,9 @@ func (f *FrameScan) ScanAll(dst any, rows Rows) error {
 		return err
 	}
 
-	items := make([]*model.ForecastCalculationResult, 0, len(columns))
+	items := make([]*model.Column, 0, len(columns))
 	for i, col := range columns {
-		field := &model.ForecastCalculationResult{
+		field := &model.Column{
 			Name:   col,
 			Type:   types[i],
 			Values: make([]any, 0),

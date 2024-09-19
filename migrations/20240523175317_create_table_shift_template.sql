@@ -11,6 +11,7 @@ CREATE TABLE wfm.shift_template
 
     name        TEXT                                                                    NOT NULL,
     description TEXT,
+    times       JSONB                                                                   NOT NULL,
 
     UNIQUE (domain_id, id),
     FOREIGN KEY (domain_id) REFERENCES directory.wbt_domain (dc) ON DELETE CASCADE,
@@ -62,6 +63,7 @@ SELECT t.id                                    AS id
      , call_center.cc_get_lookup(u.id, u.name) AS updated_by
      , t.name                                  AS name
      , t.description                           AS description
+     , t.times                                 AS times
 FROM wfm.shift_template t
          LEFT JOIN directory.wbt_user c ON t.created_by = c.id
          LEFT JOIN directory.wbt_user u ON t.updated_by = u.id;

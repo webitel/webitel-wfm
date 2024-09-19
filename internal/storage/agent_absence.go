@@ -59,20 +59,20 @@ func (a *AgentAbsence) ReadAgentAbsence(ctx context.Context, user *model.SignedI
 }
 
 func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error) {
-	ub := a.db.SQL().Update(agentAbsenceTable)
-	assignments := []string{
-		ub.Assign("updated_by", user.Id),
-		ub.Assign("absent_at", in.Absence.AbsentAt),
-		ub.Assign("absence_type_id", in.Absence.AbsenceTypeId),
+	columns := map[string]any{
+		"updated_by":      user.Id,
+		"absent_at":       in.Absence.AbsentAt,
+		"absence_type_id": in.Absence.AbsenceTypeId,
 	}
 
+	ub := a.db.SQL().Update(agentAbsenceTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Absence.Id),
 		ub.Equal("agent_id", in.Agent.Id),
 	}
 
-	sql, args := ub.Set(assignments...).Where(clauses...).AddWhereClause(a.db.SQL().RBAC(user.UseRBAC, agentAbsenceAcl, in.Absence.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).AddWhereClause(a.db.SQL().RBAC(user.UseRBAC, agentAbsenceAcl, in.Absence.Id, user.DomainId, user.Groups, user.Access)).Build()
 	if err := a.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return nil, err
 	}

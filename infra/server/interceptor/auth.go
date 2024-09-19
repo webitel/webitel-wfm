@@ -49,8 +49,8 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 		}
 
 		ok, useRBAC := validateSessionPermission(session, objClass, action)
-		if ok { // FIXME: must be !ok
-			return nil, werror.NewAuthForbiddenError("interceptor.auth.permission", action.Name(), objClass)
+		if !ok { // FIXME: must be !ok
+			return nil, werror.NewAuthForbiddenError("interceptor.auth.permission", objClass, action.Name())
 		}
 
 		s := &model.SignedInUser{

@@ -95,7 +95,7 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, re
 		return nil, err
 	}
 
-	return &pb.ExecuteForecastCalculationResponse{Fields: marshalForecastCalculationResultsProto(out)}, nil
+	return &pb.ExecuteForecastCalculationResponse{Items: marshalForecastCalculationResultsProto(out)}, nil
 }
 
 func unmarshalForecastCalculationProto(in *pb.ForecastCalculation) *model.ForecastCalculation {
@@ -103,7 +103,7 @@ func unmarshalForecastCalculationProto(in *pb.ForecastCalculation) *model.Foreca
 		DomainRecord: model.DomainRecord{Id: in.Id},
 		Name:         in.GetName(),
 		Description:  in.Description,
-		Query:        in.Query,
+		Procedure:    in.Procedure,
 	}
 }
 
@@ -116,8 +116,8 @@ func marshalForecastCalculationBulkProto(in []*model.ForecastCalculation) []*pb.
 	return out
 }
 
-func marshalForecastCalculationResultsProto(in []*model.ForecastCalculationResult) []*pb.ExecuteForecastCalculationResponse_Field {
-	out := make([]*pb.ExecuteForecastCalculationResponse_Field, 0, len(in))
+func marshalForecastCalculationResultsProto(in []*model.ForecastCalculationResult) []*pb.ExecuteForecastCalculationResponse_Forecast {
+	out := make([]*pb.ExecuteForecastCalculationResponse_Forecast, 0, len(in))
 	for _, i := range in {
 		out = append(out, i.MarshalProto())
 	}

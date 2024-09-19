@@ -78,27 +78,27 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *mod
 }
 
 func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error {
-	ub := w.db.SQL().Update(workingConditionTable)
-	assignments := []string{
-		ub.Assign("updated_by", user.Id),
-		ub.Assign("name", in.Name),
-		ub.Assign("description", in.Description),
-		ub.Assign("workday_hours", in.WorkdayHours),
-		ub.Assign("workdays_per_month", in.WorkdaysPerMonth),
-		ub.Assign("vacation", in.Vacation),
-		ub.Assign("sick_leaves", in.SickLeaves),
-		ub.Assign("days_off", in.DaysOff),
-		ub.Assign("pause_duration", in.PauseDuration),
-		ub.Assign("pause_template_id", in.PauseTemplate.Id),
-		ub.Assign("shift_template_id", in.ShiftTemplate.Id),
+	columns := map[string]any{
+		"updated_by":         user.Id,
+		"name":               in.Name,
+		"description":        in.Description,
+		"workday_hours":      in.WorkdayHours,
+		"workdays_per_month": in.WorkdaysPerMonth,
+		"vacation":           in.Vacation,
+		"sick_leaves":        in.SickLeaves,
+		"days_off":           in.DaysOff,
+		"pause_duration":     in.PauseDuration,
+		"pause_template_id":  in.PauseTemplate.Id,
+		"shift_template_id":  in.ShiftTemplate.Id,
 	}
 
+	ub := w.db.SQL().Update(workingConditionTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Set(assignments...).Where(clauses...).AddWhereClause(w.db.SQL().RBAC(user.UseRBAC, workingConditionAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).AddWhereClause(w.db.SQL().RBAC(user.UseRBAC, workingConditionAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
 	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return err
 	}

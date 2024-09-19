@@ -78,19 +78,19 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.Sig
 }
 
 func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error {
-	ub := p.db.SQL().Update(pauseTemplateTable)
-	assignments := []string{
-		ub.Assign("updated_by", user.Id),
-		ub.Assign("name", in.Name),
-		ub.Assign("description", in.Description),
+	columns := map[string]any{
+		"updated_by":  user.Id,
+		"name":        in.Name,
+		"description": in.Description,
 	}
 
+	ub := p.db.SQL().Update(pauseTemplateTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Set(assignments...).Where(clauses...).AddWhereClause(p.db.SQL().RBAC(user.UseRBAC, pauseTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).AddWhereClause(p.db.SQL().RBAC(user.UseRBAC, pauseTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
 	if err := p.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return err
 	}

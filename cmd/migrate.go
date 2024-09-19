@@ -71,9 +71,13 @@ func (m *migrator) run(ctx context.Context) error {
 
 	goose.SetLogger(newLogger(m.log))
 	goose.SetVerbose(true)
-	goose.SetTableName("schema_version")
+	store, err := database.NewStore(database.DialectPostgres, "wfm_schema_version")
+	if err != nil {
+		return err
+	}
 
-	provider, err := goose.NewProvider(database.DialectPostgres, cl.Primary().Stdlib(), migrations.Embed)
+	noopDialect := goose.Dialect("")
+	provider, err := goose.NewProvider(noopDialect, cl.Primary().Stdlib(), migrations.Embed, goose.WithStore(store))
 	if err != nil {
 		return err
 	}
