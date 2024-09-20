@@ -17,12 +17,6 @@ CREATE TABLE wfm.pause_template_cause
     CHECK ( duration <= 1440 )
 );
 
-CREATE TRIGGER tg_populate_updated_at_column
-    BEFORE UPDATE
-    ON wfm.pause_template_cause
-    FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_populate_updated_at_column();
-
 CREATE UNIQUE INDEX IF NOT EXISTS cc_pause_cause_domain_id_udx on call_center.cc_pause_cause USING btree (id, domain_id);
 
 CREATE VIEW wfm.pause_template_cause_v AS
@@ -58,8 +52,6 @@ DROP VIEW wfm.pause_template_v;
 DROP VIEW wfm.pause_template_cause_v;
 
 DROP INDEX call_center.cc_pause_cause_domain_id_udx;
-
-DROP TRIGGER tg_populate_updated_at_column ON wfm.pause_template_cause;
 
 DROP TABLE wfm.pause_template_cause;
 -- +goose StatementEnd
