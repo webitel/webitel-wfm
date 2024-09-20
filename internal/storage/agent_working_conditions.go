@@ -28,7 +28,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 
 	columns := []string{dbsql.Wildcard(model.AgentWorkingConditions{})}
 	sb := a.db.SQL().Select(columns...).From(agentWorkingConditionsView)
-	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId), sb.Equal("agent_id", agentId)).Build()
+	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId), sb.Equal("(agent ->> 'id')::bigint", agentId)).Build()
 	if err := a.db.StandbyPreferred().Get(ctx, &item, sql, args...); err != nil {
 		return nil, err
 	}
