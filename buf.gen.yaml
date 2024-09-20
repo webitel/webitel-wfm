@@ -3,17 +3,17 @@ version: v2
 plugins:
   # Base types for Go. Generates message and enum types.
   - remote: buf.build/protocolbuffers/go:v1.30.0
-    out: gen/go/api
+    out: gen/go/api/wfm
     opt: paths=source_relative
 
   # Generates Go client and server stubs for the gRPC framework.
   - remote: buf.build/grpc/go:v1.3.0
-    out: gen/go/api
+    out: gen/go/api/wfm
     opt: paths=source_relative
 
   # Generates Go code to validate Protobuf messages using protoc-gen-validate constraints.
   - remote: buf.build/bufbuild/validate-go:v1.0.4
-    out: gen/go/api
+    out: gen/go/api/wfm
     opt: paths=source_relative
 
   # Generate openapi documentation for api
@@ -21,8 +21,8 @@ plugins:
     out: gen/openapiv2
 
   # Generate Webitel Service APIs specification (such as objclass, method permission access, ...)
-  - local: ["go", "run", "github.com/webitel/webitel-go-kit/cmd/protoc-gen-go-webitel@v0.0.17"]
-    out: gen/go/api
+  - local: ["go", "run", "github.com/webitel/webitel-go-kit/cmd/protoc-gen-go-webitel@v0.0.18"]
+    out: gen/go/api/wfm
 
 inputs:
   - directory: "../protos/wfm"

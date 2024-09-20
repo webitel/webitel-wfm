@@ -1,7 +1,7 @@
 package model
 
 import (
-	pb "github.com/webitel/webitel-wfm/gen/go/api"
+	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
 type ForecastCalculation struct {

@@ -3,7 +3,7 @@ package model
 import (
 	"github.com/jackc/pgx/v5/pgtype"
 
-	pb "github.com/webitel/webitel-wfm/gen/go/api"
+	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 )
 

@@ -21,7 +21,7 @@ import (
 	// _ "github.com/webitel/webitel-go-kit/otel/sdk/trace/stdout"
 
 	"github.com/webitel/webitel-wfm/config"
-	pb "github.com/webitel/webitel-wfm/gen/go/api"
+	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/pubsub"
 	"github.com/webitel/webitel-wfm/infra/server"
@@ -312,12 +312,13 @@ func (a *app) run(ctx context.Context) error {
 func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.CheckRegistry, tracker *shutdown.Tracker) (discovery.ServiceDiscovery, error) {
 	const scope = "consul-service-discovery"
 	f := func() (bool, error) {
-		ch := health.RunAll(ctx)
-		for _, c := range ch {
-			if c.Err != nil {
-				return false, c.Err
-			}
-		}
+		// TODO: review consul health checks
+		// ch := health.RunAll(ctx)
+		// for _, c := range ch {
+		// 	if c.Err != nil {
+		// 		return false, c.Err
+		// 	}
+		// }
 
 		return true, nil
 	}

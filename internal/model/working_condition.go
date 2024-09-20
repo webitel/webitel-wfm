@@ -1,6 +1,6 @@
 package model
 
-import pb "github.com/webitel/webitel-wfm/gen/go/api"
+import pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 
 type WorkingCondition struct {
 	DomainRecord
