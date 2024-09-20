@@ -22,23 +22,26 @@ func (b *Builder) Select(cols ...string) *sqlbuilder.SelectBuilder {
 	return b.flavor.NewSelectBuilder().Select(cols...)
 }
 
-func (b *Builder) Insert(table string, args map[string]any) *sqlbuilder.InsertBuilder {
+func (b *Builder) Insert(table string, args []map[string]any) *sqlbuilder.InsertBuilder {
 	ib := b.flavor.NewInsertBuilder().InsertInto(table)
-	if len(args) > 0 {
-		keys := make([]string, 0, len(args))
-		for k := range args {
-			keys = append(keys, k)
-		}
+	for _, arg := range args {
+		if len(arg) > 0 {
+			keys := make([]string, 0, len(args))
+			for k := range arg {
+				keys = append(keys, k)
+			}
 
-		slices.Sort(keys)
-		ks := make([]string, 0, len(args))
-		vs := make([]any, 0, len(args))
-		for _, k := range keys {
-			ks = append(ks, k)
-			vs = append(vs, args[k])
-		}
+			slices.Sort(keys)
 
-		ib.Cols(ks...).Values(vs...)
+			ks := make([]string, 0, len(arg))
+			vs := make([]any, 0, len(arg))
+			for _, k := range keys {
+				ks = append(ks, k)
+				vs = append(vs, arg[k])
+			}
+
+			ib.Cols(ks...).Values(vs...)
+		}
 	}
 
 	return ib

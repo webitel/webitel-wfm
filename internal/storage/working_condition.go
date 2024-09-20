@@ -26,20 +26,22 @@ func NewWorkingCondition(db cluster.Store) *WorkingCondition {
 
 func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error) {
 	var id int64
-	columns := map[string]interface{}{
-		"domain_id":          user.DomainId,
-		"created_by":         user.Id,
-		"updated_by":         user.Id,
-		"name":               in.Name,
-		"description":        in.Description,
-		"workday_hours":      in.WorkdayHours,
-		"workdays_per_month": in.WorkdaysPerMonth,
-		"vacation":           in.Vacation,
-		"sick_leaves":        in.SickLeaves,
-		"days_off":           in.DaysOff,
-		"pause_duration":     in.PauseDuration,
-		"pause_template_id":  in.PauseTemplate.Id,
-		"shift_template_id":  in.ShiftTemplate.Id,
+	columns := []map[string]any{
+		{
+			"domain_id":          user.DomainId,
+			"created_by":         user.Id,
+			"updated_by":         user.Id,
+			"name":               in.Name,
+			"description":        in.Description,
+			"workday_hours":      in.WorkdayHours,
+			"workdays_per_month": in.WorkdaysPerMonth,
+			"vacation":           in.Vacation,
+			"sick_leaves":        in.SickLeaves,
+			"days_off":           in.DaysOff,
+			"pause_duration":     in.PauseDuration,
+			"pause_template_id":  in.PauseTemplate.Id,
+			"shift_template_id":  in.ShiftTemplate.Id,
+		},
 	}
 
 	sql, args := w.db.SQL().Insert(workingConditionTable, columns).SQL("RETURNING id").Build()

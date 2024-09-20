@@ -27,13 +27,15 @@ func NewShiftTemplate(db cluster.Store) *ShiftTemplate {
 
 func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error) {
 	var id int64
-	columns := map[string]interface{}{
-		"domain_id":   user.DomainId,
-		"created_by":  user.Id,
-		"updated_by":  user.Id,
-		"name":        in.Name,
-		"description": in.Description,
-		"times":       in.Times,
+	columns := []map[string]any{
+		{
+			"domain_id":   user.DomainId,
+			"created_by":  user.Id,
+			"updated_by":  user.Id,
+			"name":        in.Name,
+			"description": in.Description,
+			"times":       in.Times,
+		},
 	}
 
 	sql, args := s.db.SQL().Insert(shiftTemplateTable, columns).SQL("RETURNING id").Build()

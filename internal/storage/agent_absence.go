@@ -198,13 +198,15 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 }
 
 func (a *AgentAbsence) createAgentAbsenceQuery(user *model.SignedInUser, in *model.AgentAbsence) (string, []any) {
-	columns := map[string]any{
-		"domain_id":       user.DomainId,
-		"created_by":      user.Id,
-		"updated_by":      user.Id,
-		"absent_at":       in.Absence.AbsentAt,
-		"agent_id":        in.Agent.Id,
-		"absence_type_id": in.Absence.AbsenceTypeId,
+	columns := []map[string]any{
+		{
+			"domain_id":       user.DomainId,
+			"created_by":      user.Id,
+			"updated_by":      user.Id,
+			"absent_at":       in.Absence.AbsentAt,
+			"agent_id":        in.Agent.Id,
+			"absence_type_id": in.Absence.AbsenceTypeId,
+		},
 	}
 
 	return a.db.SQL().Insert(agentAbsenceTable, columns).SQL("RETURNING id").Build()

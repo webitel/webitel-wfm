@@ -111,9 +111,10 @@ func unmarshalShiftTemplateProto(in *pb.ShiftTemplate) *model.ShiftTemplate {
 	}
 
 	return &model.ShiftTemplate{
-		Name:        in.GetName(),
-		Description: in.Description,
-		Times:       times,
+		DomainRecord: model.DomainRecord{Id: in.Id},
+		Name:         in.GetName(),
+		Description:  in.Description,
+		Times:        times,
 	}
 }
 

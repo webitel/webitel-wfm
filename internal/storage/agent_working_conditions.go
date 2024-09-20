@@ -37,12 +37,14 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 }
 
 func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64, in *model.AgentWorkingConditions) error {
-	columns := map[string]any{
-		"domain_id":            user.DomainId,
-		"updated_by":           user.Id,
-		"agent_id":             agentId,
-		"working_condition_id": in.WorkingCondition.Id,
-		"pause_template_id":    in.PauseTemplate.Id,
+	columns := []map[string]any{
+		{
+			"domain_id":            user.DomainId,
+			"updated_by":           user.Id,
+			"agent_id":             agentId,
+			"working_condition_id": in.WorkingCondition.Id,
+			"pause_template_id":    in.PauseTemplate.Id,
+		},
 	}
 
 	sql, args := a.db.SQL().Insert(agentWorkingConditionsTable, columns).Build()

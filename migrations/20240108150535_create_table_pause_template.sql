@@ -52,25 +52,10 @@ CREATE TRIGGER tg_pause_template_set_rbac_acl
     ON wfm.pause_template
     FOR EACH ROW
 EXECUTE PROCEDURE wfm.tg_obj_default_rbac('pause_templates');
-
-CREATE VIEW wfm.pause_template_v AS
-SELECT t.id                                    AS id
-     , t.domain_id                             AS domain_id
-     , t.created_at                            AS created_at
-     , call_center.cc_get_lookup(c.id, c.name) AS created_by
-     , t.updated_at                            AS updated_at
-     , call_center.cc_get_lookup(u.id, u.name) AS updated_by
-     , t.name                                  AS name
-     , t.description                           AS description
-FROM wfm.pause_template t
-         LEFT JOIN directory.wbt_user c ON t.created_by = c.id
-         LEFT JOIN directory.wbt_user u ON t.updated_by = u.id;
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP VIEW wfm.pause_template_v;
-
 DROP TRIGGER tg_pause_template_set_rbac_acl ON wfm.pause_template;
 
 DROP INDEX wfm.pause_template_acl_grantor_idx;

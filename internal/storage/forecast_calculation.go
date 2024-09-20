@@ -35,13 +35,15 @@ func NewForecastCalculation(db cluster.Store, manager cache.Manager, forecastDB 
 
 func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error) {
 	var id int64
-	columns := map[string]interface{}{
-		"domain_id":   user.DomainId,
-		"created_by":  user.Id,
-		"updated_by":  user.Id,
-		"name":        in.Name,
-		"description": in.Description,
-		"procedure":   in.Procedure,
+	columns := []map[string]any{
+		{
+			"domain_id":   user.DomainId,
+			"created_by":  user.Id,
+			"updated_by":  user.Id,
+			"name":        in.Name,
+			"description": in.Description,
+			"procedure":   in.Procedure,
+		},
 	}
 
 	sql, args := f.db.SQL().Insert(forecastCalculationTable, columns).SQL("RETURNING id").Build()

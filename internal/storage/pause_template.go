@@ -2,52 +2,104 @@ package storage
 
 import (
 	"context"
+	"errors"
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
 	pauseTemplateTable = "wfm.pause_template"
 	pauseTemplateView  = pauseTemplateTable + "_v"
 	pauseTemplateAcl   = pauseTemplateTable + "_acl"
+
+	pauseTemplateCauseTable = pauseTemplateTable + "_cause"
 )
 
 // TODO: add cache invalidation
 // TODO: dont delete all keys within prefix (add something as id range 1-10 stored in cache key)
 
 type PauseTemplate struct {
-	db       cluster.Store
-	ptCache  *cache.Scope[model.PauseTemplate]
-	ptcCache *cache.Scope[model.PauseTemplateCause]
+	db    cluster.Store
+	cache *cache.Scope[model.PauseTemplate]
 }
 
 func NewPauseTemplate(db cluster.Store, manager cache.Manager) *PauseTemplate {
 	return &PauseTemplate{
-		db:       db,
-		ptCache:  cache.NewScope[model.PauseTemplate](manager, pauseTemplateTable),
-		ptcCache: cache.NewScope[model.PauseTemplateCause](manager, "pause_template_cause"),
+		db:    db,
+		cache: cache.NewScope[model.PauseTemplate](manager, pauseTemplateTable),
 	}
 }
 
 func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error) {
-	var id int64
-	columns := map[string]interface{}{
-		"domain_id":   user.DomainId,
-		"created_by":  user.Id,
-		"updated_by":  user.Id,
-		"name":        in.Name,
-		"description": in.Description,
+	template := []map[string]any{
+		{
+			"domain_id":   user.DomainId,
+			"created_by":  user.Id,
+			"updated_by":  user.Id,
+			"name":        in.Name,
+			"description": in.Description,
+		},
 	}
 
-	sql, args := p.db.SQL().Insert(pauseTemplateTable, columns).SQL("RETURNING id").Build()
+	causes := make([]map[string]any, 0, len(in.Causes))
+	for _, cause := range in.Causes {
+		columns := map[string]any{
+			"domain_id":         user.DomainId,
+			"pause_template_id": p.db.SQL().Format("(SELECT id FROM pause_template)::bigint"), // get created pause template id from CTE
+			"duration":          cause.Duration,
+		}
+
+		if cause.Cause != nil {
+			columns["pause_cause_id"] = cause.Cause.Id
+		}
+
+		causes = append(causes, columns)
+	}
+
+	cte := p.db.SQL().CTE(
+		p.db.SQL().With("pause_template").As(p.db.SQL().Insert(pauseTemplateTable, template).SQL("RETURNING id")),
+		p.db.SQL().With("causes").As(p.db.SQL().Insert(pauseTemplateCauseTable, causes).SQL("RETURNING id")),
+	)
+
+	var id int64
+
+	// WITH
+	// 	pause_template AS (
+	// 		INSERT INTO wfm.pause_template () VALUES () RETURNING id
+	// 	)
+	//
+	// 	, causes AS (
+	// 		INSERT INTO wfm.pause_template_cause () VALUES (), (), () RETURNING id
+	// 	)
+	//
+	// SELECT distinct pause_template.id FROM pause_template, causes;
+	sql, args := p.db.SQL().Select("distinct pause_template.id").With(cte).Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		return 0, err
 	}
 
 	return id, nil
+}
+
+func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error) {
+	items, err := p.SearchPauseTemplate(ctx, user, &model.SearchItem{Id: id, Fields: fields})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) > 1 {
+		return nil, werror.NewDBEntityConflictError("storage.pause_template.read.conflict")
+	}
+
+	if len(items) == 0 {
+		return nil, werror.NewDBNoRowsErr("storage.pause_template.read")
+	}
+
+	return items[0], nil
 }
 
 func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, error) {
@@ -78,20 +130,71 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.Sig
 }
 
 func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error {
-	columns := map[string]any{
+	template := map[string]any{
 		"updated_by":  user.Id,
 		"name":        in.Name,
 		"description": in.Description,
 	}
 
-	ub := p.db.SQL().Update(pauseTemplateTable, columns)
+	updateTemplate := p.db.SQL().Update(pauseTemplateTable, template)
 	clauses := []string{
-		ub.Equal("domain_id", user.DomainId),
-		ub.Equal("id", in.Id),
+		updateTemplate.Equal("domain_id", user.DomainId),
+		updateTemplate.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Where(clauses...).AddWhereClause(p.db.SQL().RBAC(user.UseRBAC, pauseTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
-	if err := p.db.Primary().Exec(ctx, sql, args...); err != nil {
+	updateTemplate.Where(clauses...).AddWhereClause(p.db.SQL().RBAC(user.UseRBAC, pauseTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).SQL("RETURNING id")
+
+	templateId := p.db.SQL().Format("(SELECT id FROM pause_template)::bigint") // get created pause template id from CTE
+	deleteCauses := p.db.SQL().Delete(pauseTemplateCauseTable)
+	deleteCauses.Where(
+		deleteCauses.Equal("domain_id", user.DomainId),
+		deleteCauses.Equal("pause_template_id", templateId),
+	).SQL("RETURNING id")
+
+	causes := make([]map[string]any, 0, len(in.Causes))
+	for _, cause := range in.Causes {
+		columns := map[string]any{
+			"domain_id":         user.DomainId,
+			"pause_template_id": templateId,
+			"duration":          cause.Duration,
+		}
+
+		if cause.Cause != nil {
+			columns["pause_cause_id"] = cause.Cause.Id
+		}
+
+		causes = append(causes, columns)
+	}
+
+	insertCauses := p.db.SQL().Insert(pauseTemplateCauseTable, causes).SQL("RETURNING id")
+	cte := p.db.SQL().CTE(
+		p.db.SQL().With("pause_template").As(updateTemplate),
+		p.db.SQL().With("del_causes").As(deleteCauses),
+		p.db.SQL().With("ins_causes").As(insertCauses),
+	)
+
+	var id int64
+
+	// WITH
+	// 	pause_template AS (
+	// 		UPDATE wfm.pause_template SET name = ? ... WHERE domain_id = ? ... RETURNING id
+	// 	)
+	//
+	// 	, del_causes AS (
+	// 		DELETE FROM wfm.pause_template_cause WHERE domain_id = ? AND pause_template_id = (SELECT id FROM pause_template) RETURNING id
+	// 	)
+	//
+	// 	, ins_causes AS (
+	// 		INSERT INTO wfm.pause_template_cause () VALUES (), (), () RETURNING id
+	// 	)
+	//
+	// SELECT distinct pause_template.id FROM pause_template, del_causes, ins_causes;
+	sql, args := p.db.SQL().Select("distinct pause_template.id").With(cte).Build()
+	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
+		if errors.As(err, &werror.DBNotNullViolationError{}) {
+			return werror.NewDBNoRowsErr("storage.pause_template.update")
+		}
+
 		return err
 	}
 
@@ -111,14 +214,4 @@ func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, user *model.Sig
 	}
 
 	return id, nil
-}
-
-func (p *PauseTemplate) SearchPauseTemplateCause(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, search *model.SearchItem) ([]*model.PauseTemplateCause, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (p *PauseTemplate) UpdatePauseTemplateCauseBulk(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, in []*model.PauseTemplateCause) error {
-	// TODO implement me
-	panic("implement me")
 }

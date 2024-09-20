@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
@@ -10,13 +11,10 @@ import (
 
 type PauseTemplateManager interface {
 	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
-	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.PauseTemplate, error)
+	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error)
 	SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, bool, error)
 	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
 	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
-
-	SearchPauseTemplateCause(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, search *model.SearchItem) ([]*model.PauseTemplateCause, bool, error)
-	UpdatePauseTemplateCauseBulk(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, in []*model.PauseTemplateCause) error
 }
 
 type PauseTemplate struct {
@@ -38,7 +36,7 @@ func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreateP
 		return nil, err
 	}
 
-	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, &model.SearchItem{Id: id})
+	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +46,7 @@ func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreateP
 
 func (h *PauseTemplate) ReadPauseTemplate(ctx context.Context, req *pb.ReadPauseTemplateRequest) (*pb.ReadPauseTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
+	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, req.GetId(), req.GetFields())
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +78,7 @@ func (h *PauseTemplate) UpdatePauseTemplate(ctx context.Context, req *pb.UpdateP
 		return nil, err
 	}
 
-	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, &model.SearchItem{Id: req.Item.Id})
+	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, req.Item.Id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -98,80 +96,39 @@ func (h *PauseTemplate) DeletePauseTemplate(ctx context.Context, req *pb.DeleteP
 	return &pb.DeletePauseTemplateResponse{Id: id}, nil
 }
 
-func (h *PauseTemplate) SearchPauseTemplateCause(ctx context.Context, req *pb.SearchPauseTemplateCauseRequest) (*pb.SearchPauseTemplateCauseResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.SearchItem{
-		Page:   req.GetPage(),
-		Size:   req.GetSize(),
-		Search: req.Q,
-		Sort:   req.Sort,
-		Fields: req.Fields,
-	}
-
-	items, next, err := h.svc.SearchPauseTemplateCause(ctx, s.SignedInUser, req.PauseTemplateId, search)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.SearchPauseTemplateCauseResponse{Items: marshalPauseTemplateCauseBulkProto(items), Next: next}, nil
-}
-
-func (h *PauseTemplate) UpdatePauseTemplateCauseBulk(ctx context.Context, req *pb.UpdatePauseTemplateCauseBulkRequest) (*pb.UpdatePauseTemplateCauseBulkResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	if err := h.svc.UpdatePauseTemplateCauseBulk(ctx, s.SignedInUser, req.PauseTemplateId, unmarshalPauseTemplateCauseBulkProto(req.Items)); err != nil {
-		return nil, err
-	}
-
-	items, next, err := h.svc.SearchPauseTemplateCause(ctx, s.SignedInUser, req.PauseTemplateId, &model.SearchItem{})
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.UpdatePauseTemplateCauseBulkResponse{Items: marshalPauseTemplateCauseBulkProto(items), Next: next}, nil
-}
-
-func marshalPauseTemplateBulkProto(templates []*model.PauseTemplate) []*pb.PauseTemplate {
-	out := make([]*pb.PauseTemplate, 0, len(templates))
-	for _, t := range templates {
+func marshalPauseTemplateBulkProto(in []*model.PauseTemplate) []*pb.PauseTemplate {
+	out := make([]*pb.PauseTemplate, 0, len(in))
+	for _, t := range in {
 		out = append(out, t.MarshalProto())
 	}
 
 	return out
 }
 
-func unmarshalPauseTemplateProto(template *pb.PauseTemplate) *model.PauseTemplate {
+func unmarshalPauseTemplateProto(in *pb.PauseTemplate) *model.PauseTemplate {
+	causes := make([]model.PauseTemplateCause, 0, len(in.Causes))
+	for _, cause := range in.Causes {
+		causes = append(causes, unmarshalPauseTemplateCauseProto(cause))
+	}
+
 	return &model.PauseTemplate{
-		Name:        template.GetName(),
-		Description: template.Description,
+		DomainRecord: model.DomainRecord{Id: in.Id},
+		Name:         in.GetName(),
+		Description:  in.Description,
+		Causes:       causes,
 	}
 }
 
-func marshalPauseTemplateCauseBulkProto(causes []*model.PauseTemplateCause) []*pb.PauseTemplateCause {
-	out := make([]*pb.PauseTemplateCause, 0, len(causes))
-	for _, c := range causes {
-		out = append(out, c.MarshalProto())
-	}
-
-	return out
-}
-
-func unmarshalPauseTemplateCauseBulkProto(causes []*pb.PauseTemplateCause) []*model.PauseTemplateCause {
-	out := make([]*model.PauseTemplateCause, 0, len(causes))
-	for _, c := range causes {
-		out = append(out, unmarshalPauseTemplateCauseProto(c))
-	}
-
-	return out
-}
-
-func unmarshalPauseTemplateCauseProto(cause *pb.PauseTemplateCause) *model.PauseTemplateCause {
-	return &model.PauseTemplateCause{
-		DomainRecord: model.DomainRecord{
-			Id: cause.Id,
-		},
+func unmarshalPauseTemplateCauseProto(cause *pb.PauseTemplateCause) model.PauseTemplateCause {
+	out := model.PauseTemplateCause{
 		Duration: cause.Duration,
-		Cause: model.LookupItem{
-			Id: cause.Cause.Id,
-		},
 	}
+
+	if cause.Cause != nil {
+		out.Cause = &model.LookupItem{Id: cause.Cause.Id}
+	}
+
+	fmt.Println(out, cause)
+
+	return out
 }

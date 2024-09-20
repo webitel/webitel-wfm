@@ -4,26 +4,21 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/internal/model"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
-// TODO: add signed user id to cache key
 // TODO: add validation for cause.id
 // for i, v := range in {
 //		if err := p.store.ReadPauseCause(ctx, v.DomainId, v.Cause.Token); err != nil {
 //			return err.SetDetailedError(fmt.Sprintf("items[%d].cause.id: not found: %s", i, err.appError()))
 //		}
 // }
-// TODO: add validation for pause_template_id
 
 type PauseTemplateManager interface {
 	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
+	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error)
 	SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, error)
 	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
 	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
-
-	SearchPauseTemplateCause(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, search *model.SearchItem) ([]*model.PauseTemplateCause, error)
-	UpdatePauseTemplateCauseBulk(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, in []*model.PauseTemplateCause) error
 }
 
 type PauseTemplate struct {
@@ -45,36 +40,28 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	return id, nil
 }
 
-func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.PauseTemplate, error) {
-	items, err := p.svc.SearchPauseTemplate(ctx, user, search)
+func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error) {
+	out, err := p.svc.ReadPauseTemplate(ctx, user, id, fields)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(items) > 1 {
-		return nil, werror.NewDBEntityConflictError("service.pause_template.read.conflict")
-	}
-
-	if len(items) == 0 {
-		return nil, werror.NewDBNoRowsErr("service.pause_template.read")
-	}
-
-	return items[0], nil
+	return out, nil
 }
 
 func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, bool, error) {
-	items, err := p.svc.SearchPauseTemplate(ctx, user, search)
+	out, err := p.svc.SearchPauseTemplate(ctx, user, search)
 	if err != nil {
 		return nil, false, err
 	}
 
 	var next bool
-	if len(items) == int(search.Limit()) {
+	if len(out) == int(search.Limit()) {
 		next = true
-		items = items[:search.Limit()-1]
+		out = out[:search.Limit()-1]
 	}
 
-	return items, next, nil
+	return out, next, nil
 }
 
 func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error {
@@ -92,26 +79,4 @@ func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, user *model.Sig
 	}
 
 	return out, nil
-}
-
-func (p *PauseTemplate) SearchPauseTemplateCause(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, search *model.SearchItem) ([]*model.PauseTemplateCause, bool, error) {
-	items, err := p.svc.SearchPauseTemplateCause(ctx, user, pauseTemplateId, search)
-	if err != nil {
-		return nil, false, err
-	}
-
-	var next bool
-	if len(items) == int(search.Limit()) {
-		next = true
-	}
-
-	return items, next, nil
-}
-
-func (p *PauseTemplate) UpdatePauseTemplateCauseBulk(ctx context.Context, user *model.SignedInUser, pauseTemplateId int64, in []*model.PauseTemplateCause) error {
-	if err := p.svc.UpdatePauseTemplateCauseBulk(ctx, user, pauseTemplateId, in); err != nil {
-		return err
-	}
-
-	return nil
 }
