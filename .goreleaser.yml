@@ -1,4 +1,6 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
 project_name: webitel-wfm
 
 before:
@@ -7,7 +9,7 @@ before:
     - go mod tidy
 
 snapshot:
-  name_template: 'SNAPSHOT-{{ .Commit }}'
+  version_template: 'SNAPSHOT-{{ .Commit }}'
 
 report_sizes: true
 
