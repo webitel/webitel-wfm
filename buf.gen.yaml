@@ -25,7 +25,7 @@ plugins:
     out: gen/go/api/wfm
 
 inputs:
-  - directory: "../protos/wfm"
-#  - git_repo: "https://github.com/webitel/protos"
-#    branch: "main"
-#    subdir: wfm
+  # - directory: "../protos/wfm"
+  - git_repo: "https://github.com/webitel/protos"
+    branch: "main"
+    subdir: wfm

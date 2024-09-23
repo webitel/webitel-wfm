@@ -5,9 +5,11 @@ on:
 
 jobs:
   lint:
+    name: Lint
     uses: webitel/webitel-wfm/.github/workflows/lint.yml@main
 
   test:
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,6 +19,20 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - name: Setup buf.build
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.38.0
+
+      - name: Generating code
+        run: go generate
+
+      - name: Cache generated code
+        uses: actions/cache@v3
+        with:
+          key: ${{ runner.os }}-gen-${{ hashFiles('**/go.sum') }}
+          path: ./gen
 
       - name: Run tests
         run: go test

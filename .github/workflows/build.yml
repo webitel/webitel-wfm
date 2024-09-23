@@ -8,17 +8,42 @@ on:
 
 jobs:
   test:
+    name: Test
     uses: webitel/webitel-wfm/.github/workflows/test.yml@main
 
   build:
-    name: Build snapshot
+    name: Snapshot
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # required for the changelog to work correctly.
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup buf.build
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.38.0
+
+      - name: Generating code
+        run: go generate
+
+      - name: Cache generated code
+        uses: actions/cache@v3
+        with:
+          key: ${{ runner.os }}-gen-${{ hashFiles('**/go.sum') }}
+          path: ./gen
+
       - name: Build snapshot using goreleaser-action
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: v2.3.2
           args: release --snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
