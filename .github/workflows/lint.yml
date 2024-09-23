@@ -22,14 +22,14 @@ jobs:
         with:
           version: 1.38.0
 
-      - name: Generating code
-        run: go generate
-
       - name: Cache generated code
         uses: actions/cache@v3
         with:
           key: ${{ runner.os }}-gen-${{ hashFiles('**/go.sum') }}
           path: ./gen
+
+      - name: Generating code
+        run: go generate
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6.1.0
