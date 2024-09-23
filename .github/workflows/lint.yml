@@ -1,0 +1,37 @@
+name: Run Go linters
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go (version from go.mod)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup buf.build
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.38.0
+
+      - name: Generating code
+        run: go generate
+
+      - name: Cache generated code
+        uses: actions/cache@v3
+        with:
+          key: ${{ runner.os }}-gen-${{ hashFiles('**/go.sum') }}
+          path: ./gen
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6.1.0
+        with:
+          version: v1.61.0

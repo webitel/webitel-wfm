@@ -1,0 +1,22 @@
+name: Test
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    uses: webitel/webitel-wfm/.github/workflows/lint.yml@main
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test

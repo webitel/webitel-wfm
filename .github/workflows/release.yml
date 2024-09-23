@@ -1,4 +1,4 @@
-name: release
+name: Release
 
 on:
   push:
@@ -10,21 +10,24 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser:
-    name: release
+  test:
+    uses: webitel/webitel-wfm/.github/workflows/test.yml@main
+
+  release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
-      - name: "Checkout repository"
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Set up Go"
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
 
-      - name: "Application release using goreleaser/goreleaser-action"
+      - name: Release using goreleaser/goreleaser-action
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser

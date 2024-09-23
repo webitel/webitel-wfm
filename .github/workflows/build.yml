@@ -1,4 +1,4 @@
-name: build
+name: Build
 
 on:
   push:
@@ -7,22 +7,13 @@ on:
   pull_request:
 
 jobs:
+  test:
+    uses: webitel/webitel-wfm/.github/workflows/test.yml@main
+
   build:
-    name: build snapshot
+    name: Build snapshot
     runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@v4
-
-      - name: "Set up Go"
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-
-      - name: "Set up buf.build"
-        uses: bufbuild/buf-setup-action@v1
-
-      - name: "Build snapshot using goreleaser/goreleaser-action"
+      - name: Build snapshot using goreleaser/goreleaser-action
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
