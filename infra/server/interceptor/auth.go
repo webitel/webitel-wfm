@@ -110,7 +110,8 @@ func objClassWithAction(info *grpc.UnaryServerInfo) (string, []string, auth_mana
 	licenses := pb.WebitelAPI[service].AdditionalLicenses
 	action := pb.WebitelAPI[service].WebitelMethods[method].Access
 
-	return objClass, licenses, auth_manager.PermissionAccess(action)
+	// TODO: make licenses unique list
+	return objClass, append(licenses, "WFM"), auth_manager.PermissionAccess(action)
 }
 
 func validateSessionPermission(session *auth_manager.Session, objClass string, action auth_manager.PermissionAccess) (bool, bool) {
