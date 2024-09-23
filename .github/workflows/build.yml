@@ -13,7 +13,8 @@ jobs:
   build:
     name: Build snapshot
     runs-on: ubuntu-latest
-      - name: Build snapshot using goreleaser/goreleaser-action
+    steps:
+      - name: Build snapshot using goreleaser-action
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
