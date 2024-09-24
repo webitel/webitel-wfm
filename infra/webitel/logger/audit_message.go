@@ -10,8 +10,8 @@ type Action string
 
 const (
 	ActionCreate Action = "create"
-	ActionUpdate        = "update"
-	ActionDelete        = "delete"
+	ActionUpdate Action = "update"
+	ActionDelete Action = "delete"
 )
 
 type RequiredFields struct {

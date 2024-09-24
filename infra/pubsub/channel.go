@@ -13,8 +13,8 @@ type MQExchangeType string
 
 const (
 	ExchangeTypeFanout MQExchangeType = "fanout"
-	ExchangeTypeTopic                 = "topic"
-	ExchangeTypeDirect                = "direct"
+	ExchangeTypeTopic  MQExchangeType = "topic"
+	ExchangeTypeDirect MQExchangeType = "direct"
 )
 
 // Exchange is the rabbitmq exchange.

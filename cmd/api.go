@@ -240,19 +240,19 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 
 func (a *app) run(ctx context.Context) error {
 	// Verify registered health checks.
-	success := true
+	// success := true
 	checks := a.health.RunAll(ctx)
 	for _, check := range checks {
 		if check.Err != nil {
-			success = false
+			// success = false
 			a.log.Error("healthcheck was unsuccessful", wlog.String("check", check.Name), wlog.Err(check.Err))
 		}
 	}
 
-	if !success {
-		// TODO: stop application execution
-		// return
-	}
+	// TODO: stop application execution
+	// if !success {
+	// 	return
+	// }
 
 	// Start server requests listening, serve all application resources.
 	a.eg.Go(func() error {
