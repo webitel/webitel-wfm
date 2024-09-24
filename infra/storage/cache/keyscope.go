@@ -204,6 +204,7 @@ func handleTime(v reflect.Value) string {
 	return "empty-time"
 }
 
+//nolint:unused
 func extractPermutation(cacheKey string) string {
 	idIndex := strings.LastIndex(cacheKey, "id-")
 

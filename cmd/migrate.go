@@ -12,7 +12,6 @@ import (
 	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/migrations"
 )
 
@@ -44,8 +43,6 @@ type migrator struct {
 
 	health   *health.CheckRegistry
 	shutdown *shutdown.Tracker
-
-	dbsql cluster.Cluster
 
 	doneCh chan struct{}
 }

@@ -99,6 +99,8 @@ func New(maxBytes int) (*Cache, error) {
 	c.prev.Store(prev)
 	c.mode.Store(uint32(Split))
 
+	c.runWatchers()
+
 	return c, nil
 }
 
@@ -226,6 +228,26 @@ func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 	cs.Reset()
 	prev.UpdateStats(&cs)
 	updateCacheStats(fcs, &cs)
+}
+
+func (c *Cache) runWatchers() {
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.expirationWatcher(c.cacheExpireDuration)
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.prevCacheWatcher()
+	}()
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		c.cacheSizeWatcher()
+	}()
 }
 
 func (c *Cache) expirationWatcher(expireDuration time.Duration) {

@@ -26,7 +26,6 @@ type Manager struct {
 
 	ctxs *Contexts
 
-	publishCounter  uint64
 	runningFetches  sync.WaitGroup
 	runningHandlers sync.WaitGroup
 }
