@@ -30,10 +30,8 @@ func migrate(cfg *config.Config, log *wlog.Logger) *cli.Command {
 
 			}
 
-			select {
-			case <-m.doneCh:
-				m.shutdown.Shutdown(nil, nil)
-			}
+			<-m.doneCh
+			m.shutdown.Shutdown(nil, nil)
 
 			return nil
 		},

@@ -108,7 +108,7 @@ func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model
 			start := model.NewDate(absence.AbsentAtFrom)
 			end := model.NewDate(absence.AbsentAtTo)
 
-			for d := start; d.Time.After(end.Time) == false; d.Time = d.Time.AddDate(0, 0, 1) {
+			for d := start; !d.Time.After(end.Time); d.Time = d.Time.AddDate(0, 0, 1) {
 				req := &model.AgentAbsence{
 					Agent: model.LookupItem{
 						Id: agentId,

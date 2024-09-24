@@ -20,7 +20,7 @@ func (e DBNoRowsError) Id() string {
 }
 
 func (e DBNoRowsError) RPCError() string {
-	return fmt.Sprintf("entity does not exists or you do not have enough permissions to perform the operation")
+	return "entity does not exists or you do not have enough permissions to perform the operation"
 }
 
 func (e DBNoRowsError) Error() string {
@@ -172,7 +172,7 @@ func (e DBEntityConflictError) Id() string {
 }
 
 func (e DBEntityConflictError) RPCError() string {
-	return fmt.Sprintf("found more then one requested entity")
+	return "found more then one requested entity"
 }
 
 func (e DBEntityConflictError) Error() string {

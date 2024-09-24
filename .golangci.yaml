@@ -1,3 +1,8 @@
 run:
   timeout: 5m
-  # tests: true
+  tests: false
+
+issues:
+  exclude-dirs:
+    - internal/tests
+    - gen
