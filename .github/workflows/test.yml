@@ -15,25 +15,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Setup buf.build
-        uses: bufbuild/buf-setup-action@v1
-        with:
-          version: 1.38.0
+      - name: Download dependencies
+        run: go mod download
 
       - name: Generating code
         run: go generate
 
-      - name: Cache generated code
-        uses: actions/cache@v3
-        with:
-          key: ${{ runner.os }}-gen-${{ hashFiles('**/go.sum') }}
-          path: ./gen
+      - name: Run all tests
+        run: go test -v ./... | tee test.log; exit ${PIPESTATUS[0]}
 
-      - name: Run tests
-        run: go test
+      - name: Pretty print tests running time
+        run: grep --color=never -e '--- PASS:' -e '--- FAIL:' test.log | sed 's/[:()]//g' | awk '{print $2,$3,$4}' | sort -t' ' -nk3 -r | awk '{sum += $3; print $1,$2,$3,sum"s"}'

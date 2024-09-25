@@ -26,19 +26,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Setup buf.build
-        uses: bufbuild/buf-setup-action@v1
-        with:
-          version: 1.38.0
+      - name: Download dependencies
+        run: go mod download
 
       - name: Generating code
         run: go generate
-
-      - name: Cache generated code
-        uses: actions/cache@v3
-        with:
-          key: ${{ runner.os }}-gen-${{ hashFiles('**/go.sum') }}
-          path: ./gen
 
       - name: Build snapshot using goreleaser-action
         uses: goreleaser/goreleaser-action@v6

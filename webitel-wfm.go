@@ -6,10 +6,9 @@ import (
 	"github.com/webitel/webitel-wfm/cmd"
 )
 
-//go:generate buf generate --template buf.gen.yaml
-
-//go:generate go run github.com/vektra/mockery/v2@latest
-//go:generate go run github.com/google/wire/cmd/wire@latest gen ./cmd
+//go:generate go run github.com/bufbuild/buf/cmd/buf@v1.42.0 generate --template buf.gen.yaml
+//go:generate go run github.com/vektra/mockery/v2@v2.46.0
+//go:generate go run github.com/google/wire/cmd/wire@v0.6.0 gen ./cmd
 
 func main() {
 	if err := cmd.Run(); err != nil {

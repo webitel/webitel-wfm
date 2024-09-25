@@ -1,39 +1,36 @@
-name: code-ql
+name: Code QL
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**/*.json'
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.yml'
-      - '**/*.yaml'
+  workflow_call:
 
 permissions:
   security-events: write
 
 jobs:
   analyze:
-    name: analyze
+    name: Analyze
     runs-on: ubuntu-latest
     steps:
-      - name: "Checkout repository"
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           # We must fetch at least the immediate parents so that if this is
           # a pull request, then we can checkout the head.
           fetch-depth: 2
 
-      - name: "Set up Go"
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
 
-      - uses: bufbuild/buf-setup-action@v1
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Generating code
+        run: go generate
 
       # Initializes the CodeQL tools for scanning.
-      - name: "Initialize CodeQL"
+      - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: "go"
@@ -42,10 +39,5 @@ jobs:
           # Prefix the list here with "+" to use these queries and those in the config file.
           # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
-      - name: "Build go files"
-        run: |
-          go mod verify
-          go generate
-
-      - name: "Perform CodeQL Analysis"
+      - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
