@@ -32,7 +32,7 @@ jobs:
       - name: Generating code
         run: go generate
 
-      - name: Build snapshot using goreleaser-action
+      - name: Build snapshot
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser

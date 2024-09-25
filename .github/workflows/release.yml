@@ -27,11 +27,17 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Release using goreleaser/goreleaser-action
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Generating code
+        run: go generate
+
+      - name: Release
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: v2.3.2
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
