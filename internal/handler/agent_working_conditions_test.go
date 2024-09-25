@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/webitel/webitel-wfm/gen/go/api"
+	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/gen/go/mocks/handler"
 	grpchandler "github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/model"

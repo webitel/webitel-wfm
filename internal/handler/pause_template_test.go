@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/webitel/webitel-wfm/gen/go/api"
+	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/gen/go/mocks/handler"
 	grpchandler "github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -339,10 +339,10 @@ func (s *pauseTemplateTestSuite) mockPauseTemplateServiceBehavior() *handler.Moc
 		},
 	).Maybe()
 
-	svc.EXPECT().ReadPauseTemplate(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
-		func(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.PauseTemplate, error) {
+	svc.EXPECT().ReadPauseTemplate(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error) {
 			s.store.mu.RLock()
-			te, ok := s.store.items[search.Id]
+			te, ok := s.store.items[id]
 			s.store.mu.RUnlock()
 			if !ok {
 				return nil, werror.NewDBNoRowsErr("tests")
