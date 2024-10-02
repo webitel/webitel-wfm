@@ -111,6 +111,7 @@ func marshalWorkingConditionBulkProto(items []*model.WorkingCondition) []*pb.Wor
 
 func unmarshalWorkingConditionProto(item *pb.WorkingCondition) *model.WorkingCondition {
 	out := &model.WorkingCondition{
+		DomainRecord:     model.DomainRecord{Id: item.Id},
 		Name:             item.GetName(),
 		Description:      item.Description,
 		WorkdayHours:     item.WorkdayHours,
