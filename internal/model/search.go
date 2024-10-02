@@ -31,7 +31,7 @@ func (s *SearchItem) Limit() int32 {
 		limit = s.Size + 1
 	}
 
-	return limit
+	return limit + 1
 }
 
 func (s *SearchItem) Offset() int32 {
@@ -42,7 +42,7 @@ func (s *SearchItem) Offset() int32 {
 		page = s.Page
 	}
 
-	return s.Limit() * (page - 1)
+	return s.Size * (page - 1)
 }
 
 func (s *SearchItem) OrderBy(table string) string {
@@ -75,6 +75,14 @@ func (s *SearchItem) Where(searchField string) *builder.WhereClause {
 	}
 
 	return &wb
+}
+
+func ListResult[C any](s int32, items []C) (bool, []C) {
+	if int32(len(items)) == s {
+		return true, items[0 : len(items)-1]
+	}
+
+	return false, items
 }
 
 func orderBy(s string) (sort string, field string) {

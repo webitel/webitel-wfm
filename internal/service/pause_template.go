@@ -55,11 +55,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.Sig
 		return nil, false, err
 	}
 
-	var next bool
-	if len(out) == int(search.Limit()) {
-		next = true
-		out = out[:search.Limit()-1]
-	}
+	next, out := model.ListResult(search.Limit(), out)
 
 	return out, next, nil
 }

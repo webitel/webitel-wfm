@@ -48,10 +48,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.Sig
 		return nil, false, err
 	}
 
-	var next bool
-	if len(out) == int(search.Limit()) {
-		next = true
-	}
+	next, out := model.ListResult(search.Limit(), out)
 
 	return out, next, nil
 }

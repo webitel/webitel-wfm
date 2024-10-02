@@ -63,7 +63,7 @@ func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, user *model
 
 func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingCondition, bool, error) {
 	// fetchFn := func(ctx context.Context) ([]*model.WorkingCondition, error) {
-	items, err := w.store.SearchWorkingCondition(ctx, user, search)
+	out, err := w.store.SearchWorkingCondition(ctx, user, search)
 	if err != nil {
 		return nil, false, err
 	}
@@ -76,12 +76,9 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *mod
 	// 	return nil, false, err
 	// }
 
-	var next bool
-	if len(items) == int(search.Limit()) {
-		next = true
-	}
+	next, out := model.ListResult(search.Limit(), out)
 
-	return items, next, nil
+	return out, next, nil
 }
 
 func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error {

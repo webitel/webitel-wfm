@@ -44,18 +44,14 @@ func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, user 
 }
 
 func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, bool, error) {
-	items, err := f.storage.SearchForecastCalculation(ctx, user, search)
+	out, err := f.storage.SearchForecastCalculation(ctx, user, search)
 	if err != nil {
 		return nil, false, err
 	}
 
-	var next bool
-	if len(items) == int(search.Limit()) {
-		next = true
-		items = items[:search.Limit()-1]
-	}
+	next, out := model.ListResult(search.Limit(), out)
 
-	return items, next, nil
+	return out, next, nil
 }
 
 func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error) {

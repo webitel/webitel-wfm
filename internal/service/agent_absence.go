@@ -153,16 +153,12 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 	}
 
 	search.AgentIds = agents
-	items, err := a.store.SearchAgentsAbsences(ctx, user, search)
+	out, err := a.store.SearchAgentsAbsences(ctx, user, search)
 	if err != nil {
 		return nil, false, err
 	}
 
-	var next bool
-	if len(items) == int(search.SearchItem.Limit()) {
-		next = true
-		items = items[:search.SearchItem.Limit()-1]
-	}
+	next, out := model.ListResult(search.SearchItem.Limit(), out)
 
-	return items, next, nil
+	return out, next, nil
 }
