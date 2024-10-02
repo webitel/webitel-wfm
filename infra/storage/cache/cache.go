@@ -90,9 +90,10 @@ func New(maxBytes int) (*Cache, error) {
 	prev := fastcache.New(1024)
 
 	c := &Cache{
-		maxBytes: maxBytes,
-		stopCh:   make(chan struct{}),
-		tracer:   NewTracer(),
+		maxBytes:            maxBytes,
+		stopCh:              make(chan struct{}),
+		tracer:              NewTracer(),
+		cacheExpireDuration: time.Hour * 24,
 	}
 
 	c.curr.Store(curr)

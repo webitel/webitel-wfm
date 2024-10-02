@@ -59,9 +59,9 @@ func (s *SearchItem) OrderBy(table string) string {
 // Where formats WHERE clauses:
 //   - if Id != 0, then set's `id = Id`
 //   - if Search != nil, then set's `search = Search`
-func (s *SearchItem) Where(search string) *builder.WhereClause {
-	if search == "" {
-		search = "name"
+func (s *SearchItem) Where(searchField string) *builder.WhereClause {
+	if searchField == "" {
+		searchField = "name"
 	}
 
 	wb := builder.Where()
@@ -70,7 +70,8 @@ func (s *SearchItem) Where(search string) *builder.WhereClause {
 	}
 
 	if s.Search != nil {
-		wb.AddWhereExpr(wb.Args, wb.Like(search, *s.Search))
+		search := strings.Replace(*s.Search, "*", "%", -1)
+		wb.AddWhereExpr(wb.Args, wb.ILike(searchField, search+"%"))
 	}
 
 	return &wb

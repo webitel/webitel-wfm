@@ -20,6 +20,9 @@ plugins:
   - remote: buf.build/grpc-ecosystem/openapiv2:v2.16.0
     out: gen/openapiv2
 
+  - local: ["go", "run", "github.com/google/gnostic/cmd/protoc-gen-openapi@latest"]
+    out: gen/openapiv3
+
   # Generate Webitel Service APIs specification (such as objclass, method permission access, ...)
   - local: ["go", "run", "github.com/webitel/webitel-go-kit/cmd/protoc-gen-go-webitel@v0.0.18"]
     out: gen/go/api/wfm
