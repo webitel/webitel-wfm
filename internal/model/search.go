@@ -28,7 +28,7 @@ func (s *SearchItem) Limit() int32 {
 
 	limit = 10
 	if s.Size >= 1 {
-		limit = s.Size + 1
+		limit = s.Size
 	}
 
 	return limit + 1
