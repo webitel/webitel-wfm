@@ -51,6 +51,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 			"domain_id":         user.DomainId,
 			"pause_template_id": p.db.SQL().Format("(SELECT id FROM pause_template)::bigint"), // get created pause template id from CTE
 			"duration":          cause.Duration,
+			"pause_cause_id":    nil,
 		}
 
 		if cause.Cause != nil {
@@ -77,7 +78,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	// 	)
 	//
 	// SELECT distinct pause_template.id FROM pause_template, causes;
-	sql, args := p.db.SQL().Select("distinct pause_template.id").With(cte).Build()
+	sql, args := p.db.SQL().Select("distinct pause_template.id").With(cte).From("pause_template", "causes").Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		return 0, err
 	}
@@ -157,6 +158,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 			"domain_id":         user.DomainId,
 			"pause_template_id": templateId,
 			"duration":          cause.Duration,
+			"pause_cause_id":    nil,
 		}
 
 		if cause.Cause != nil {
@@ -189,7 +191,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	// 	)
 	//
 	// SELECT distinct pause_template.id FROM pause_template, del_causes, ins_causes;
-	sql, args := p.db.SQL().Select("distinct pause_template.id").With(cte).Build()
+	sql, args := p.db.SQL().Select("distinct pause_template.id").From("pause_template", "del_causes", "ins_causes").With(cte).Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		if errors.As(err, &werror.DBNotNullViolationError{}) {
 			return werror.NewDBNoRowsErr("storage.pause_template.update")
