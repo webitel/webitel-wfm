@@ -19,6 +19,11 @@ type SearchItem struct {
 	Fields []string `json:"fields,omitempty" db:"fields"`
 }
 
+type FilterBetween struct {
+	From int64 `json:"from" db:"from"`
+	To   int64 `json:"to" db:"to"`
+}
+
 func (s *SearchItem) SortFields() {
 	sort.Strings(s.Fields)
 }
@@ -46,7 +51,7 @@ func (s *SearchItem) Offset() int32 {
 }
 
 func (s *SearchItem) OrderBy(table string) string {
-	order := "updated_at DESC"
+	order := "created_at ASC"
 	if s.Sort != nil {
 		o, field := orderBy(*s.Sort)
 		order = fmt.Sprintf(`CASE WHEN NOT call_center.cc_is_lookup(%[1]s, %[2]s) THEN %[4]s END %[3]s, CASE WHEN call_center.cc_is_lookup(%[1]s, %[2]s) THEN CAST((CAST(%[2]s AS text)) AS json) ->> 'name' END %[3]s`,
