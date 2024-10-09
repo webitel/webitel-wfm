@@ -135,12 +135,14 @@ func (e DBCheckViolationError) Error() string {
 
 type DBNotNullViolationError struct {
 	id     string
+	Table  string
 	Column string
 }
 
-func NewDBNotNullViolationError(id, column string) DBNotNullViolationError {
+func NewDBNotNullViolationError(id, table, column string) DBNotNullViolationError {
 	return DBNotNullViolationError{
 		id:     id,
+		Table:  table,
 		Column: column,
 	}
 }
@@ -150,7 +152,7 @@ func (e DBNotNullViolationError) Id() string {
 }
 
 func (e DBNotNullViolationError) RPCError() string {
-	return fmt.Sprintf("invalid input: violates not null constraint: column [%s] can not be null", e.Column)
+	return fmt.Sprintf("invalid input: violates not null constraint: column [%s.%s] can not be null", e.Table, e.Column)
 }
 
 func (e DBNotNullViolationError) Error() string {
