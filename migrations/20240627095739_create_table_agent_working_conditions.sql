@@ -13,10 +13,10 @@ CREATE TABLE wfm.agent_working_conditions
 
     UNIQUE (domain_id, agent_id),
     FOREIGN KEY (domain_id) REFERENCES directory.wbt_domain (dc) ON DELETE CASCADE,
-    FOREIGN KEY (domain_id, updated_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL,
+    FOREIGN KEY (domain_id, updated_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL (updated_by),
     FOREIGN KEY (domain_id, agent_id) REFERENCES call_center.cc_agent (domain_id, id) ON DELETE CASCADE,
     FOREIGN KEY (domain_id, working_condition_id) REFERENCES wfm.working_condition (domain_id, id) ON DELETE CASCADE,
-    FOREIGN KEY (domain_id, pause_template_id) REFERENCES wfm.pause_template (domain_id, id) ON DELETE SET NULL
+    FOREIGN KEY (domain_id, pause_template_id) REFERENCES wfm.pause_template (domain_id, id) ON DELETE SET NULL (pause_template_id)
 );
 
 CREATE TRIGGER tg_populate_updated_at_column
