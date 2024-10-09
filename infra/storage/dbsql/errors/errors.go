@@ -26,7 +26,7 @@ func ParseError(err error) error {
 		case pgerrcode.CheckViolation:
 			return werror.NewDBCheckViolationError("dbsql.errors.check_violation", pgErr.ConstraintName)
 		case pgerrcode.NotNullViolation:
-			return werror.NewDBNotNullViolationError("dbsql.errors.not_null_violation", pgErr.ColumnName)
+			return werror.NewDBNotNullViolationError("dbsql.errors.not_null_violation", pgErr.TableName, pgErr.ColumnName)
 		}
 	}
 
