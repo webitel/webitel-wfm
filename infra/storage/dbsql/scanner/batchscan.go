@@ -24,7 +24,7 @@ func MustNewBatchScan() *BatchScan {
 	return v
 }
 
-func (f *BatchScan) String() string {
+func (b *BatchScan) String() string {
 	return "batch-scan"
 }
 

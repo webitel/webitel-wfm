@@ -16,37 +16,24 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		if err != nil {
 			var rpc *werror.RPCError
 
-			switch v := err.(type) {
-			case werror.AuthForbiddenError, werror.AuthLicenseRequiredError:
-				if e, ok := v.(interface {
-					Id() string
-					RPCError() string
-				}); ok {
+			if e, ok := err.(werror.Error); ok {
+				switch v := err.(type) {
+				case werror.AuthForbiddenError, werror.AuthLicenseRequiredError:
 					rpc = werror.NewRPCError(e.Id(), codes.PermissionDenied, e.RPCError())
-				}
-			case werror.AuthInvalidSessionError, werror.AuthInvalidTokenError:
-				if e, ok := v.(interface {
-					Id() string
-					RPCError() string
-				}); ok {
+				case werror.AuthInvalidSessionError, werror.AuthInvalidTokenError:
 					rpc = werror.NewRPCError(e.Id(), codes.Unauthenticated, e.RPCError())
-				}
-			case werror.DBEntityConflictError, werror.DBCheckViolationError, werror.DBNotNullViolationError,
-				werror.DBUniqueViolationError, werror.DBForeignKeyViolationError:
-				if e, ok := v.(interface {
-					Id() string
-					RPCError() string
-				}); ok {
+				case werror.DBEntityConflictError, werror.DBCheckViolationError, werror.DBNotNullViolationError,
+					werror.DBUniqueViolationError, werror.DBForeignKeyViolationError:
 					rpc = werror.NewRPCError(e.Id(), codes.Aborted, e.RPCError())
+				case werror.DBNoRowsError, werror.ForecastProcedureNotFoundError:
+					rpc = werror.NewRPCError(e.Id(), codes.NotFound, e.RPCError())
+				case werror.ValidationError, werror.ForecastProcedureResultError:
+					rpc = werror.NewRPCError(e.Id(), codes.InvalidArgument, e.RPCError())
+				case werror.DBInternalError:
+					rpc = werror.NewRPCError(v.Id(), codes.Internal, v.RPCError())
+				case *werror.RPCError:
+					rpc = v
 				}
-			case werror.DBNoRowsError:
-				rpc = werror.NewRPCError(v.Id(), codes.NotFound, v.RPCError())
-			case werror.ValidationError:
-				rpc = werror.NewRPCError(v.Id(), codes.InvalidArgument, v.RPCError())
-			case werror.DBInternalError:
-				rpc = werror.NewRPCError(v.Id(), codes.Internal, v.RPCError())
-			case *werror.RPCError:
-				rpc = v
 			}
 
 			if rpc == nil {

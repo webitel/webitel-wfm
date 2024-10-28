@@ -15,7 +15,7 @@ type ForecastCalculationManager interface {
 	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
-	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) ([]*model.ForecastCalculationResult, error)
+	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
 }
 
 type ForecastCalculation struct {
@@ -90,7 +90,12 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req
 
 func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, req *pb.ExecuteForecastCalculationRequest) (*pb.ExecuteForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := f.svc.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id)
+	forecast := &model.FilterBetween{
+		From: req.ForecastData.From,
+		To:   req.ForecastData.To,
+	}
+
+	out, err := f.svc.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id, req.TeamId, forecast)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +109,7 @@ func unmarshalForecastCalculationProto(in *pb.ForecastCalculation) *model.Foreca
 		Name:         in.GetName(),
 		Description:  in.Description,
 		Procedure:    in.Procedure,
+		Args:         in.Args,
 	}
 }
 

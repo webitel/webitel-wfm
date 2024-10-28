@@ -3,8 +3,6 @@ package storage
 import (
 	"context"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
@@ -34,6 +32,10 @@ func NewForecastCalculation(db cluster.Store, manager cache.Manager, forecastDB 
 }
 
 func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error) {
+	if err := f.checkProcedure(ctx, in.Procedure); err != nil {
+		return nil, err
+	}
+
 	var id int64
 	columns := []map[string]any{
 		{
@@ -43,6 +45,7 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 			"name":        in.Name,
 			"description": in.Description,
 			"procedure":   in.Procedure,
+			"args":        in.Args,
 		},
 	}
 
@@ -104,11 +107,16 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, use
 }
 
 func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error) {
+	if err := f.checkProcedure(ctx, in.Procedure); err != nil {
+		return nil, err
+	}
+
 	columns := map[string]any{
 		"updated_by":  user.Id,
 		"name":        in.Name,
 		"description": in.Description,
 		"procedure":   in.Procedure,
+		"args":        in.Args,
 	}
 
 	ub := f.db.SQL().Update(forecastCalculationTable, columns)
@@ -145,14 +153,20 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 	return id, nil
 }
 
-func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64, timeFilter *model.ForecastCalculationExecution) ([]*model.ForecastCalculationResult, error) {
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
 	item, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: id})
 	if err != nil {
 		return nil, err
 	}
 
+	if err := f.checkProcedure(ctx, item.Procedure); err != nil {
+		return nil, err
+	}
+
+	par, args := interpolateArguments(item.Args, teamId, forecast)
+	sql := "SELECT * FROM " + item.Procedure + "(" + par + ")"
+
 	var out []*model.ForecastCalculationResult
-	sql, args := f.forecastDB.SQL().Format("CALL ?", interpolateProcedure(item.Procedure, timeFilter)).Build()
 	if err := f.forecastDB.Alive().Select(ctx, &out, sql, args...); err != nil {
 		return nil, err
 	}
@@ -160,23 +174,50 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, us
 	return out, nil
 }
 
-// interpolateProcedure adds default time filter for SQL based on the starting and ending query time range.
+func (f *ForecastCalculation) checkProcedure(ctx context.Context, proc string) error {
+	var exists *string
+	if err := f.db.Primary().Get(ctx, &exists, "SELECT to_regproc($1)", proc); err != nil {
+		return err
+	}
+
+	// to_regproc will return NULL rather than throwing an error if the name is not found or is ambiguous,
+	// so we need to check this and return error if received NULL
+	if exists == nil {
+		return werror.NewForecastProcedureNotFoundErr("storage.forecast_calculation.procedure", proc)
+	}
+
+	return nil
+}
+
+// interpolateArguments generates SQL parameters list ($1, $2, ...)
+// and replaces argument placeholder with value.
 //
-// Example:
-//
+//	$__teamId() => 1
 //	$__timeFrom() => 1000000000
-//	$__timeTo() => 1000000000
-func interpolateProcedure(proc string, timeFilter *model.ForecastCalculationExecution) string {
-	if timeFilter.ForecastFrom == 0 {
-		timeFilter.ForecastFrom = time.Now().Unix()
+//	$__timeTo() => 1000000001
+func interpolateArguments(args []string, teamId int64, forecast *model.FilterBetween) (string, []any) {
+	if len(args) == 0 {
+		return "", nil
 	}
 
-	if timeFilter.ForecastTo == 0 {
-		timeFilter.ForecastTo = time.Now().Unix()
+	parameters := "$1"
+	out := make([]any, 0, len(args))
+	for i, a := range args {
+		if i > 0 {
+			parameters = parameters + ", $" + strconv.Itoa(i+1)
+		}
+
+		switch a {
+		case "$__teamId()":
+			out = append(out, teamId)
+		case "$__timeFrom()":
+			out = append(out, forecast.From)
+		case "$__timeTo()":
+			out = append(out, forecast.To)
+		default:
+			out = append(out, a)
+		}
 	}
 
-	proc = strings.Replace(proc, "$__timeFrom()", strconv.FormatInt(timeFilter.ForecastFrom, 10), 1)
-	proc = strings.Replace(proc, "$__timeTo()", strconv.FormatInt(timeFilter.ForecastTo, 10), 1)
-
-	return proc
+	return parameters, out
 }

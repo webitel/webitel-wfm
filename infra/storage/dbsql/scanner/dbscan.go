@@ -30,7 +30,7 @@ func MustNewDBScan() *DBScan {
 	return cli
 }
 
-func (f *DBScan) String() string {
+func (d *DBScan) String() string {
 	return "db-scan"
 }
 

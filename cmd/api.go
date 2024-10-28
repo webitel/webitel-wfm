@@ -388,7 +388,7 @@ func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, 
 		return nil, err
 	}
 
-	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate(), cluster.WithFrameScan())
+	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate(), cluster.WithForecastScan())
 	if err != nil {
 		return nil, err
 	}

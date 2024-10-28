@@ -1,15 +1,18 @@
 package model
 
 import (
+	"github.com/jackc/pgx/v5/pgtype"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
 type ForecastCalculation struct {
 	DomainRecord
 
-	Name        string  `json:"name" db:"name"`
-	Description *string `json:"description" db:"description"`
-	Procedure   string  `json:"procedure" db:"procedure"`
+	Name        string   `json:"name" db:"name"`
+	Description *string  `json:"description" db:"description"`
+	Procedure   string   `json:"procedure" db:"procedure"`
+	Args        []string `json:"args" db:"args"`
 }
 
 func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
@@ -19,6 +22,7 @@ func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
 		Name:        p.Name,
 		Description: p.Description,
 		Procedure:   p.Procedure,
+		Args:        p.Args,
 		CreatedBy:   p.CreatedBy.MarshalProto(),
 		UpdatedBy:   p.UpdatedBy.MarshalProto(),
 	}
@@ -35,18 +39,13 @@ func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
 }
 
 type ForecastCalculationResult struct {
-	Timestamp int64
-	Agents    int64
+	Timestamp pgtype.Timestamp `db:"forecast_at"`
+	Agents    *int64           `db:"agents"`
 }
 
 func (f *ForecastCalculationResult) MarshalProto() *pb.ExecuteForecastCalculationResponse_Forecast {
 	return &pb.ExecuteForecastCalculationResponse_Forecast{
-		Timestamp: f.Timestamp,
-		Agents:    f.Agents,
+		Timestamp: f.Timestamp.Time.UnixMilli(),
+		Agents:    *f.Agents,
 	}
-}
-
-type ForecastCalculationExecution struct {
-	ForecastFrom int64
-	ForecastTo   int64
 }

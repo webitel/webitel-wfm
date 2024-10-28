@@ -62,3 +62,9 @@ func WithFrameScan() Option {
 		cl.scanner = scanner.MustNewFrameScan()
 	}
 }
+
+func WithForecastScan() Option {
+	return func(cl *Cluster) {
+		cl.scanner = scanner.MustNewForecastScan()
+	}
+}

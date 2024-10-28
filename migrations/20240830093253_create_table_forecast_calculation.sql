@@ -12,13 +12,15 @@ CREATE TABLE wfm.forecast_calculation
     name        TEXT                                                                    NOT NULL,
     description TEXT,
     procedure   TEXT                                                                    NOT NULL,
+    args        VARCHAR[],
 
     UNIQUE (domain_id, id),
     FOREIGN KEY (domain_id) REFERENCES directory.wbt_domain (dc) ON DELETE CASCADE,
     FOREIGN KEY (domain_id, created_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL (created_by),
     FOREIGN KEY (domain_id, updated_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL (updated_by),
 
-    CHECK ( char_length(name) <= 250 )
+    CHECK ( char_length(name) <= 250 ),
+    CHECK ( to_regproc(procedure) notnull )
 );
 
 CREATE TRIGGER tg_populate_updated_at_column
@@ -64,6 +66,7 @@ SELECT t.id                                    AS id
      , t.name                                  AS name
      , t.description                           AS description
      , t.procedure                             AS procedure
+     , t.args                                  AS args
 FROM wfm.forecast_calculation t
          LEFT JOIN directory.wbt_user c ON t.created_by = c.id
          LEFT JOIN directory.wbt_user u ON t.updated_by = u.id;
