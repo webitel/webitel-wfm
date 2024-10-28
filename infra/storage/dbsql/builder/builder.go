@@ -11,6 +11,8 @@ type Builder struct {
 }
 
 func NewBuilder(flavor sqlbuilder.Flavor) *Builder {
+	sqlbuilder.DefaultFlavor = flavor
+
 	return &Builder{flavor: flavor}
 }
 

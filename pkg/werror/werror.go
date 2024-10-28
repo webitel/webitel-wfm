@@ -9,6 +9,11 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+type Error interface {
+	Id() string
+	RPCError() string
+}
+
 type RPCError struct {
 	Id      string     `json:"id"`
 	Code    int        `json:"code"`
