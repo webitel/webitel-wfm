@@ -27,33 +27,6 @@ CREATE TRIGGER tg_populate_updated_at_column
     FOR EACH ROW
 EXECUTE PROCEDURE wfm.tg_populate_updated_at_column();
 
-CREATE TABLE wfm.agent_absence_acl
-(
-    id      SERIAL PRIMARY KEY,
-    dc      BIGINT             NOT NULL,
-    grantor BIGINT,
-    object  INTEGER            NOT NULL,
-    subject BIGINT             NOT NULL,
-    access  SMALLINT DEFAULT 0 NOT NULL,
-
-    UNIQUE (object, subject) INCLUDE (access),
-    UNIQUE (subject, object) INCLUDE (access),
-    FOREIGN KEY (dc) REFERENCES directory.wbt_domain ON DELETE CASCADE,
-    FOREIGN KEY (grantor) REFERENCES directory.wbt_auth ON DELETE SET NULL,
-    FOREIGN KEY (object) REFERENCES wfm.agent_absence ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY (grantor, dc) REFERENCES directory.wbt_auth (id, dc) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY (object, dc) REFERENCES wfm.agent_absence (id, domain_id) ON DELETE CASCADE,
-    FOREIGN KEY (subject, dc) REFERENCES directory.wbt_auth (id, dc) ON DELETE CASCADE
-);
-
-CREATE INDEX agent_absence_acl_grantor_idx ON wfm.agent_absence_acl (grantor);
-
-CREATE TRIGGER tg_agent_absence_set_rbac_acl
-    AFTER INSERT
-    ON wfm.agent_absence
-    FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_obj_default_rbac('agent_absences');
-
 CREATE VIEW wfm.agent_absence_v AS
 SELECT t.id                                                            AS id
      , t.domain_id                                                     AS domain_id
@@ -74,12 +47,6 @@ FROM wfm.agent_absence t
 -- +goose Down
 -- +goose StatementBegin
 DROP VIEW wfm.agent_absence_v;
-
-DROP TRIGGER tg_agent_absence_set_rbac_acl ON wfm.agent_absence;
-
-DROP INDEX wfm.agent_absence_acl_grantor_idx;
-
-DROP TABLE wfm.agent_absence_acl;
 
 DROP TRIGGER tg_populate_updated_at_column ON wfm.agent_absence;
 
