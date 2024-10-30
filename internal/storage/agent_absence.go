@@ -13,7 +13,6 @@ import (
 const (
 	agentAbsenceTable = "wfm.agent_absence"
 	agentAbsenceView  = agentAbsenceTable + "_v"
-	agentAbsenceAcl   = agentAbsenceTable + "_acl"
 )
 
 type AgentAbsence struct {
@@ -72,7 +71,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.Signe
 		ub.Equal("agent_id", in.Agent.Id),
 	}
 
-	sql, args := ub.Where(clauses...).AddWhereClause(a.db.SQL().RBAC(user.UseRBAC, agentAbsenceAcl, in.Absence.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).Build()
 	if err := a.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.Signe
 		db.Equal("agent_id", agentId),
 	}
 
-	sql, args := db.Where(clauses...).AddWhereClause(a.db.SQL().RBAC(user.UseRBAC, agentAbsenceAcl, id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := db.Where(clauses...).Build()
 	if err := a.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return err
 	}
@@ -172,8 +171,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 	ssb := a.db.SQL().Select(columns...)
 	ssb.From(ssb.As(agentAbsenceView, "v")).
 		Where(ssb.Equal("domain_id", user.DomainId)).
-		AddWhereClause(&search.Where("agent ->> 'name'").WhereClause).
-		AddWhereClause(a.db.SQL().RBAC(user.UseRBAC, agentAbsenceAcl, 0, user.DomainId, user.Groups, user.Access))
+		AddWhereClause(&search.Where("agent ->> 'name'").WhereClause)
 
 	if search.SearchItem.Sort != &defaultSort {
 		ssb.OrderBy(search.SearchItem.OrderBy(pauseTemplateView))

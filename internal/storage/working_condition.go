@@ -11,7 +11,6 @@ import (
 const (
 	workingConditionTable = "wfm.working_condition"
 	workingConditionView  = workingConditionTable + "_v"
-	workingConditionAcl   = workingConditionTable + "_acl"
 )
 
 type WorkingCondition struct {
@@ -66,7 +65,6 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *mod
 	sb := w.db.SQL().Select(columns...).From(workingConditionView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
-		AddWhereClause(w.db.SQL().RBAC(user.UseRBAC, workingConditionAcl, 0, user.DomainId, user.Groups, user.Access)).
 		OrderBy(search.OrderBy(workingConditionView)).
 		Limit(int(search.Limit())).
 		Offset(int(search.Offset())).
@@ -104,7 +102,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 		ub.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Where(clauses...).AddWhereClause(w.db.SQL().RBAC(user.UseRBAC, workingConditionAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).Build()
 	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return err
 	}
@@ -119,7 +117,7 @@ func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, user *mod
 		db.Equal("id", id),
 	}
 
-	sql, args := db.Where(clauses...).AddWhereClause(w.db.SQL().RBAC(user.UseRBAC, workingConditionAcl, id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := db.Where(clauses...).Build()
 	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return 0, err
 	}

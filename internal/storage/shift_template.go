@@ -12,7 +12,6 @@ import (
 const (
 	shiftTemplateTable = "wfm.shift_template"
 	shiftTemplateView  = shiftTemplateTable + "_v"
-	shiftTemplateAcl   = shiftTemplateTable + "_acl"
 )
 
 type ShiftTemplate struct {
@@ -77,7 +76,6 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.Sig
 	sb := s.db.SQL().Select(columns...).From(shiftTemplateView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
-		AddWhereClause(s.db.SQL().RBAC(user.UseRBAC, shiftTemplateAcl, 0, user.DomainId, user.Groups, user.Access)).
 		OrderBy(search.OrderBy(shiftTemplateView)).
 		Limit(int(search.Limit())).
 		Offset(int(search.Offset())).
@@ -104,7 +102,7 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.Sig
 		ub.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Where(clauses...).AddWhereClause(s.db.SQL().RBAC(user.UseRBAC, shiftTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).Build()
 	if err := s.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return err
 	}
@@ -119,7 +117,7 @@ func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, user *model.Sig
 		db.Equal("id", id),
 	}
 
-	sql, args := db.Where(clauses...).AddWhereClause(s.db.SQL().RBAC(user.UseRBAC, shiftTemplateAcl, id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := db.Where(clauses...).Build()
 	if err := s.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return 0, err
 	}

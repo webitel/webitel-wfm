@@ -14,7 +14,6 @@ import (
 const (
 	forecastCalculationTable = "wfm.forecast_calculation"
 	forecastCalculationView  = forecastCalculationTable + "_v"
-	forecastCalculationAcl   = forecastCalculationTable + "_acl"
 )
 
 type ForecastCalculation struct {
@@ -93,7 +92,6 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, use
 	sb := f.db.SQL().Select(columns...).From(forecastCalculationView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
-		AddWhereClause(f.db.SQL().RBAC(user.UseRBAC, forecastCalculationAcl, 0, user.DomainId, user.Groups, user.Access)).
 		OrderBy(search.OrderBy(forecastCalculationView)).
 		Limit(int(search.Limit())).
 		Offset(int(search.Offset())).
@@ -125,7 +123,7 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 		ub.Equal("id", in.Id),
 	}
 
-	sql, args := ub.Where(clauses...).AddWhereClause(f.db.SQL().RBAC(user.UseRBAC, forecastCalculationAcl, in.Id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := ub.Where(clauses...).Build()
 	if err := f.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return nil, err
 	}
@@ -145,7 +143,7 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 		db.Equal("id", id),
 	}
 
-	sql, args := db.Where(clauses...).AddWhereClause(f.db.SQL().RBAC(user.UseRBAC, forecastCalculationAcl, id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := db.Where(clauses...).Build()
 	if err := f.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return 0, err
 	}

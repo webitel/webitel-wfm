@@ -14,7 +14,6 @@ import (
 const (
 	pauseTemplateTable = "wfm.pause_template"
 	pauseTemplateView  = pauseTemplateTable + "_v"
-	pauseTemplateAcl   = pauseTemplateTable + "_acl"
 
 	pauseTemplateCauseTable = pauseTemplateTable + "_cause"
 )
@@ -117,7 +116,6 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.Sig
 	sb := p.db.SQL().Select(columns...).From(pauseTemplateView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
-		AddWhereClause(p.db.SQL().RBAC(user.UseRBAC, pauseTemplateAcl, 0, user.DomainId, user.Groups, user.Access)).
 		OrderBy(search.OrderBy(pauseTemplateView)).
 		Limit(int(search.Limit())).
 		Offset(int(search.Offset())).
@@ -143,7 +141,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 		updateTemplate.Equal("id", in.Id),
 	}
 
-	updateTemplate.Where(clauses...).AddWhereClause(p.db.SQL().RBAC(user.UseRBAC, pauseTemplateAcl, in.Id, user.DomainId, user.Groups, user.Access)).SQL("RETURNING id")
+	updateTemplate.Where(clauses...).SQL("RETURNING id")
 
 	templateId := p.db.SQL().Format("(SELECT id FROM pause_template)::bigint") // get created pause template id from CTE
 	deleteCauses := p.db.SQL().Delete(pauseTemplateCauseTable)
@@ -210,7 +208,7 @@ func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, user *model.Sig
 		db.Equal("id", id),
 	}
 
-	sql, args := db.Where(clauses...).AddWhereClause(p.db.SQL().RBAC(user.UseRBAC, pauseTemplateAcl, id, user.DomainId, user.Groups, user.Access)).Build()
+	sql, args := db.Where(clauses...).Build()
 	if err := p.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return 0, err
 	}
