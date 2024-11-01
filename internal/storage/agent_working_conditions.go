@@ -43,7 +43,7 @@ func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Contex
 			"updated_by":           user.Id,
 			"agent_id":             agentId,
 			"working_condition_id": in.WorkingCondition.Id,
-			"pause_template_id":    in.PauseTemplate.Id,
+			"pause_template_id":    in.PauseTemplate.SafeId(),
 		},
 	}
 

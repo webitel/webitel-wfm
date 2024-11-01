@@ -23,6 +23,14 @@ type LookupItem struct {
 	Name *string `json:"name" db:"name"`
 }
 
+func (l *LookupItem) SafeId() *int64 {
+	if l == nil || l.Id == 0 {
+		return nil
+	}
+
+	return &l.Id
+}
+
 func (l *LookupItem) Value() (driver.Value, error) {
 	return json.Marshal(l)
 }

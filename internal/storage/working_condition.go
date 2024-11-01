@@ -39,7 +39,7 @@ func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *mod
 			"days_off":           in.DaysOff,
 			"pause_duration":     in.PauseDuration,
 			"pause_template_id":  in.PauseTemplate.Id,
-			"shift_template_id":  in.ShiftTemplate.Id,
+			"shift_template_id":  in.ShiftTemplate.SafeId(),
 		},
 	}
 
@@ -89,11 +89,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 		"days_off":           in.DaysOff,
 		"pause_duration":     in.PauseDuration,
 		"pause_template_id":  in.PauseTemplate.Id,
-		"shift_template_id":  nil,
-	}
-
-	if in.ShiftTemplate != nil {
-		columns["shift_template_id"] = in.ShiftTemplate.Id
+		"shift_template_id":  in.ShiftTemplate.SafeId(),
 	}
 
 	ub := w.db.SQL().Update(workingConditionTable, columns)

@@ -50,11 +50,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 			"domain_id":         user.DomainId,
 			"pause_template_id": p.db.SQL().Format("(SELECT id FROM pause_template)::bigint"), // get created pause template id from CTE
 			"duration":          cause.Duration,
-			"pause_cause_id":    nil,
-		}
-
-		if cause.Cause != nil {
-			columns["pause_cause_id"] = cause.Cause.Id
+			"pause_cause_id":    cause.Cause.SafeId(),
 		}
 
 		causes = append(causes, columns)
@@ -156,11 +152,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 			"domain_id":         user.DomainId,
 			"pause_template_id": templateId,
 			"duration":          cause.Duration,
-			"pause_cause_id":    nil,
-		}
-
-		if cause.Cause != nil {
-			columns["pause_cause_id"] = cause.Cause.Id
+			"pause_cause_id":    cause.Cause.SafeId(),
 		}
 
 		causes = append(causes, columns)
