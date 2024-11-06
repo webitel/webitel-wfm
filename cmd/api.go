@@ -174,6 +174,7 @@ type handlers struct {
 	agentWorkingConditions *handler.AgentWorkingConditions
 	agentAbsence           *handler.AgentAbsence
 	forecastCalculation    *handler.ForecastCalculation
+	workingSchedule        *handler.WorkingSchedule
 }
 
 func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *shutdown.Tracker) (*app, error) {
@@ -456,6 +457,7 @@ func rpcServer(log *wlog.Logger, cfg *config.Config, h *handlers, authcli authma
 	pb.RegisterAgentWorkingConditionsServiceServer(srv, h.agentWorkingConditions)
 	pb.RegisterAgentAbsenceServiceServer(srv, h.agentAbsence)
 	pb.RegisterForecastCalculationServiceServer(srv, h.forecastCalculation)
+	pb.RegisterWorkingScheduleServiceServer(srv, h.workingSchedule)
 
 	return srv, nil
 }
