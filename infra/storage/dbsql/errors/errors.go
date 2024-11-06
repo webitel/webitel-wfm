@@ -22,7 +22,7 @@ func ParseError(err error) error {
 		case pgerrcode.UniqueViolation:
 			return werror.NewDBUniqueViolationError("dbsql.errors.unique_violation", findColumn(pgErr.Detail), findValue(pgErr.Detail))
 		case pgerrcode.ForeignKeyViolation:
-			return werror.NewDBForeignKeyViolationError("dbsql.errors.foreign_key_violation", pgErr.ColumnName, findValue(pgErr.Detail), findForeignKeyTable(pgErr.Detail))
+			return werror.NewDBForeignKeyViolationError("dbsql.errors.foreign_key_violation", findColumn(pgErr.Detail), findValue(pgErr.Detail), findForeignKeyTable(pgErr.Detail))
 		case pgerrcode.CheckViolation:
 			return werror.NewDBCheckViolationError("dbsql.errors.check_violation", pgErr.ConstraintName)
 		case pgerrcode.NotNullViolation:
