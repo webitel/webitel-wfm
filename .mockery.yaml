@@ -4,6 +4,7 @@ dir: "gen/go/mocks/{{ .PackageName }}"
 mockname: "{{ .Mock }}{{ .InterfaceName }}"
 outpkg: "{{ .PackageName }}"
 inpackage: false
+unroll-variadic: false # https://vektra.github.io/mockery/latest/notes/#variadic-arguments
 
 packages:
   github.com/webitel/engine/auth_manager:
@@ -22,6 +23,7 @@ packages:
       WorkingConditionManager:
       AgentWorkingConditionsManager:
       AgentAbsenceManager:
+      WorkingScheduleService:
   github.com/webitel/webitel-wfm/internal/service:
     interfaces:
       PauseTemplateManager:

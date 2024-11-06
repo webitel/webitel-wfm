@@ -59,7 +59,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	cte := p.db.SQL().CTE(
 		p.db.SQL().With("pause_template").As(p.db.SQL().Insert(pauseTemplateTable, template).SQL("RETURNING id")),
 		p.db.SQL().With("causes").As(p.db.SQL().Insert(pauseTemplateCauseTable, causes).SQL("RETURNING id")),
-	)
+	).Builder()
 
 	var id int64
 
@@ -163,7 +163,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 		p.db.SQL().With("pause_template").As(updateTemplate),
 		p.db.SQL().With("del_causes").As(deleteCauses),
 		p.db.SQL().With("ins_causes").As(insertCauses),
-	)
+	).Builder()
 
 	var id int64
 

@@ -78,8 +78,8 @@ func (b *Builder) Delete(table string) *sqlbuilder.DeleteBuilder {
 	return b.flavor.NewDeleteBuilder().DeleteFrom(table)
 }
 
-func (b *Builder) CTE(tables ...*sqlbuilder.CTEQueryBuilder) *sqlbuilder.CTEBuilder {
-	return b.flavor.NewCTEBuilder().With(tables...)
+func (b *Builder) CTE(tables ...*sqlbuilder.CTEQueryBuilder) *CTEQuery {
+	return NewCTEQuery(b.flavor, tables...)
 }
 
 func (b *Builder) With(table string) *sqlbuilder.CTEQueryBuilder {
