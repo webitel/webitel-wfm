@@ -74,11 +74,11 @@ func (e DBForeignKeyViolationError) Id() string {
 }
 
 func (e DBForeignKeyViolationError) RPCError() string {
-	if e.ForeignKeyTable != "" {
+	if e.ForeignKeyTable == "" {
 		return fmt.Sprintf("invalid input: violates foreign key constraint: %s (%s) is still referenced by the parent table", e.Column, e.Value)
 	}
 
-	return fmt.Sprintf("invalid input: violates foreign key constraint: the %s (%s) isn't present in the parent table", e.Column, e.Value)
+	return fmt.Sprintf("invalid input: violates foreign key constraint: (%s) = (%s) isn't present in the parent table %s", e.Column, e.Value, e.ForeignKeyTable)
 
 }
 
