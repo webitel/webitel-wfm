@@ -1,5 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
+CREATE UNIQUE INDEX cc_pause_cause_domain_id_udx on call_center.cc_pause_cause USING btree (id, domain_id);
+
 CREATE TABLE wfm.pause_template_cause
 (
     id                SERIAL PRIMARY KEY,
@@ -16,8 +18,6 @@ CREATE TABLE wfm.pause_template_cause
 
     CHECK ( duration <= 1440 )
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS cc_pause_cause_domain_id_udx on call_center.cc_pause_cause USING btree (id, domain_id);
 
 CREATE VIEW wfm.pause_template_cause_v AS
 SELECT d.id                                      AS id
@@ -51,7 +51,7 @@ DROP VIEW wfm.pause_template_v;
 
 DROP VIEW wfm.pause_template_cause_v;
 
-DROP INDEX call_center.cc_pause_cause_domain_id_udx;
-
 DROP TABLE wfm.pause_template_cause;
+
+DROP INDEX call_center.cc_pause_cause_domain_id_udx;
 -- +goose StatementEnd
