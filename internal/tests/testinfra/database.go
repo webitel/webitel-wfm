@@ -33,7 +33,7 @@ func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster,
 		return nil, err
 	}
 
-	cl, err := cluster.NewCluster(log, map[string]cluster.Database{"mock": conn}, cluster.WithUpdate())
+	cl, err := cluster.NewCluster(log, map[string]cluster.Database{"mock": conn})
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (t *TestStorageCluster) Mock() pgxmock.PgxPoolIface {
 
 func mockDatabase(t *testing.T, db pgxmock.PgxPoolIface) (cluster.Database, error) {
 	conn := dbsqlmock.NewMockDatabase(t)
-	conn.EXPECT().Exec(mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(args []any) bool { return true })).
+	conn.EXPECT().Exec(mock.Anything, mock.AnythingOfType("string")).
 		RunAndReturn(func(ctx context.Context, sql string, args ...any) error {
 			if _, err := db.Exec(ctx, sql, args...); err != nil {
 				return err
@@ -68,7 +68,7 @@ func mockDatabase(t *testing.T, db pgxmock.PgxPoolIface) (cluster.Database, erro
 			return nil
 		}).Maybe()
 
-	conn.EXPECT().Query(mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(args []any) bool { return true })).
+	conn.EXPECT().Query(mock.Anything, mock.AnythingOfType("string"), mock.Anything).
 		RunAndReturn(func(ctx context.Context, sql string, args ...any) (cluster.Rows, error) {
 			rows, err := db.Query(ctx, sql, args...)
 			if err != nil {
