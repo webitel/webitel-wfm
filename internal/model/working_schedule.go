@@ -1,6 +1,10 @@
 package model
 
-import pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+
+	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
+)
 
 type WorkingSchedule struct {
 	DomainRecord
@@ -8,15 +12,15 @@ type WorkingSchedule struct {
 	Name  string `db:"name"`
 	State int32  `db:"state"`
 
-	Team                 LookupItem    `db:"team"`
-	Calendar             LookupItem    `db:"calendar"`
-	StartDateAt          int64         `db:"start_date_at"`
-	EndDateAt            int64         `db:"end_date_at"`
+	Team                 LookupItem    `db:"team,json"`
+	Calendar             LookupItem    `db:"calendar,json"`
+	StartDateAt          pgtype.Date   `db:"start_date_at,json"`
+	EndDateAt            pgtype.Date   `db:"end_date_at,json"`
 	StartTimeAt          int64         `db:"start_time_at"`
 	EndTimeAt            int64         `db:"end_time_at"`
-	ExtraSkills          []*LookupItem `db:"extra_skills"`
+	ExtraSkills          []*LookupItem `db:"extra_skills,json"`
 	BlockOutsideActivity bool          `db:"block_outside_activity"`
-	Agents               []*LookupItem `db:"agents"`
+	Agents               []*LookupItem `db:"agents,json"`
 }
 
 func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
@@ -39,8 +43,8 @@ func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
 		State:                pb.WorkingScheduleState(w.State),
 		Team:                 w.Team.MarshalProto(),
 		Calendar:             w.Calendar.MarshalProto(),
-		StartDateAt:          w.StartDateAt,
-		EndDateAt:            w.EndDateAt,
+		StartDateAt:          w.StartDateAt.Time.UnixMilli(),
+		EndDateAt:            w.EndDateAt.Time.UnixMilli(),
 		StartTimeAt:          w.StartTimeAt,
 		EndTimeAt:            w.EndTimeAt,
 		ExtraSkills:          skills,

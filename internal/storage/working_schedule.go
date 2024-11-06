@@ -4,12 +4,15 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
 	workingScheduleTable           = "wfm.working_schedule"
+	workingScheduleView            = workingScheduleTable + "_v"
 	workingScheduleExtraSkillTable = workingScheduleTable + "_extra_skill"
 	workingScheduleAgentTable      = workingScheduleTable + "_agent"
 )
@@ -20,6 +23,8 @@ type WorkingSchedule struct {
 }
 
 func NewWorkingSchedule(db cluster.Store, manager cache.Manager) *WorkingSchedule {
+	werror.RegisterConstraint("working_schedule_check", "start_date_at should be lower that end_date_at")
+
 	return &WorkingSchedule{
 		db:    db,
 		cache: cache.NewScope[model.WorkingSchedule](manager, workingScheduleTable),
@@ -94,13 +99,60 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 }
 
 func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingSchedule, error) {
-	// TODO implement me
-	panic("implement me")
+	out, ok := w.cache.Key(user.DomainId, search.Id).Get(ctx)
+	if ok {
+		return &out, nil
+	}
+
+	items, err := w.SearchWorkingSchedule(ctx, user, search)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) > 1 {
+		return nil, werror.NewDBEntityConflictError("storage.working_schedule.read.conflict")
+	}
+
+	if len(items) == 0 {
+		return nil, werror.NewDBNoRowsErr("storage.working_schedule.read")
+	}
+
+	w.cache.Key(user.DomainId, search.Id).Set(ctx, *items[0])
+
+	return items[0], nil
 }
 
 func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, error) {
-	// TODO implement me
-	panic("implement me")
+	out, ok := w.cache.Key(user.DomainId, 0).GetMany(ctx)
+	if ok {
+		return out, nil
+	}
+
+	var (
+		items   []*model.WorkingSchedule
+		columns []string
+	)
+
+	columns = []string{dbsql.Wildcard(model.WorkingSchedule{})}
+	if len(search.Fields) > 0 {
+		columns = search.Fields
+	}
+
+	sb := w.db.SQL().Select(columns...).From(workingScheduleView)
+	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
+		AddWhereClause(&search.Where("name").WhereClause).
+		OrderBy(search.OrderBy(workingScheduleView)).
+		Limit(int(search.Limit())).
+		Offset(int(search.Offset())).
+		Build()
+
+	if err := w.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+		return nil, err
+	}
+
+	w.cache.Key(user.DomainId, 0).SetMany(ctx, items)
+
+	return items, nil
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {

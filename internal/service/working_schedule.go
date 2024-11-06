@@ -48,13 +48,23 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 }
 
 func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingSchedule, error) {
-	// TODO implement me
-	panic("implement me")
+	out, err := w.storage.ReadWorkingSchedule(ctx, user, search)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, bool, error) {
-	// TODO implement me
-	panic("implement me")
+	out, err := w.storage.SearchWorkingSchedule(ctx, user, search)
+	if err != nil {
+		return nil, false, err
+	}
+
+	next, out := model.ListResult(search.Limit(), out)
+
+	return out, next, nil
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {

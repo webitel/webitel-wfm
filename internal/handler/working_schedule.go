@@ -39,11 +39,31 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.Cre
 }
 
 func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, req *pb.ReadWorkingScheduleRequest) (*pb.ReadWorkingScheduleResponse, error) {
-	panic("implement me")
+	s := grpccontext.FromContext(ctx)
+	out, err := w.svc.ReadWorkingSchedule(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ReadWorkingScheduleResponse{Item: out.MarshalProto()}, nil
 }
 
 func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.SearchWorkingScheduleRequest) (*pb.SearchWorkingScheduleResponse, error) {
-	panic("implement me")
+	s := grpccontext.FromContext(ctx)
+	search := &model.SearchItem{
+		Page:   req.GetPage(),
+		Size:   req.GetSize(),
+		Search: req.Q,
+		Sort:   req.Sort,
+		Fields: req.Fields,
+	}
+
+	items, next, err := w.svc.SearchWorkingSchedule(ctx, s.SignedInUser, search)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SearchWorkingScheduleResponse{Items: marshalWorkingScheduleBulkProto(items), Next: next}, nil
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.UpdateWorkingScheduleRequest) (*pb.UpdateWorkingScheduleResponse, error) {
@@ -68,14 +88,24 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedul
 	return &model.WorkingSchedule{
 		DomainRecord:         model.DomainRecord{Id: in.Id},
 		Name:                 in.Name,
+		State:                int32(in.State.Number()),
 		Team:                 model.LookupItem{Id: in.Team.Id},
 		Calendar:             model.LookupItem{Id: in.Calendar.Id},
-		StartDateAt:          in.StartDateAt,
-		EndDateAt:            in.EndDateAt,
+		StartDateAt:          model.NewDate(in.StartDateAt),
+		EndDateAt:            model.NewDate(in.EndDateAt),
 		StartTimeAt:          in.StartTimeAt,
 		EndTimeAt:            in.EndTimeAt,
 		ExtraSkills:          skills,
 		BlockOutsideActivity: in.BlockOutsideActivity,
 		Agents:               agents,
 	}
+}
+
+func marshalWorkingScheduleBulkProto(in []*model.WorkingSchedule) []*pb.WorkingSchedule {
+	out := make([]*pb.WorkingSchedule, 0, len(in))
+	for _, i := range in {
+		out = append(out, i.MarshalProto())
+	}
+
+	return out
 }

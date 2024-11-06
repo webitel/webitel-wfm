@@ -47,6 +47,10 @@ var wireHandlersSet = wire.NewSet(
 	storage.NewForecastCalculation,
 	service.NewForecastCalculation, wire.Bind(new(service.ForecastCalculationManager), new(*storage.ForecastCalculation)),
 	handler.NewForecastCalculation, wire.Bind(new(handler.ForecastCalculationManager), new(*service.ForecastCalculation)),
+
+	storage.NewWorkingSchedule,
+	service.NewWorkingSchedule, wire.Bind(new(service.WorkingScheduleStorage), new(*storage.WorkingSchedule)),
+	handler.NewWorkingSchedule, wire.Bind(new(handler.WorkingScheduleService), new(*service.WorkingSchedule)),
 )
 
 func initResources(context.Context, *config.Config, *wlog.Logger, *health.CheckRegistry, *shutdown.Tracker) (*resources, error) {
