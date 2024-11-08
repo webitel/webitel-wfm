@@ -331,6 +331,7 @@ func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.Ch
 
 	shutdownFunc := func(p *shutdown.Process) error {
 		conn.Shutdown()
+		p.MarkServicesShutdownCompleted(nil)
 
 		return nil
 	}

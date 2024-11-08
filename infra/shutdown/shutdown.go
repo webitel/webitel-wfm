@@ -159,6 +159,13 @@ func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
 			t.log.Info("got shutdown signal, initiating graceful shutdown", wlog.String("signal", reasonSignal.String()))
 		}
 
+		h := make([]string, 0, len(t.handlers))
+		for name := range t.handlers {
+			h = append(h, name)
+		}
+
+		t.log.Debug("shutdown handlers to complete", wlog.Any("handlers", h))
+
 		// If we received a SIGTERM and have a configured keepAcceptingFor duration,
 		// then log the fact we're going to continue accepting new requests and then
 		// sleep for that time before begining to graceful shutdown.
