@@ -172,7 +172,7 @@ func (cl *Cluster) Close() error {
 
 func (cl *Cluster) HealthCheck(ctx context.Context) []health.CheckResult {
 	var reportError error
-	if n := cl.Primary(); n != nil {
+	if n := cl.Primary(); n == nil {
 		reportError = errors.New("primary database not alive")
 	}
 

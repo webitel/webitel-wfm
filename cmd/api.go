@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strconv"
 	"strings"
@@ -241,19 +242,18 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 
 func (a *app) run(ctx context.Context) error {
 	// Verify registered health checks.
-	// success := true
+	var err error
 	checks := a.health.RunAll(ctx)
 	for _, check := range checks {
 		if check.Err != nil {
-			// success = false
 			a.log.Error("healthcheck was unsuccessful", wlog.String("check", check.Name), wlog.Err(check.Err))
+			errors.Join(err, check.Err)
 		}
 	}
 
-	// TODO: stop application execution
-	// if !success {
-	// 	return
-	// }
+	if err != nil {
+		return err
+	}
 
 	// Start server requests listening, serve all application resources.
 	a.eg.Go(func() error {
@@ -313,13 +313,12 @@ func (a *app) run(ctx context.Context) error {
 func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.CheckRegistry, tracker *shutdown.Tracker) (discovery.ServiceDiscovery, error) {
 	const scope = "consul-service-discovery"
 	f := func() (bool, error) {
-		// TODO: review consul health checks
-		// ch := health.RunAll(ctx)
-		// for _, c := range ch {
-		// 	if c.Err != nil {
-		// 		return false, c.Err
-		// 	}
-		// }
+		ch := health.RunAll(ctx)
+		for _, c := range ch {
+			if c.Err != nil {
+				return false, c.Err
+			}
+		}
 
 		return true, nil
 	}
