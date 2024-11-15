@@ -3,12 +3,14 @@ package werror
 import "fmt"
 
 type WorkingScheduleUpdateDraftError struct {
-	id string
+	id    string
+	State string
 }
 
-func NewWorkingScheduleUpdateDraftErr(id string) WorkingScheduleUpdateDraftError {
+func NewWorkingScheduleUpdateDraftErr(id, state string) WorkingScheduleUpdateDraftError {
 	return WorkingScheduleUpdateDraftError{
-		id: id,
+		id:    id,
+		State: state,
 	}
 }
 
@@ -17,7 +19,7 @@ func (e WorkingScheduleUpdateDraftError) Id() string {
 }
 
 func (e WorkingScheduleUpdateDraftError) RPCError() string {
-	return fmt.Sprintf("stored procedure (%s) doesn't exist")
+	return fmt.Sprintf("working schedule can only be updated in a draft state; current state: %s", e.State)
 }
 
 func (e WorkingScheduleUpdateDraftError) Error() string {

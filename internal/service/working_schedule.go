@@ -75,7 +75,7 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 	}
 
 	if item.State != model.WorkingScheduleStateDraft {
-		return nil, werror.NewWorkingScheduleUpdateDraftErr("service.working_schedule.state")
+		return nil, werror.NewWorkingScheduleUpdateDraftErr("service.working_schedule.state", item.State.String())
 	}
 
 	if item.Team.Id != in.Team.Id || item.Calendar.Id != in.Calendar.Id {
