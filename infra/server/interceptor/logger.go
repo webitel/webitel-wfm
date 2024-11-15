@@ -15,16 +15,11 @@ import (
 // LoggingUnaryServerInterceptor returns a new unary server interceptor for logging requests.
 func LoggingUnaryServerInterceptor(log *wlog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		var ip string
-
 		start := time.Now()
 
+		ip := "<not found>"
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
 			ip = getClientIp(md)
-		}
-
-		if ip == "" {
-			ip = "<not found>"
 		}
 
 		h, err := handler(ctx, req)
