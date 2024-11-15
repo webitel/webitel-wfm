@@ -16,6 +16,7 @@ type WorkingScheduleService interface {
 	DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
 	UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
+	UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
 }
 
 type WorkingSchedule struct {
@@ -106,6 +107,26 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 	}
 
 	return &pb.UpdateWorkingScheduleAddAgentsResponse{Agents: out}, nil
+}
+
+func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, req *pb.UpdateWorkingScheduleRemoveAgentsRequest) (*pb.UpdateWorkingScheduleRemoveAgentsResponse, error) {
+	s := grpccontext.FromContext(ctx)
+	agents := make([]int64, 0, len(req.GetAgents()))
+	for _, agent := range req.GetAgents() {
+		agents = append(agents, agent.Id)
+	}
+
+	items, err := w.svc.UpdateWorkingScheduleRemoveAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*pb.LookupEntity, 0, len(items))
+	for _, item := range items {
+		out = append(out, item.MarshalProto())
+	}
+
+	return &pb.UpdateWorkingScheduleRemoveAgentsResponse{Agents: out}, nil
 }
 
 func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {
