@@ -5,9 +5,9 @@ CREATE TABLE wfm.working_schedule
     id                     SERIAL PRIMARY KEY,
     domain_id              BIGINT                                                                  NOT NULL,
     created_at             TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') NOT NULL,
-    created_by             BIGINT                                                                  NOT NULL,
+    created_by             BIGINT,
     updated_at             TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') NOT NULL,
-    updated_by             BIGINT                                                                  NOT NULL,
+    updated_by             BIGINT,
 
     name                   TEXT                                                                    NOT NULL,
     state                  INT2                                                                    NOT NULL DEFAULT 1,
@@ -25,8 +25,8 @@ CREATE TABLE wfm.working_schedule
     FOREIGN KEY (domain_id) REFERENCES directory.wbt_domain (dc) ON DELETE CASCADE,
     FOREIGN KEY (domain_id, created_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL (created_by),
     FOREIGN KEY (domain_id, updated_by) REFERENCES directory.wbt_user (dc, id) ON DELETE SET NULL (updated_by),
-    FOREIGN KEY (domain_id, team_id) REFERENCES call_center.cc_team (domain_id, id) ON DELETE SET NULL (team_id),
-    FOREIGN KEY (domain_id, calendar_id) REFERENCES flow.calendar (domain_id, id) ON DELETE SET NULL (calendar_id),
+    FOREIGN KEY (domain_id, team_id) REFERENCES call_center.cc_team (domain_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (domain_id, calendar_id) REFERENCES flow.calendar (domain_id, id) ON DELETE RESTRICT,
 
     CHECK ( char_length(name) <= 250 ),
     CHECK ( start_date_at < end_date_at ),

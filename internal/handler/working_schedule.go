@@ -67,11 +67,23 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.Sea
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.UpdateWorkingScheduleRequest) (*pb.UpdateWorkingScheduleResponse, error) {
-	panic("implement me")
+	s := grpccontext.FromContext(ctx)
+	out, err := w.svc.UpdateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.UpdateWorkingScheduleResponse{Item: out.MarshalProto()}, nil
 }
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, req *pb.DeleteWorkingScheduleRequest) (*pb.DeleteWorkingScheduleResponse, error) {
-	panic("implement me")
+	s := grpccontext.FromContext(ctx)
+	id, err := w.svc.DeleteWorkingSchedule(ctx, s.SignedInUser, req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.DeleteWorkingScheduleResponse{Id: id}, nil
 }
 
 func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {
@@ -88,7 +100,7 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedul
 	return &model.WorkingSchedule{
 		DomainRecord:         model.DomainRecord{Id: in.Id},
 		Name:                 in.Name,
-		State:                int32(in.State.Number()),
+		State:                model.WorkingScheduleState(in.State.Number()),
 		Team:                 model.LookupItem{Id: in.Team.Id},
 		Calendar:             model.LookupItem{Id: in.Calendar.Id},
 		StartDateAt:          model.NewDate(in.StartDateAt),

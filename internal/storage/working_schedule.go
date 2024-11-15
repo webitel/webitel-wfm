@@ -39,7 +39,7 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 			"created_by":             user.Id,
 			"updated_by":             user.Id,
 			"name":                   in.Name,
-			"state":                  in.State,
+			"state":                  int32(in.State),
 			"team_id":                in.Team.SafeId(),
 			"calendar_id":            in.Calendar.SafeId(),
 			"start_date_at":          in.StartDateAt,
@@ -156,11 +156,62 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, user *model
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
-	// TODO implement me
-	panic("implement me")
+	cteq := w.db.SQL().CTE()
+	schedule := map[string]any{
+		"updated_by":             user.Id,
+		"name":                   in.Name,
+		"block_outside_activity": in.BlockOutsideActivity,
+	}
+
+	cteq.With(w.db.SQL().With("schedule").As(w.db.SQL().Update(workingScheduleTable, schedule).SQL("RETURNING id")))
+
+	del := w.db.SQL().Delete(workingScheduleExtraSkillTable)
+	del.Where(del.Equal("domain_id", user.DomainId), del.Equal("working_schedule_id", in.Id)).SQL("RETURNING id")
+	cteq.With(w.db.SQL().With("del_extra_skills").As(del))
+
+	if c := len(in.ExtraSkills); c > 0 {
+		skills := make([]map[string]any, 0, len(in.ExtraSkills))
+		for _, s := range in.ExtraSkills {
+			skill := map[string]any{
+				"domain_id":           user.DomainId,
+				"working_schedule_id": w.db.SQL().Format("(SELECT id FROM schedule)::bigint"),
+				"skill_id":            s.SafeId(),
+			}
+
+			skills = append(skills, skill)
+		}
+
+		cteq.With(w.db.SQL().With("extra_skills").As(w.db.SQL().Insert(workingScheduleExtraSkillTable, skills).SQL("RETURNING id")))
+	}
+
+	cte := cteq.Builder()
+	sql, args := w.db.SQL().Select("schedule.id").Distinct().With(cte).From(cte.TableNames()...).Build()
+
+	var id int64
+	if err := w.db.Primary().Get(ctx, &id, sql, args...); err != nil {
+		return nil, err
+	}
+
+	w.cache.Key(user.DomainId, in.Id).Delete(ctx)
+	out, err := w.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: in.Id})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	// TODO implement me
-	panic("implement me")
+	db := w.db.SQL().Delete(workingScheduleTable)
+	clauses := []string{
+		db.Equal("domain_id", user.DomainId),
+		db.Equal("id", id),
+	}
+
+	sql, args := db.Where(clauses...).Build()
+	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
+		return 0, err
+	}
+
+	return id, nil
 }

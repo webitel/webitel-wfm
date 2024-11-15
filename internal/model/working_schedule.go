@@ -6,11 +6,25 @@ import (
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
+type WorkingScheduleState int32
+
+const (
+	WorkingScheduleStateUnspecified = iota
+	WorkingScheduleStateDraft
+	WorkingScheduleStatePending
+	WorkingScheduleStateActive
+	WorkingScheduleStateArchived
+)
+
+func (s WorkingScheduleState) String() string {
+	return []string{"unspecified", "draft", "pending", "active", "archived"}[s]
+}
+
 type WorkingSchedule struct {
 	DomainRecord
 
-	Name  string `db:"name"`
-	State int32  `db:"state"`
+	Name  string               `db:"name"`
+	State WorkingScheduleState `db:"state"`
 
 	Team                 LookupItem    `db:"team,json"`
 	Calendar             LookupItem    `db:"calendar,json"`

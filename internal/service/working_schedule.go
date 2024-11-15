@@ -5,6 +5,7 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type WorkingScheduleStorage interface {
@@ -68,11 +69,41 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, user *model
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
-	// TODO implement me
-	panic("implement me")
+	item, err := w.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: in.Id})
+	if err != nil {
+		return nil, err
+	}
+
+	if item.State != model.WorkingScheduleStateDraft {
+		return nil, werror.NewWorkingScheduleUpdateDraftErr("service.working_schedule.state")
+	}
+
+	if item.Team.Id != in.Team.Id || item.Calendar.Id != in.Calendar.Id {
+		if _, err := w.DeleteWorkingSchedule(ctx, user, item.Id); err != nil {
+			return nil, err
+		}
+
+		out, err := w.CreateWorkingSchedule(ctx, user, item)
+		if err != nil {
+			return nil, err
+		}
+
+		return out, nil
+	}
+
+	out, err := w.storage.UpdateWorkingSchedule(ctx, user, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	// TODO implement me
-	panic("implement me")
+	out, err := w.storage.DeleteWorkingSchedule(ctx, user, id)
+	if err != nil {
+		return 0, err
+	}
+
+	return out, nil
 }
