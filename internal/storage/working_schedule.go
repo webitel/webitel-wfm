@@ -215,3 +215,26 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, user *model
 
 	return id, nil
 }
+
+func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error) {
+	columns := make([]map[string]any, 0, len(agentIds))
+	for _, agentId := range agentIds {
+		columns = append(columns, map[string]any{
+			"domain_id":           user.DomainId,
+			"working_schedule_id": id,
+			"agent_id":            agentId,
+		})
+	}
+
+	sql, args := w.db.SQL().Insert(workingScheduleAgentTable, columns).Build()
+	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
+		return nil, err
+	}
+
+	out, err := w.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: id})
+	if err != nil {
+		return nil, err
+	}
+
+	return out.Agents, nil
+}

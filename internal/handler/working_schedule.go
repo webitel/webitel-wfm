@@ -14,6 +14,8 @@ type WorkingScheduleService interface {
 	SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, bool, error)
 	UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
 	DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+
+	UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
 }
 
 type WorkingSchedule struct {
@@ -84,6 +86,26 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, req *pb.Del
 	}
 
 	return &pb.DeleteWorkingScheduleResponse{Id: id}, nil
+}
+
+func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, req *pb.UpdateWorkingScheduleAddAgentsRequest) (*pb.UpdateWorkingScheduleAddAgentsResponse, error) {
+	s := grpccontext.FromContext(ctx)
+	agents := make([]int64, 0, len(req.GetAgents()))
+	for _, agent := range req.GetAgents() {
+		agents = append(agents, agent.Id)
+	}
+
+	items, err := w.svc.UpdateWorkingScheduleAddAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*pb.LookupEntity, 0, len(items))
+	for _, item := range items {
+		out = append(out, item.MarshalProto())
+	}
+
+	return &pb.UpdateWorkingScheduleAddAgentsResponse{Agents: out}, nil
 }
 
 func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {
