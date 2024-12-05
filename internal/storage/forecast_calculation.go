@@ -6,7 +6,6 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -17,12 +16,12 @@ const (
 )
 
 type ForecastCalculation struct {
-	db         cluster.Store
-	forecastDB cluster.ForecastStore
+	db         dbsql.Store
+	forecastDB dbsql.ForecastStore
 	cache      *cache.Scope[model.ForecastCalculation]
 }
 
-func NewForecastCalculation(db cluster.Store, manager cache.Manager, forecastDB cluster.ForecastStore) *ForecastCalculation {
+func NewForecastCalculation(db dbsql.Store, manager cache.Manager, forecastDB dbsql.ForecastStore) *ForecastCalculation {
 	return &ForecastCalculation{
 		db:         db,
 		cache:      cache.NewScope[model.ForecastCalculation](manager, forecastCalculationTable),

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
@@ -14,10 +13,10 @@ const (
 )
 
 type WorkingCondition struct {
-	db cluster.Store
+	db dbsql.Store
 }
 
-func NewWorkingCondition(db cluster.Store) *WorkingCondition {
+func NewWorkingCondition(db dbsql.Store) *WorkingCondition {
 	return &WorkingCondition{
 		db: db,
 	}

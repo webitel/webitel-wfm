@@ -5,18 +5,15 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 	otelpgx "github.com/webitel/webitel-go-kit/tracing/pgx"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/errors"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/batch"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
-
-var _ cluster.Database = &Database{}
 
 type Database struct {
 	log *wlog.Logger
@@ -45,7 +42,7 @@ func NewDatabase(ctx context.Context, log *wlog.Logger, dsn string) (*Database, 
 func (db *Database) Exec(ctx context.Context, query string, args ...any) error {
 	res, err := db.cli.Exec(ctx, query, args...)
 	if err != nil {
-		return errors.ParseError(err)
+		return err
 	}
 
 	if res.RowsAffected() == 0 {
@@ -55,22 +52,17 @@ func (db *Database) Exec(ctx context.Context, query string, args ...any) error {
 	return nil
 }
 
-func (db *Database) Query(ctx context.Context, query string, args ...any) (cluster.Rows, error) {
+func (db *Database) Query(ctx context.Context, query string, args ...any) (scanner.Rows, error) {
 	r, err := db.cli.Query(ctx, query, args...)
 	if err != nil {
-		return nil, errors.ParseError(err)
+		return nil, err
 	}
 
-	return NewRowsAdapter(r), nil
+	return newRowsAdapter(r), nil
 }
 
-func (db *Database) SendBatch(ctx context.Context, queries []*cluster.Query) cluster.BatchResults {
-	b := pgx.Batch{}
-	for _, query := range queries {
-		b.Queue(query.SQL, query.Args...)
-	}
-
-	return NewBatchResultsAdapter(db.cli.SendBatch(ctx, &b))
+func (db *Database) Batch() batch.Batcher {
+	return newBatch(db.cli)
 }
 
 func (db *Database) Close() {

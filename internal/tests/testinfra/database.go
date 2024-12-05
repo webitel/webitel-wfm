@@ -9,15 +9,15 @@ import (
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
 	dbsqlmock "github.com/webitel/webitel-wfm/gen/go/mocks/cluster"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/pg"
 )
 
 type TestStorageCluster struct {
 	dbmock  pgxmock.PgxPoolIface
-	cluster cluster.Store
-	queryer cluster.Queryer
+	cluster dbsql.Store
+	queryer dbsql.Queryer
 }
 
 func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster, error) {
@@ -33,7 +33,7 @@ func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster,
 		return nil, err
 	}
 
-	cl, err := cluster.NewCluster(log, map[string]cluster.Database{"mock": conn})
+	cl, err := dbsql.NewCluster(log, map[string]dbsql.Database{"mock": conn})
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +45,11 @@ func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster,
 	}, nil
 }
 
-func (t *TestStorageCluster) Store() cluster.Store {
+func (t *TestStorageCluster) Store() dbsql.Store {
 	return t.cluster
 }
 
-func (t *TestStorageCluster) Queryer() cluster.Queryer {
+func (t *TestStorageCluster) Queryer() dbsql.Queryer {
 	return t.queryer
 }
 
@@ -57,7 +57,7 @@ func (t *TestStorageCluster) Mock() pgxmock.PgxPoolIface {
 	return t.dbmock
 }
 
-func mockDatabase(t *testing.T, db pgxmock.PgxPoolIface) (cluster.Database, error) {
+func mockDatabase(t *testing.T, db pgxmock.PgxPoolIface) (dbsql.Database, error) {
 	conn := dbsqlmock.NewMockDatabase(t)
 	conn.EXPECT().Exec(mock.Anything, mock.AnythingOfType("string")).
 		RunAndReturn(func(ctx context.Context, sql string, args ...any) error {
@@ -69,7 +69,7 @@ func mockDatabase(t *testing.T, db pgxmock.PgxPoolIface) (cluster.Database, erro
 		}).Maybe()
 
 	conn.EXPECT().Query(mock.Anything, mock.AnythingOfType("string"), mock.Anything).
-		RunAndReturn(func(ctx context.Context, sql string, args ...any) (cluster.Rows, error) {
+		RunAndReturn(func(ctx context.Context, sql string, args ...any) (dbsql.Rows, error) {
 			rows, err := db.Query(ctx, sql, args...)
 			if err != nil {
 				return nil, err

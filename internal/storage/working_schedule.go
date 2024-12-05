@@ -5,7 +5,6 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -18,11 +17,11 @@ const (
 )
 
 type WorkingSchedule struct {
-	db    cluster.Store
+	db    dbsql.Store
 	cache *cache.Scope[model.WorkingSchedule]
 }
 
-func NewWorkingSchedule(db cluster.Store, manager cache.Manager) *WorkingSchedule {
+func NewWorkingSchedule(db dbsql.Store, manager cache.Manager) *WorkingSchedule {
 	werror.RegisterConstraint("working_schedule_check", "start_date_at should be lower that end_date_at")
 
 	return &WorkingSchedule{

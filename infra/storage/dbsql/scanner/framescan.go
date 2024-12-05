@@ -3,7 +3,6 @@ package scanner
 import (
 	"fmt"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/errors"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
@@ -71,7 +70,7 @@ func (f *FrameScan) ScanAll(dst any, rows Rows) error {
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
-				return errors.ParseError(err)
+				return err
 			}
 
 			for i, v := range values {
@@ -85,7 +84,7 @@ func (f *FrameScan) ScanAll(dst any, rows Rows) error {
 	}
 
 	if err := rows.Err(); err != nil {
-		return errors.ParseError(err)
+		return err
 	}
 
 	*out = items

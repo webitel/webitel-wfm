@@ -1,4 +1,4 @@
-package cluster
+package dbsql
 
 import (
 	"context"
@@ -60,7 +60,7 @@ type Node interface {
 	Get(ctx context.Context, dest interface{}, query string, args ...any) error
 	Exec(ctx context.Context, query string, args ...any) error
 
-	WithBatch() Batcher
+	Batch() BatchNode
 }
 
 var _ Node = &sqlNode{}
@@ -70,17 +70,12 @@ type sqlNode struct {
 	addr  string
 
 	db      Database
-	queryer Queryer
 	scanner scanner.Scanner
 }
 
 // newNode constructs node from Connection
 func newNode(addr string, db Database, scanner scanner.Scanner) (*sqlNode, error) {
-	return &sqlNode{addr: addr, db: db, queryer: db, scanner: scanner}, nil
-}
-
-func (n *sqlNode) WithBatch() Batcher {
-	return newSqlNodeBatch(n.db)
+	return &sqlNode{addr: addr, db: db, scanner: scanner}, nil
 }
 
 // Addr returns node's address
@@ -105,8 +100,16 @@ func (n *sqlNode) String() string {
 	return n.addr
 }
 
+func (n *sqlNode) Close() {
+	n.db.Close()
+}
+
+func (n *sqlNode) Stdlib() *sql.DB {
+	return n.db.Stdlib()
+}
+
 func (n *sqlNode) Select(ctx context.Context, dest interface{}, query string, args ...any) error {
-	rows, err := n.queryer.Query(ctx, query, args...)
+	rows, err := n.db.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -119,7 +122,7 @@ func (n *sqlNode) Select(ctx context.Context, dest interface{}, query string, ar
 }
 
 func (n *sqlNode) Get(ctx context.Context, dest interface{}, query string, args ...any) error {
-	rows, err := n.queryer.Query(ctx, query, args...)
+	rows, err := n.db.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -132,17 +135,13 @@ func (n *sqlNode) Get(ctx context.Context, dest interface{}, query string, args 
 }
 
 func (n *sqlNode) Exec(ctx context.Context, query string, args ...any) error {
-	if err := n.queryer.Exec(ctx, query, args...); err != nil {
+	if err := n.db.Exec(ctx, query, args...); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (n *sqlNode) Close() {
-	n.db.Close()
-}
-
-func (n *sqlNode) Stdlib() *sql.DB {
-	return n.db.Stdlib()
+func (n *sqlNode) Batch() BatchNode {
+	return newSqlNodeBatch(n.db.Batch())
 }

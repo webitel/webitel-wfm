@@ -12,14 +12,14 @@ import (
 	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/service"
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
 var wireResourceSet = wire.NewSet(
-	sqlStorage, wire.Bind(new(cluster.Store), new(*cluster.Cluster)),
+	sqlStorage, wire.Bind(new(dbsql.Store), new(*dbsql.Cluster)),
 	inmemoryCache, serviceDiscovery, auth, webitelEngine, pubsubConn, webitelLogger, audit,
 )
 
@@ -59,7 +59,7 @@ func initResources(context.Context, *config.Config, *wlog.Logger, *health.CheckR
 	return &resources{}, nil
 }
 
-func initHandlers(*wlog.Logger, *resources, cluster.ForecastStore) (*handlers, error) {
+func initHandlers(*wlog.Logger, *resources, dbsql.ForecastStore) (*handlers, error) {
 	wire.Build(wireHandlersSet,
 		wire.FieldsOf(new(*resources), "cache", "storage", "engine", "audit"),
 		wire.Struct(new(handlers), "*"),

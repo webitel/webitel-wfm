@@ -1,4 +1,4 @@
-package cluster
+package dbsql
 
 import "github.com/webitel/webitel-go-kit/logging/wlog"
 

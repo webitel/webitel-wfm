@@ -6,7 +6,6 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -22,11 +21,11 @@ const (
 // TODO: dont delete all keys within prefix (add something as id range 1-10 stored in cache key)
 
 type PauseTemplate struct {
-	db    cluster.Store
+	db    dbsql.Store
 	cache *cache.Scope[model.PauseTemplate]
 }
 
-func NewPauseTemplate(db cluster.Store, manager cache.Manager) *PauseTemplate {
+func NewPauseTemplate(db dbsql.Store, manager cache.Manager) *PauseTemplate {
 	return &PauseTemplate{
 		db:    db,
 		cache: cache.NewScope[model.PauseTemplate](manager, pauseTemplateTable),

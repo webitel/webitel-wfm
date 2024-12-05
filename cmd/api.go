@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -29,7 +30,6 @@ import (
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/internal/handler"
@@ -158,7 +158,7 @@ type app struct {
 }
 
 type resources struct {
-	storage   cluster.Store
+	storage   dbsql.Store
 	cache     cache.Manager
 	authcli   authmanager.AuthManager
 	engine    *engine.Client
@@ -316,7 +316,7 @@ func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.Ch
 		ch := health.RunAll(ctx)
 		for _, c := range ch {
 			if c.Err != nil {
-				return false, c.Err
+				return false, fmt.Errorf("%s: %w", c.Name, c.Err)
 			}
 		}
 
@@ -360,7 +360,7 @@ func inmemoryCache() (cache.Manager, error) {
 	return conn, nil
 }
 
-func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*cluster.Cluster, error) {
+func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*dbsql.Cluster, error) {
 	const scope = "sql-storage"
 	dsns := strings.Fields(cfg.Database.DSN)
 	conns, err := dbsql.NewConnections(ctx, log, dsns...)
@@ -368,7 +368,7 @@ func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, healt
 		return nil, err
 	}
 
-	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate())
+	conn, err := dbsql.NewCluster(log, conns, dbsql.WithUpdate())
 	if err != nil {
 		return nil, err
 	}
@@ -382,14 +382,14 @@ func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, healt
 	return conn, nil
 }
 
-func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*cluster.Cluster, error) {
+func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*dbsql.Cluster, error) {
 	const scope = "forecast-sql-storage"
 	conns, err := dbsql.NewConnections(ctx, log, cfg.Database.ForecastCalculationDSN)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := cluster.NewCluster(log, conns, cluster.WithUpdate(), cluster.WithForecastScan())
+	conn, err := dbsql.NewCluster(log, conns, dbsql.WithUpdate(), dbsql.WithForecastScan())
 	if err != nil {
 		return nil, err
 	}
@@ -475,8 +475,18 @@ func pubsubConn(log *wlog.Logger, cfg *config.Config, tracker *shutdown.Tracker)
 	return ps, nil
 }
 
-func webitelLogger(log *wlog.Logger, sd discovery.ServiceDiscovery) (*logger.Client, error) {
-	return logger.New(log, sd)
+func webitelLogger(log *wlog.Logger, sd discovery.ServiceDiscovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (*logger.Client, error) {
+	c, err := logger.New(log, sd)
+	if err != nil {
+		return nil, err
+	}
+
+	health.Register(c)
+	if err := tracker.RegisterShutdownHandler("webitel-logger", c); err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 func audit(svc *logger.Client, pub *pubsub.Manager) *logger.Audit {

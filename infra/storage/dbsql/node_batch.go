@@ -1,38 +1,32 @@
-package cluster
+package dbsql
 
 import (
 	"context"
 	"fmt"
 	"reflect"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/errors"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/batch"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
-type BatchResults interface {
-	Query(_ context.Context, _ string, _ []any) (Rows, error)
-	Exec(_ context.Context, _ string, _ []any) error
-	Close() error
-}
-
-type Query struct {
-	SQL  string
-	Args []any
+type BatchNode interface {
+	Queue(query string, args ...any)
+	Select(ctx context.Context, dest any) error
+	Exec(ctx context.Context) error
 }
 
 type sqlNodeBatch struct {
-	db      Database
+	batcher batch.Batcher
 	scanner scanner.Scanner
-	queue   []*Query
 }
 
-func newSqlNodeBatch(db Database) *sqlNodeBatch {
-	return &sqlNodeBatch{db: db, scanner: scanner.MustNewBatchScan(), queue: make([]*Query, 0)}
+func newSqlNodeBatch(batcher batch.Batcher) *sqlNodeBatch {
+	return &sqlNodeBatch{batcher: batcher, scanner: scanner.MustNewBatchScan()}
 }
 
-func (n *sqlNodeBatch) Queue(sql string, args []any) {
-	n.queue = append(n.queue, &Query{SQL: sql, Args: args})
+func (n *sqlNodeBatch) Queue(sql string, args ...any) {
+	n.batcher.Queue(sql, args...)
 }
 
 func (n *sqlNodeBatch) Select(ctx context.Context, dest any) error {
@@ -50,15 +44,15 @@ func (n *sqlNodeBatch) Select(ctx context.Context, dest any) error {
 	// Create a slice of dest type and set it to newly created slice
 	// so we can merge it later,
 	v.Set(reflect.MakeSlice(v.Type(), 0, 0))
-	queryer := n.db.SendBatch(ctx, n.queue)
-	for range n.queue {
-		rows, err := queryer.Query(ctx, "", nil)
+	queryer := n.batcher.Send(ctx)
+	for i := 0; i < n.batcher.Len(); i++ {
+		rows, err := queryer.Query()
 		if err != nil {
-			return errors.ParseError(err)
+			return ParseError(err)
 		}
 
 		if err := n.scanner.ScanAll(dest, rows); err != nil {
-			return errors.ParseError(err)
+			return ParseError(err)
 		}
 
 		v = reflect.AppendSlice(v, destSlice.Elem())
@@ -71,10 +65,10 @@ func (n *sqlNodeBatch) Select(ctx context.Context, dest any) error {
 }
 
 func (n *sqlNodeBatch) Exec(ctx context.Context) error {
-	queryer := n.db.SendBatch(ctx, n.queue)
-	for range n.queue {
-		if err := queryer.Exec(ctx, "", nil); err != nil {
-			return errors.ParseError(err)
+	queryer := n.batcher.Send(ctx)
+	for i := 0; i < n.batcher.Len(); i++ {
+		if err := queryer.Exec(); err != nil {
+			return ParseError(err)
 		}
 	}
 

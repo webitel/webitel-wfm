@@ -2,8 +2,6 @@ package scanner
 
 import (
 	"github.com/georgysavva/scany/v2/dbscan"
-
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/errors"
 )
 
 var _ Scanner = &DBScan{}
@@ -36,7 +34,7 @@ func (d *DBScan) String() string {
 
 func (d *DBScan) ScanOne(dst interface{}, rows Rows) error {
 	if err := d.cli.ScanOne(dst, rows); err != nil {
-		return errors.ParseError(err)
+		return err
 	}
 
 	return nil
@@ -44,7 +42,7 @@ func (d *DBScan) ScanOne(dst interface{}, rows Rows) error {
 
 func (d *DBScan) ScanAll(dst interface{}, rows Rows) error {
 	if err := d.cli.ScanAll(dst, rows); err != nil {
-		return errors.ParseError(err)
+		return err
 	}
 
 	return nil

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -15,10 +14,10 @@ const (
 )
 
 type ShiftTemplate struct {
-	db cluster.Store
+	db dbsql.Store
 }
 
-func NewShiftTemplate(db cluster.Store) *ShiftTemplate {
+func NewShiftTemplate(db dbsql.Store) *ShiftTemplate {
 	return &ShiftTemplate{
 		db: db,
 	}

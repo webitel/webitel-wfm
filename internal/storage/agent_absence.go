@@ -5,7 +5,6 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -16,11 +15,11 @@ const (
 )
 
 type AgentAbsence struct {
-	db    cluster.Store
+	db    dbsql.Store
 	cache *cache.Scope[model.AgentAbsence]
 }
 
-func NewAgentAbsence(db cluster.Store, manager cache.Manager) *AgentAbsence {
+func NewAgentAbsence(db dbsql.Store, manager cache.Manager) *AgentAbsence {
 	return &AgentAbsence{
 		db:    db,
 		cache: cache.NewScope[model.AgentAbsence](manager, agentAbsenceTable),
@@ -101,7 +100,7 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.Signe
 }
 
 func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error) {
-	batch := a.db.Primary().WithBatch()
+	batch := a.db.Primary().Batch()
 	for _, agentId := range agentIds {
 		for _, absence := range in {
 			start := model.NewDate(absence.AbsentAtFrom)

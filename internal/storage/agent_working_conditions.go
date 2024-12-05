@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
@@ -14,10 +13,10 @@ const (
 )
 
 type AgentWorkingConditions struct {
-	db cluster.Store
+	db dbsql.Store
 }
 
-func NewAgentWorkingConditions(db cluster.Store) *AgentWorkingConditions {
+func NewAgentWorkingConditions(db dbsql.Store) *AgentWorkingConditions {
 	return &AgentWorkingConditions{
 		db: db,
 	}
