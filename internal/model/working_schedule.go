@@ -64,6 +64,7 @@ func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
 		ExtraSkills:          skills,
 		BlockOutsideActivity: w.BlockOutsideActivity,
 		Agents:               agents,
+		TotalAgents:          int64(len(agents)),
 	}
 
 	if !w.CreatedAt.Time.IsZero() {
