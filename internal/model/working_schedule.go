@@ -9,7 +9,7 @@ import (
 type WorkingScheduleState int32
 
 const (
-	WorkingScheduleStateUnspecified = iota
+	WorkingScheduleStateUnspecified WorkingScheduleState = iota
 	WorkingScheduleStateDraft
 	WorkingScheduleStatePending
 	WorkingScheduleStateActive
