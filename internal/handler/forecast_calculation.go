@@ -91,8 +91,8 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req
 func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, req *pb.ExecuteForecastCalculationRequest) (*pb.ExecuteForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
 	forecast := &model.FilterBetween{
-		From: req.ForecastData.From,
-		To:   req.ForecastData.To,
+		From: model.NewTimestamp(req.ForecastData.From),
+		To:   model.NewTimestamp(req.ForecastData.To),
 	}
 
 	out, err := f.svc.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id, req.TeamId, forecast)

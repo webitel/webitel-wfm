@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 )
 
@@ -17,11 +19,13 @@ type SearchItem struct {
 
 	Sort   *string  `json:"sort,omitempty" db:"sort"`
 	Fields []string `json:"fields,omitempty" db:"fields"`
+
+	Date *FilterBetween `json:"date,omitempty" db:"date"`
 }
 
 type FilterBetween struct {
-	From int64 `json:"from" db:"from"`
-	To   int64 `json:"to" db:"to"`
+	From pgtype.Timestamp `json:"from" db:"from"`
+	To   pgtype.Timestamp `json:"to" db:"to"`
 }
 
 func (s *SearchItem) SortFields() {
