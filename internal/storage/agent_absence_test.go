@@ -72,8 +72,8 @@ func (s *agentAbsenceTestSuite) TestCreateAgentAbsence() {
 					Id: 1,
 				},
 				Absence: model.Absence{
-					AbsentAt:      model.NewDate(time.Now().Unix()),
-					AbsenceTypeId: 1,
+					AbsentAt:    model.NewDate(time.Now().Unix()),
+					AbsenceType: 1,
 				},
 			},
 			expected: expectation{
@@ -88,7 +88,7 @@ func (s *agentAbsenceTestSuite) TestCreateAgentAbsence() {
 			sql := "INSERT INTO wfm.agent_absence (absence_type_id, absent_at, agent_id, created_by, domain_id, updated_by) " +
 				"VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"
 			args := []any{
-				tt.in.Absence.AbsenceTypeId,
+				tt.in.Absence.AbsenceType,
 				tt.in.Absence.AbsentAt,
 				tt.in.Agent.Id,
 				tt.user.Id,
@@ -137,8 +137,8 @@ func (s *agentAbsenceTestSuite) TestUpdateAgentAbsence() {
 					DomainRecord: model.DomainRecord{
 						Id: 1,
 					},
-					AbsentAt:      model.NewDate(time.Now().Unix()),
-					AbsenceTypeId: 1,
+					AbsentAt:    model.NewDate(time.Now().Unix()),
+					AbsenceType: 1,
 				},
 			},
 			expected: expectation{
@@ -156,19 +156,19 @@ func (s *agentAbsenceTestSuite) TestUpdateAgentAbsence() {
 				"WHERE dc = $9 AND subject = ANY ($10) AND access & $11 = $12 AND object = $13))"
 
 			args := []any{
-				tt.user.Id,                  // 1
-				tt.in.Absence.AbsentAt,      // 2
-				tt.in.Absence.AbsenceTypeId, // 3
-				tt.user.DomainId,            // 4
-				tt.in.Absence.Id,            // 5
-				tt.in.Agent.Id,              // 6
-				tt.user.UseRBAC,             // 7
-				"1",                         // 8
-				tt.user.DomainId,            // 9
-				tt.user.RbacOptions.Groups,  // 10
-				tt.user.Access,              // 11
-				tt.user.Access,              // 12
-				tt.in.Absence.Id,            // 13
+				tt.user.Id,                 // 1
+				tt.in.Absence.AbsentAt,     // 2
+				tt.in.Absence.AbsenceType,  // 3
+				tt.user.DomainId,           // 4
+				tt.in.Absence.Id,           // 5
+				tt.in.Agent.Id,             // 6
+				tt.user.UseRBAC,            // 7
+				"1",                        // 8
+				tt.user.DomainId,           // 9
+				tt.user.RbacOptions.Groups, // 10
+				tt.user.Access,             // 11
+				tt.user.Access,             // 12
+				tt.in.Absence.Id,           // 13
 			}
 
 			s.cluster.Mock().ExpectExec(sql).WithArgs(args...).WillReturnResult(pgxmock.NewResult("UPDATE", 1))

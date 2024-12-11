@@ -119,8 +119,8 @@ func unmarshalAgentAbsenceProto(in *pb.AgentAbsence) *model.AgentAbsence {
 			DomainRecord: model.DomainRecord{
 				Id: in.Absence.Id,
 			},
-			AbsentAt:      model.NewDate(in.Absence.AbsentAt),
-			AbsenceTypeId: int64(in.Absence.TypeId),
+			AbsentAt:    model.NewDate(in.Absence.AbsentAt),
+			AbsenceType: model.AgentAbsenceType(in.Absence.TypeId),
 		},
 	}
 }
@@ -129,9 +129,9 @@ func unmarshalAgentsAbsencesBulk(in []*pb.CreateAgentsAbsencesBulkRequestAbsentT
 	out := make([]*model.AgentAbsenceBulk, 0, len(in))
 	for _, it := range in {
 		item := &model.AgentAbsenceBulk{
-			AbsenceTypeId: int64(it.TypeId),
-			AbsentAtFrom:  it.AbsentAtFrom,
-			AbsentAtTo:    it.AbsentAtTo,
+			AbsenceType:  model.AgentAbsenceType(it.TypeId),
+			AbsentAtFrom: it.AbsentAtFrom,
+			AbsentAtTo:   it.AbsentAtTo,
 		}
 
 		out = append(out, item)

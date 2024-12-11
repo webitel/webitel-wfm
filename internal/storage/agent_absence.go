@@ -60,7 +60,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.Signe
 	columns := map[string]any{
 		"updated_by":      user.Id,
 		"absent_at":       in.Absence.AbsentAt,
-		"absence_type_id": in.Absence.AbsenceTypeId,
+		"absence_type_id": in.Absence.AbsenceType,
 	}
 
 	ub := a.db.SQL().Update(agentAbsenceTable, columns)
@@ -112,8 +112,8 @@ func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model
 						Id: agentId,
 					},
 					Absence: model.Absence{
-						AbsenceTypeId: absence.AbsenceTypeId,
-						AbsentAt:      d,
+						AbsenceType: absence.AbsenceType,
+						AbsentAt:    d,
 					},
 				}
 
@@ -202,7 +202,7 @@ func (a *AgentAbsence) createAgentAbsenceQuery(user *model.SignedInUser, in *mod
 			"updated_by":      user.Id,
 			"absent_at":       in.Absence.AbsentAt,
 			"agent_id":        in.Agent.Id,
-			"absence_type_id": in.Absence.AbsenceTypeId,
+			"absence_type_id": int32(in.Absence.AbsenceType),
 		},
 	}
 

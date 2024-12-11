@@ -7,18 +7,31 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 )
 
+type AgentAbsenceType int32
+
+const (
+	AgentAbsenceTypeUnspecified AgentAbsenceType = iota
+	AgentAbsenceTypeDayOff
+	AgentAbsenceTypeVacation
+	AgentAbsenceTypeSickDay
+)
+
+func (s AgentAbsenceType) String() string {
+	return []string{"unspecified", "dayoff", "vacation", "sickday"}[s]
+}
+
 type Absence struct {
 	DomainRecord
 
-	AbsentAt      pgtype.Date `json:"absent_at" db:"absent_at,json"`
-	AbsenceTypeId int64       `json:"absence_type_id" db:"absence_type_id"`
+	AbsentAt    pgtype.Date      `json:"absent_at" db:"absent_at,json"`
+	AbsenceType AgentAbsenceType `json:"absence_type_id" db:"absence_type_id"`
 }
 
 func (a *Absence) MarshalProto() *pb.Absence {
 	return &pb.Absence{
 		Id:        a.Id,
 		DomainId:  a.DomainId,
-		TypeId:    pb.AgentAbsenceType(a.AbsenceTypeId),
+		TypeId:    pb.AgentAbsenceType(a.AbsenceType),
 		AbsentAt:  a.AbsentAt.Time.UnixMilli(),
 		CreatedAt: a.CreatedAt.Time.UnixMilli(),
 		CreatedBy: a.CreatedBy.MarshalProto(),
@@ -57,9 +70,9 @@ func (a *AgentAbsences) MarshalProto() *pb.AgentAbsences {
 }
 
 type AgentAbsenceBulk struct {
-	AbsenceTypeId int64 `json:"absence_type_id" db:"absence_type_id"`
-	AbsentAtFrom  int64
-	AbsentAtTo    int64
+	AbsenceType  AgentAbsenceType `json:"absence_type_id" db:"absence_type_id"`
+	AbsentAtFrom int64
+	AbsentAtTo   int64
 }
 
 type AgentAbsenceSearch struct {
