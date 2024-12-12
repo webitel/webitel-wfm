@@ -15,6 +15,7 @@ var serviceName = "engine"
 
 type Client struct {
 	*AgentService
+	*CalendarService
 
 	Conn *webitel.ConnectionManager[*webitel.Connection]
 }
@@ -30,7 +31,12 @@ func New(log *wlog.Logger, sd discovery.ServiceDiscovery) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{Conn: c, AgentService: agentSvc}, nil
+	calendarSvc, err := NewCalendarServiceClient(log, c)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{Conn: c, AgentService: agentSvc, CalendarService: calendarSvc}, nil
 }
 
 func (c *Client) Shutdown(p *shutdown.Process) error {
