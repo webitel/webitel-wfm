@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
-	dbsqlmock "github.com/webitel/webitel-wfm/gen/go/mocks/cluster"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/pg"
@@ -17,7 +16,7 @@ import (
 type TestStorageCluster struct {
 	dbmock  pgxmock.PgxPoolIface
 	cluster dbsql.Store
-	queryer dbsql.Queryer
+	queryer dbsql.Database
 }
 
 func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster, error) {

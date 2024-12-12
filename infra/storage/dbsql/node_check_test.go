@@ -12,8 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/webitel/webitel-wfm/gen/go/mocks/cluster"
 )
 
 func TestCheckedNodesList_Len(t *testing.T) {

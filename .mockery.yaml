@@ -12,10 +12,9 @@ packages:
       dir: "gen/go/mocks/{{ .InterfaceDirRelative }}"
     interfaces:
       AuthManager:
-  github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster:
+  github.com/webitel/webitel-wfm/infra/storage/dbsql:
     interfaces:
       Database:
-      Queryer:
   github.com/webitel/webitel-wfm/internal/handler:
     interfaces:
       PauseTemplateManager:
