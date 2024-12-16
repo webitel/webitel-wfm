@@ -15,6 +15,8 @@ const (
 	forecastCalculationView  = forecastCalculationTable + "_v"
 )
 
+var ErrForecastProcedureNotFound = werror.NotFound("", werror.WithID("storage.forecast_calculation.procedure"))
+
 type ForecastCalculation struct {
 	db         dbsql.Store
 	forecastDB dbsql.ForecastStore
@@ -67,11 +69,11 @@ func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, user 
 	}
 
 	if len(items) > 1 {
-		return nil, werror.NewDBEntityConflictError("storage.forecast_calculation.read.conflict")
+		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.forecast_calculation.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.NewDBNoRowsErr("storage.forecast_calculation.read")
+		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.forecast_calculation.read"))
 	}
 
 	return items[0], nil
@@ -180,7 +182,9 @@ func (f *ForecastCalculation) checkProcedure(ctx context.Context, proc string) e
 	// to_regproc will return NULL rather than throwing an error if the name is not found or is ambiguous,
 	// so we need to check this and return error if received NULL
 	if exists == nil {
-		return werror.NewForecastProcedureNotFoundErr("storage.forecast_calculation.procedure", proc)
+		return werror.Wrap(ErrForecastProcedureNotFound, werror.WithCause(dbsql.ErrNoRows),
+			werror.WithValue("procedure", proc),
+		)
 	}
 
 	return nil

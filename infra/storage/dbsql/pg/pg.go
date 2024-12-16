@@ -12,7 +12,6 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/batch"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type Database struct {
@@ -39,17 +38,13 @@ func NewDatabase(ctx context.Context, log *wlog.Logger, dsn string) (*Database, 
 	return &Database{log: log, cli: dbpool}, nil
 }
 
-func (db *Database) Exec(ctx context.Context, query string, args ...any) error {
+func (db *Database) Exec(ctx context.Context, query string, args ...any) (int64, error) {
 	res, err := db.cli.Exec(ctx, query, args...)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if res.RowsAffected() == 0 {
-		return werror.NewDBNoRowsErr("pg.exec.rows_affected")
-	}
-
-	return nil
+	return res.RowsAffected(), nil
 }
 
 func (db *Database) Query(ctx context.Context, query string, args ...any) (scanner.Rows, error) {

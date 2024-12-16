@@ -94,20 +94,12 @@ func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, user *model.Signed
 		return nil, err
 	}
 
-	items, err := a.store.SearchAgentsAbsences(ctx, user, search)
+	item, err := a.store.ReadAgentAbsences(ctx, user, search)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(items) > 1 {
-		return nil, werror.NewDBEntityConflictError("service.agent_absence.read.conflict")
-	}
-
-	if len(items) == 0 {
-		return nil, werror.NewDBNoRowsErr("service.agent_absence.read")
-	}
-
-	return items[0], nil
+	return item, nil
 }
 
 func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error) {
@@ -118,7 +110,7 @@ func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model
 
 	// Checks if signed user has read access to a desired set of agents.
 	if ok := compare.ElementsMatch(agents, agentIds); !ok {
-		return nil, werror.NewAuthForbiddenError("service.agent_absence.check_agents", "cc_agent", "read")
+		return nil, werror.Wrap(ErrAgentNotAllowed, werror.WithID("service.agent_absence.check_agents"))
 	}
 
 	out, err := a.store.CreateAgentsAbsencesBulk(ctx, user, agents, in)

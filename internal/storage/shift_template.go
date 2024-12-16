@@ -51,11 +51,11 @@ func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, user *model.Signe
 	}
 
 	if len(items) > 1 {
-		return nil, werror.NewDBEntityConflictError("storage.shift_template.read.conflict")
+		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.shift_template.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.NewDBNoRowsErr("storage.shift_template.read")
+		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.shift_template.read"))
 	}
 
 	return items[0], nil

@@ -19,6 +19,11 @@ import (
 )
 
 var (
+	ErrInternal = werror.Internal("internal server error", werror.WithID("webitel.connection.service"))
+	ErrNoRows   = werror.NotFound("no rows in result set", werror.WithID("webitel.connection.service"))
+)
+
+var (
 	// see https://github.com/grpc/grpc/blob/master/doc/service_config.md to know more about service config
 	retryPolicy = `{
 		"loadBalancingConfig": [ { "round_robin": {} } ],
@@ -94,17 +99,17 @@ func ParseError(err error) error {
 	if ok {
 		switch st.Code() {
 		case codes.NotFound, codes.PermissionDenied:
-			return werror.NewDBNoRowsErr("webitel.connection.service")
+			return werror.Wrap(ErrNoRows, werror.WithCause(st.Err()))
 		default:
 			if strings.Contains(st.Message(), "no rows in result set") {
-				return werror.NewDBNoRowsErr("webitel.connection.service")
+				return werror.Wrap(ErrNoRows, werror.WithCause(st.Err()))
 			}
 
-			return werror.NewDBInternalError("webitel.connection.service", st.Err())
+			return werror.Wrap(ErrInternal, werror.WithCause(st.Err()))
 		}
 	}
 
-	return werror.NewDBInternalError("webitel.connection.service", err)
+	return werror.Wrap(ErrInternal, werror.WithCause(err))
 }
 
 func authUnaryInterceptor() grpc.UnaryClientInterceptor {

@@ -87,11 +87,11 @@ func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, user *model.Signe
 	}
 
 	if len(items) > 1 {
-		return nil, werror.NewDBEntityConflictError("storage.pause_template.read.conflict")
+		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.pause_template.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.NewDBNoRowsErr("storage.pause_template.read")
+		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.pause_template.read"))
 	}
 
 	return items[0], nil
@@ -182,8 +182,8 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	// SELECT distinct pause_template.id FROM pause_template, del_causes, ins_causes;
 	sql, args := p.db.SQL().Select("distinct pause_template.id").From("pause_template", "del_causes", "ins_causes").With(cte).Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		if errors.As(err, &werror.DBNotNullViolationError{}) {
-			return werror.NewDBNoRowsErr("storage.pause_template.update")
+		if errors.Is(err, dbsql.ErrNoRows) {
+			return werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.pause_template.update"), werror.WithCause(err))
 		}
 
 		return err

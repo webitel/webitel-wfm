@@ -9,6 +9,8 @@ import (
 
 var _ Scanner = &ForecastScan{}
 
+var ErrForecastProcedureResult = werror.InvalidArgument("forecast procedure execution result expected 2 columns", werror.WithID("dbsql.scanner.forecastscan"))
+
 type ForecastScan struct {
 	cli *DBScan
 }
@@ -52,7 +54,9 @@ func (f *ForecastScan) ScanOne(dst interface{}, rows Rows) error {
 	}
 
 	if len(columns) != 0 && len(columns) != 2 {
-		return werror.NewForecastProcedureResultErr("dbsql.scanner.forecastscan.one", len(columns))
+		return werror.Wrap(ErrForecastProcedureResult, werror.WithID("dbsql.scanner.forecastscan.one"),
+			werror.WithValue("columns", len(columns)),
+		)
 	}
 
 	return f.cli.ScanOne(dst, rows)
@@ -70,7 +74,9 @@ func (f *ForecastScan) ScanAll(dst interface{}, rows Rows) error {
 	}
 
 	if len(columns) != 0 && len(columns) != 2 {
-		return werror.NewForecastProcedureResultErr("dbsql.scanner.forecastscan.all", len(columns))
+		return werror.Wrap(ErrForecastProcedureResult, werror.WithID("dbsql.scanner.forecastscan.all"),
+			werror.WithValue("columns", len(columns)),
+		)
 	}
 
 	return f.cli.ScanAll(dst, rows)

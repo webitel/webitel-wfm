@@ -15,7 +15,7 @@ import (
 // Database is an abstract database interface that can execute queries.
 // This is used to decouple from any particular database library.
 type Database interface {
-	Exec(ctx context.Context, query string, args ...any) error
+	Exec(ctx context.Context, query string, args ...any) (int64, error)
 	Query(ctx context.Context, query string, args ...any) (scanner.Rows, error)
 
 	Batch() batch.Batcher

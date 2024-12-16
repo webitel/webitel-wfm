@@ -22,7 +22,7 @@ type WorkingSchedule struct {
 }
 
 func NewWorkingSchedule(db dbsql.Store, manager cache.Manager) *WorkingSchedule {
-	werror.RegisterConstraint("working_schedule_check", "start_date_at should be lower that end_date_at")
+	dbsql.RegisterConstraint("working_schedule_check", "start_date_at should be lower that end_date_at")
 
 	return &WorkingSchedule{
 		db:    db,
@@ -109,11 +109,11 @@ func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, user *model.S
 	}
 
 	if len(items) > 1 {
-		return nil, werror.NewDBEntityConflictError("storage.working_schedule.read.conflict")
+		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.working_schedule.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.NewDBNoRowsErr("storage.working_schedule.read")
+		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.working_schedule.read"))
 	}
 
 	w.cache.Key(user.DomainId, search.Id).Set(ctx, *items[0])

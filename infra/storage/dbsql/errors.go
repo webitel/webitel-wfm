@@ -3,6 +3,7 @@ package dbsql
 import (
 	"errors"
 	"regexp"
+	"sync"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
@@ -11,26 +12,74 @@ import (
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
+var (
+	ErrInternal = werror.Internal("internal server error", werror.WithID("dbsql.internal"))
+
+	ErrNoRows              = werror.NotFound("entity does not exists or you do not have enough permissions to perform the operation", werror.WithID("dbsql.query.no_rows"))
+	ErrUniqueViolation     = werror.Aborted("invalid input: entity already exists", werror.WithID("dbsql.unique_violation"))
+	ErrForeignKeyViolation = werror.Aborted("invalid input: violates foreign key constraint", werror.WithID("dbsql.foreign_key_violation"))
+	ErrCheckViolation      = werror.Aborted("invalid input: violates check constraint", werror.WithID("dbsql.check_violation"))
+	ErrNotNullViolation    = werror.Aborted("invalid input: violates not null constraint: column can not be null", werror.WithID("dbsql.not_null_violation"))
+	ErrEntityConflict      = werror.Aborted("invalid input: found more then one requested entity", werror.WithID("dbsql.conflict"))
+)
+
 func ParseError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
-		return werror.NewDBNoRowsErr("dbsql.errors.query.no_rows")
+		return werror.Wrap(ErrNoRows, werror.WithCause(err))
 	}
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case pgerrcode.UniqueViolation:
-			return werror.NewDBUniqueViolationError("dbsql.errors.unique_violation", findColumn(pgErr.Detail), findValue(pgErr.Detail))
+			return werror.Wrap(ErrUniqueViolation, werror.WithCause(err),
+				werror.WithValue("entity", findColumn(pgErr.Detail)+" = "+findValue(pgErr.Detail)),
+			)
 		case pgerrcode.ForeignKeyViolation:
-			return werror.NewDBForeignKeyViolationError("dbsql.errors.foreign_key_violation", findColumn(pgErr.Detail), findValue(pgErr.Detail), findForeignKeyTable(pgErr.Detail))
+			msg := "value is still referenced by the parent table"
+			if findForeignKeyTable(pgErr.Detail) != "" {
+				msg = "value isn't present in the parent table"
+			}
+
+			return werror.Wrap(ErrForeignKeyViolation, werror.WithCause(err), werror.AppendMessage(msg),
+				werror.WithValue("value", findColumn(pgErr.Detail)+" = "+findValue(pgErr.Detail)),
+				werror.WithValue("foreign_table", findForeignKeyTable(pgErr.Detail)),
+			)
 		case pgerrcode.CheckViolation:
-			return werror.NewDBCheckViolationError("dbsql.errors.check_violation", pgErr.ConstraintName)
+			return werror.Wrap(ErrCheckViolation, werror.WithCause(err),
+				werror.AppendMessage(checkViolationErrorRegistry[pgErr.ConstraintName]),
+				werror.WithValue("constraint", pgErr.ConstraintName),
+			)
 		case pgerrcode.NotNullViolation:
-			return werror.NewDBNotNullViolationError("dbsql.errors.not_null_violation", pgErr.TableName, pgErr.ColumnName)
+			return werror.Wrap(ErrNotNullViolation, werror.WithCause(err),
+				werror.WithValue("column", pgErr.TableName+"."+pgErr.ColumnName),
+			)
 		}
 	}
 
-	return werror.NewDBInternalError("dbsql.errors", err)
+	return werror.Wrap(ErrInternal, werror.WithCause(err))
+}
+
+var checkViolationErrorRegistry = map[string]string{}
+var constraintMu sync.RWMutex
+
+// RegisterConstraint register custom database check constraint (like "CHECK
+// balance > 0").
+// Postgres doesn't define a very useful message for constraint
+// failures (new row for relation "accounts" violates check constraint), so you
+// can define your own.
+//   - name - should be the name of the constraint in the database.
+//   - message - your own custom error message
+//
+// Panics if you attempt to register two constraints with the same name.
+func RegisterConstraint(name, message string) {
+	constraintMu.Lock()
+	defer constraintMu.Unlock()
+	if _, dup := checkViolationErrorRegistry[name]; dup {
+		panic("register constraint called twice for name " + name)
+	}
+
+	checkViolationErrorRegistry[name] = message
 }
 
 var columnFinder = regexp.MustCompile(`Key \((.+)\)=`)

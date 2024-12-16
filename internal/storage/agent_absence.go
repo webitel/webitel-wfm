@@ -142,11 +142,11 @@ func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, user *model.Signed
 	}
 
 	if len(items) > 1 {
-		return nil, werror.NewDBEntityConflictError("storage.agent_absence.read.conflict")
+		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.agent_absence.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.NewDBNoRowsErr("storage.agent_absence.read")
+		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.agent_absence.read"))
 	}
 
 	return items[0], nil

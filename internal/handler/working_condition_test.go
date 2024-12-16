@@ -20,7 +20,7 @@ import (
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/tests"
 	"github.com/webitel/webitel-wfm/internal/tests/testinfra"
-	"github.com/webitel/webitel-wfm/pkg/werror"
+	"github.com/webitel/webitel-wfm/pkg/werror/old"
 )
 
 type workingConditionTestSuite struct {

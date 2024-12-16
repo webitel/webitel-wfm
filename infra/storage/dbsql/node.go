@@ -111,11 +111,11 @@ func (n *sqlNode) Stdlib() *sql.DB {
 func (n *sqlNode) Select(ctx context.Context, dest interface{}, query string, args ...any) error {
 	rows, err := n.db.Query(ctx, query, args...)
 	if err != nil {
-		return err
+		return ParseError(err)
 	}
 
 	if err := n.scanner.ScanAll(dest, rows); err != nil {
-		return err
+		return ParseError(err)
 	}
 
 	return nil
@@ -124,19 +124,24 @@ func (n *sqlNode) Select(ctx context.Context, dest interface{}, query string, ar
 func (n *sqlNode) Get(ctx context.Context, dest interface{}, query string, args ...any) error {
 	rows, err := n.db.Query(ctx, query, args...)
 	if err != nil {
-		return err
+		return ParseError(err)
 	}
 
 	if err := n.scanner.ScanOne(dest, rows); err != nil {
-		return err
+		return ParseError(err)
 	}
 
 	return nil
 }
 
 func (n *sqlNode) Exec(ctx context.Context, query string, args ...any) error {
-	if err := n.db.Exec(ctx, query, args...); err != nil {
-		return err
+	aff, err := n.db.Exec(ctx, query, args...)
+	if err != nil {
+		return ParseError(err)
+	}
+
+	if aff < 0 {
+		return ErrNoRows
 	}
 
 	return nil

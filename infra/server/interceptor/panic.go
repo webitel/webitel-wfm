@@ -12,6 +12,8 @@ import (
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
+var ErrPanicReceived = werror.New("panic occurred, please contact our support", werror.WithID("interceptor.panic"))
+
 // panicError is an error that is used to recover from a panic.
 type panicError struct {
 	panic any
@@ -55,6 +57,6 @@ func grpcPanicRecoveryHandler(log *wlog.Logger) func(context.Context, any) error
 	return func(ctx context.Context, p any) (err error) {
 		log.Error(fmt.Sprintf("recovered from panic: %s", debug.Stack()))
 
-		return werror.NewDBInternalError("server.interceptor.panic", fmt.Errorf("recovered from panic: %s", p)) // status.Errorf(codes.Internal, "%s", p)
+		return werror.Wrap(ErrPanicReceived, werror.WithValue("stack", p))
 	}
 }

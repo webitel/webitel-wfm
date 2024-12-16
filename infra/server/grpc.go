@@ -20,7 +20,7 @@ type Server struct {
 
 // New provides a new gRPC server.
 func New(log *wlog.Logger, authcli auth_manager.AuthManager) (*Server, error) {
-	val, err := protovalidate.New(protovalidate.WithFailFast(true))
+	val, err := protovalidate.New()
 	if err != nil {
 		return nil, fmt.Errorf("construct protovalidate rules: %w", err)
 	}

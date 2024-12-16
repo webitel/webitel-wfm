@@ -5,6 +5,7 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
@@ -48,6 +49,23 @@ func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *mod
 	}
 
 	return id, nil
+}
+
+func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingCondition, error) {
+	items, err := w.SearchWorkingCondition(ctx, user, search)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) > 1 {
+		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.working_condition.read.conflict"))
+	}
+
+	if len(items) == 0 {
+		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.working_condition.read"))
+	}
+
+	return items[0], nil
 }
 
 func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingCondition, error) {

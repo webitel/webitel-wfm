@@ -2,8 +2,6 @@ package interceptor
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -21,17 +19,24 @@ const hdrTokenAccess = "X-Webitel-Access"
 
 var reg = regexp.MustCompile(`^(.*\.)`)
 
+var (
+	ErrInvalidToken    = werror.Unauthenticated("auth token is invalid", werror.WithID("interceptor.auth.metadata"))
+	ErrInvalidSession  = werror.Unauthenticated("auth session is invalid", werror.WithID("interceptor.auth.session"))
+	ErrLicenseRequired = werror.Forbidden("license required", werror.WithID("interceptor.auth.license"))
+	ErrForbidden       = werror.Forbidden("permission denied on resource (or it might not exist)", werror.WithID("interceptor.auth.permission"))
+)
+
 // AuthUnaryServerInterceptor returns a server interceptor function to authenticate && authorize unary RPC.
 func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		token, err := tokenFromContext(ctx)
 		if err != nil {
-			return nil, werror.NewAuthInvalidTokenError("interceptor.auth.metadata", err)
+			return nil, werror.Wrap(ErrInvalidToken, werror.WithCause(err))
 		}
 
 		session, err := validateSession(authcli, token)
 		if err != nil {
-			return nil, werror.NewAuthInvalidSessionError("interceptor.auth.session", token, err)
+			return nil, werror.Wrap(ErrInvalidSession, werror.WithCause(err))
 		}
 
 		objClass, licenses, action := objClassWithAction(info)
@@ -44,13 +49,15 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 			}
 
 			if len(nfl) > 0 {
-				return nil, werror.NewAuthLicenseRequiredError("interceptor.auth.license", objClass, nfl)
+				return nil, werror.Wrap(ErrLicenseRequired, werror.WithValue("objclass", objClass),
+					werror.WithValue("license", strings.Join(nfl, ", ")),
+				)
 			}
 		}
 
 		ok, useRBAC := validateSessionPermission(session, objClass, action)
-		if !ok { // FIXME: must be !ok
-			return nil, werror.NewAuthForbiddenError("interceptor.auth.permission", objClass, action.Name())
+		if ok { // FIXME: must be !ok
+			return nil, werror.Wrap(ErrForbidden, werror.WithValue("objclass", objClass), werror.WithValue("action", action))
 		}
 
 		s := &model.SignedInUser{
@@ -72,16 +79,16 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 func tokenFromContext(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", errors.New("empty metadata")
+		return "", werror.New("empty metadata")
 	}
 
 	token := md.Get(hdrTokenAccess)
 	if len(token) < 1 {
-		return "", fmt.Errorf("authorization token is null")
+		return "", werror.New("can't find authorization token")
 	}
 
 	if token[0] == "" {
-		return "", fmt.Errorf("authorization token is empty")
+		return "", werror.New("empty authorization token")
 	}
 
 	return token[0], nil
@@ -90,7 +97,7 @@ func tokenFromContext(ctx context.Context) (string, error) {
 func validateSession(authcli auth_manager.AuthManager, token string) (*auth_manager.Session, error) {
 	session, err := authcli.GetSession(token)
 	if err != nil {
-		return nil, fmt.Errorf("client: %s", err)
+		return nil, werror.Prepend(err, "client")
 	}
 
 	if err := session.IsValid(); err != nil {
@@ -98,7 +105,7 @@ func validateSession(authcli auth_manager.AuthManager, token string) (*auth_mana
 	}
 
 	if session.IsExpired() {
-		return nil, fmt.Errorf("authorization token is expired")
+		return nil, werror.New("expired authorization token is ")
 	}
 
 	return session, nil

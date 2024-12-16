@@ -2,7 +2,6 @@ package dbsql
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/batch"
@@ -32,13 +31,17 @@ func (n *sqlNodeBatch) Queue(sql string, args ...any) {
 func (n *sqlNodeBatch) Select(ctx context.Context, dest any) error {
 	destSlice := reflect.ValueOf(dest)
 	if destSlice.Kind() != reflect.Ptr {
-		return werror.NewDBInternalError("dbsql.cluster.batch", fmt.Errorf("recieved non-pointer %v", destSlice.Type()))
+		return werror.Wrap(ErrInternal, werror.WithID("dbsql.cluster.batch"),
+			werror.WithCause(werror.New("recieved non-pointer", werror.WithValue("type", destSlice.Type().String()))),
+		)
 	}
 
 	// Get the value that the pointer v points to.
 	v := destSlice.Elem()
 	if v.Kind() != reflect.Slice {
-		return werror.NewDBInternalError("dbsql.cluster.batch", fmt.Errorf("can't fill non-slice value"))
+		return werror.Wrap(ErrInternal, werror.WithID("dbsql.cluster.batch"),
+			werror.WithCause(werror.New("can't fill non-slice value")),
+		)
 	}
 
 	// Create a slice of dest type and set it to newly created slice
