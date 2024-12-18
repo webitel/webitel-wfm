@@ -32,6 +32,7 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		TeamIds:           req.TeamId,
 		SkillIds:          req.SkillId,
 		SearchItem: model.SearchItem{
+			Search: req.Q,
 			Date: &model.FilterBetween{
 				From: model.NewTimestamp(req.Date.From),
 				To:   model.NewTimestamp(req.Date.To),

@@ -37,6 +37,10 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		sb.Where(sb.In("(agent ->> 'id')::bigint", in...))
 	}
 
+	if search.SearchItem.Search != nil {
+		sb.Where(sb.Equal("(agent ->> 'name')::text", search.SearchItem.Search))
+	}
+
 	sql, args := sb.From(agentWorkingScheduleView,
 		sb.LateralAs(
 			a.db.SQL().Select("jsonb_build_object('date', date, 'type', type, 'absence', absence, 'shifts', shifts) as json"),
