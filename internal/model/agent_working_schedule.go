@@ -100,3 +100,15 @@ func (a *AgentWorkingSchedule) MarshalProto() *pb.AgentWorkingSchedule {
 		Schedule: schedules,
 	}
 }
+
+type AgentWorkingScheduleSearch struct {
+	SearchItem SearchItem
+
+	WorkingScheduleId int64
+
+	Ids           []int64
+	AgentIds      []int64
+	SupervisorIds []int64
+	TeamIds       []int64
+	SkillIds      []int64
+}

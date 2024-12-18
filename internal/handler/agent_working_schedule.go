@@ -9,7 +9,7 @@ import (
 )
 
 type AgentWorkingScheduleService interface {
-	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.AgentWorkingSchedule, []*model.Holiday, error)
+	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error)
 }
 
 type AgentWorkingSchedule struct {
@@ -26,11 +26,16 @@ func NewAgentWorkingSchedule(svc AgentWorkingScheduleService) *AgentWorkingSched
 
 func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, req *pb.SearchAgentsWorkingScheduleRequest) (*pb.SearchAgentsWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	search := &model.SearchItem{
-		Id: req.WorkingScheduleId,
-		Date: &model.FilterBetween{
-			From: model.NewTimestamp(req.Date.From),
-			To:   model.NewTimestamp(req.Date.To),
+	search := &model.AgentWorkingScheduleSearch{
+		WorkingScheduleId: req.WorkingScheduleId,
+		SupervisorIds:     req.SupervisorId,
+		TeamIds:           req.TeamId,
+		SkillIds:          req.SkillId,
+		SearchItem: model.SearchItem{
+			Date: &model.FilterBetween{
+				From: model.NewTimestamp(req.Date.From),
+				To:   model.NewTimestamp(req.Date.To),
+			},
 		},
 	}
 
