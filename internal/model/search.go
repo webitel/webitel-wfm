@@ -79,11 +79,14 @@ func (s *SearchItem) Where(searchField string) *builder.WhereClause {
 	}
 
 	if s.Search != nil {
-		search := strings.Replace(*s.Search, "*", "%", -1)
-		wb.AddWhereExpr(wb.Args, wb.ILike(searchField, search+"%"))
+		wb.AddWhereExpr(wb.Args, wb.ILike(searchField, s.SearchBy()))
 	}
 
 	return &wb
+}
+
+func (s *SearchItem) SearchBy() string {
+	return strings.Replace(*s.Search, "*", "%", -1)
 }
 
 func ListResult[C any](s int32, items []C) (bool, []C) {

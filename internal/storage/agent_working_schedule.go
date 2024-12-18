@@ -38,7 +38,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 	}
 
 	if search.SearchItem.Search != nil {
-		sb.Where(sb.Equal("(agent ->> 'name')::text", search.SearchItem.Search))
+		sb.Where(sb.ILike("(agent ->> 'name')::text", search.SearchItem.SearchBy()))
 	}
 
 	sql, args := sb.From(agentWorkingScheduleView,
