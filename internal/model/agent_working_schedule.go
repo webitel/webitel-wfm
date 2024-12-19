@@ -6,27 +6,40 @@ import (
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
-type AgentScheduleShiftType int32
+type AgentSchedulePause struct {
+	DomainRecord
 
-const (
-	AgentScheduleShiftTypeUnspecified AgentScheduleShiftType = iota
-	AgentScheduleShiftTypeShift
-	AgentScheduleShiftTypePause
-)
+	Start int64 `json:"start" db:"start"`
+	End   int64 `json:"end" db:"end"`
+}
 
-func (s AgentScheduleShiftType) String() string {
-	return []string{"unspecified", "shift", "pause"}[s]
+func (a *AgentSchedulePause) MarshalProto() *pb.AgentSchedulePause {
+	return &pb.AgentSchedulePause{
+		Id:        a.Id,
+		DomainId:  a.DomainId,
+		CreatedAt: a.CreatedAt.Time.UnixMilli(),
+		CreatedBy: a.CreatedBy.MarshalProto(),
+		UpdatedAt: a.UpdatedAt.Time.UnixMilli(),
+		UpdatedBy: a.UpdatedBy.MarshalProto(),
+		Start:     a.Start,
+		End:       a.End,
+	}
 }
 
 type AgentScheduleShift struct {
 	DomainRecord
 
-	Type  AgentScheduleShiftType `json:"type" db:"type"`
-	Start int64                  `json:"start" db:"start"`
-	End   int64                  `json:"end" db:"end"`
+	Start  int64                 `json:"start" db:"start"`
+	End    int64                 `json:"end" db:"end"`
+	Pauses []*AgentSchedulePause `json:"pauses" db:"pauses"`
 }
 
 func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
+	pauses := make([]*pb.AgentSchedulePause, 0, len(a.Pauses))
+	for _, pause := range a.Pauses {
+		pauses = append(pauses, pause.MarshalProto())
+	}
+
 	return &pb.AgentScheduleShift{
 		Id:        a.Id,
 		DomainId:  a.DomainId,
@@ -34,9 +47,9 @@ func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
 		CreatedBy: a.CreatedBy.MarshalProto(),
 		UpdatedAt: a.UpdatedAt.Time.UnixMilli(),
 		UpdatedBy: a.UpdatedBy.MarshalProto(),
-		Type:      pb.AgentScheduleShiftType(a.Type),
 		Start:     a.Start,
 		End:       a.End,
+		Pauses:    pauses,
 	}
 }
 
