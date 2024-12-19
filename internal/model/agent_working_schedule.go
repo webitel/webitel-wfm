@@ -9,8 +9,9 @@ import (
 type AgentSchedulePause struct {
 	DomainRecord
 
-	Start int64 `json:"start" db:"start"`
-	End   int64 `json:"end" db:"end"`
+	Start int64       `json:"start" db:"start"`
+	End   int64       `json:"end" db:"end"`
+	Cause *LookupItem `json:"cause" db:"cause,json"`
 }
 
 func (a *AgentSchedulePause) MarshalProto() *pb.AgentSchedulePause {
@@ -23,6 +24,7 @@ func (a *AgentSchedulePause) MarshalProto() *pb.AgentSchedulePause {
 		UpdatedBy: a.UpdatedBy.MarshalProto(),
 		Start:     a.Start,
 		End:       a.End,
+		Cause:     a.Cause.MarshalProto(),
 	}
 }
 
