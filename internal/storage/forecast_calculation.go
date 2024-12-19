@@ -17,6 +17,16 @@ const (
 
 var ErrForecastProcedureNotFound = werror.NotFound("", werror.WithID("storage.forecast_calculation.procedure"))
 
+type ForecastCalculationManager interface {
+	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
+	ReadForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.ForecastCalculation, error)
+	SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, error)
+	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
+	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+
+	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
+}
+
 type ForecastCalculation struct {
 	db         dbsql.Store
 	forecastDB dbsql.ForecastStore

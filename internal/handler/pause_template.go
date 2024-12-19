@@ -4,39 +4,38 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/grpc"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/service"
 )
-
-type PauseTemplateManager interface {
-	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
-	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error)
-	SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, bool, error)
-	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
-	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
-}
 
 type PauseTemplate struct {
 	pb.UnimplementedPauseTemplateServiceServer
 
-	svc PauseTemplateManager
+	service service.PauseTemplateManager
 }
 
-func NewPauseTemplate(svc PauseTemplateManager) *PauseTemplate {
-	return &PauseTemplate{
-		svc: svc,
+func NewPauseTemplate(sr grpc.ServiceRegistrar, service service.PauseTemplateManager) *PauseTemplate {
+	s := &PauseTemplate{
+		service: service,
 	}
+
+	pb.RegisterPauseTemplateServiceServer(sr, s)
+
+	return s
 }
 
 func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreatePauseTemplateRequest) (*pb.CreatePauseTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := h.svc.CreatePauseTemplate(ctx, s.SignedInUser, unmarshalPauseTemplateProto(req.GetItem()))
+	id, err := h.service.CreatePauseTemplate(ctx, s.SignedInUser, unmarshalPauseTemplateProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, id, nil)
+	out, err := h.service.ReadPauseTemplate(ctx, s.SignedInUser, id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +45,7 @@ func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreateP
 
 func (h *PauseTemplate) ReadPauseTemplate(ctx context.Context, req *pb.ReadPauseTemplateRequest) (*pb.ReadPauseTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, req.GetId(), req.GetFields())
+	out, err := h.service.ReadPauseTemplate(ctx, s.SignedInUser, req.GetId(), req.GetFields())
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func (h *PauseTemplate) SearchPauseTemplate(ctx context.Context, req *pb.SearchP
 		Fields: req.Fields,
 	}
 
-	items, next, err := h.svc.SearchPauseTemplate(ctx, s.SignedInUser, search)
+	items, next, err := h.service.SearchPauseTemplate(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -74,11 +73,11 @@ func (h *PauseTemplate) SearchPauseTemplate(ctx context.Context, req *pb.SearchP
 
 func (h *PauseTemplate) UpdatePauseTemplate(ctx context.Context, req *pb.UpdatePauseTemplateRequest) (*pb.UpdatePauseTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	if err := h.svc.UpdatePauseTemplate(ctx, s.SignedInUser, unmarshalPauseTemplateProto(req.GetItem())); err != nil {
+	if err := h.service.UpdatePauseTemplate(ctx, s.SignedInUser, unmarshalPauseTemplateProto(req.GetItem())); err != nil {
 		return nil, err
 	}
 
-	out, err := h.svc.ReadPauseTemplate(ctx, s.SignedInUser, req.Item.Id, nil)
+	out, err := h.service.ReadPauseTemplate(ctx, s.SignedInUser, req.Item.Id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +87,7 @@ func (h *PauseTemplate) UpdatePauseTemplate(ctx context.Context, req *pb.UpdateP
 
 func (h *PauseTemplate) DeletePauseTemplate(ctx context.Context, req *pb.DeletePauseTemplateRequest) (*pb.DeletePauseTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := h.svc.DeletePauseTemplate(ctx, s.SignedInUser, req.Id)
+	id, err := h.service.DeletePauseTemplate(ctx, s.SignedInUser, req.Id)
 	if err != nil {
 		return nil, err
 	}

@@ -20,6 +20,13 @@ const (
 // TODO: add cache invalidation
 // TODO: dont delete all keys within prefix (add something as id range 1-10 stored in cache key)
 
+type PauseTemplateManager interface {
+	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
+	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error)
+	SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, error)
+	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
+	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+}
 type PauseTemplate struct {
 	db    dbsql.Store
 	cache *cache.Scope[model.PauseTemplate]

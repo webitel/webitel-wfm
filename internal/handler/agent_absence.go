@@ -3,36 +3,33 @@ package handler
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/service"
 )
-
-type AgentAbsenceManager interface {
-	CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
-	UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
-	DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error
-
-	CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error)
-	ReadAgentAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) (*model.AgentAbsences, error)
-	SearchAgentsAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) ([]*model.AgentAbsences, bool, error)
-}
 
 type AgentAbsence struct {
 	pb.UnimplementedAgentAbsenceServiceServer
 
-	svc AgentAbsenceManager
+	service service.AgentAbsenceManager
 }
 
-func NewAgentAbsence(svc AgentAbsenceManager) *AgentAbsence {
-	return &AgentAbsence{
-		svc: svc,
+func NewAgentAbsence(sr grpc.ServiceRegistrar, service service.AgentAbsenceManager) *AgentAbsence {
+	s := &AgentAbsence{
+		service: service,
 	}
+
+	pb.RegisterAgentAbsenceServiceServer(sr, s)
+
+	return s
 }
 
 func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, in *pb.CreateAgentAbsenceRequest) (*pb.CreateAgentAbsenceResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := a.svc.CreateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
+	out, err := a.service.CreateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +39,7 @@ func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, in *pb.CreateAgen
 
 func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, in *pb.UpdateAgentAbsenceRequest) (*pb.UpdateAgentAbsenceResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := a.svc.UpdateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
+	out, err := a.service.UpdateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +49,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, in *pb.UpdateAgen
 
 func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, in *pb.DeleteAgentAbsenceRequest) (*pb.DeleteAgentAbsenceResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	if err := a.svc.DeleteAgentAbsence(ctx, s.SignedInUser, in.AgentId, in.Id); err != nil {
+	if err := a.service.DeleteAgentAbsence(ctx, s.SignedInUser, in.AgentId, in.Id); err != nil {
 		return nil, err
 	}
 
@@ -67,7 +64,7 @@ func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, in *pb.ReadAgentAb
 		AbsentAtTo:   model.NewTimestamp(in.AbsentAtTo),
 	}
 
-	out, err := a.svc.ReadAgentAbsences(ctx, s.SignedInUser, search)
+	out, err := a.service.ReadAgentAbsences(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +74,7 @@ func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, in *pb.ReadAgentAb
 
 func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, in *pb.CreateAgentsAbsencesBulkRequest) (*pb.CreateAgentsAbsencesBulkResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := a.svc.CreateAgentsAbsencesBulk(ctx, s.SignedInUser, in.AgentIds, unmarshalAgentsAbsencesBulk(in.Items))
+	out, err := a.service.CreateAgentsAbsencesBulk(ctx, s.SignedInUser, in.AgentIds, unmarshalAgentsAbsencesBulk(in.Items))
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +99,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, in *pb.SearchAg
 		SkillIds:      in.SkillId,
 	}
 
-	out, next, err := a.svc.SearchAgentsAbsences(ctx, s.SignedInUser, search)
+	out, next, err := a.service.SearchAgentsAbsences(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}

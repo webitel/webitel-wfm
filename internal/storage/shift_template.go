@@ -13,6 +13,14 @@ const (
 	shiftTemplateView  = shiftTemplateTable + "_v"
 )
 
+type ShiftTemplateManager interface {
+	CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error)
+	ReadShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.ShiftTemplate, error)
+	SearchShiftTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ShiftTemplate, error)
+	UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error
+	DeleteShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+}
+
 type ShiftTemplate struct {
 	db dbsql.Store
 }

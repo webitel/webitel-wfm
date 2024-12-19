@@ -16,6 +16,17 @@ const (
 	workingScheduleAgentTable      = workingScheduleTable + "_agent"
 )
 
+type WorkingScheduleManager interface {
+	CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
+	ReadWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingSchedule, error)
+	SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, error)
+	UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
+	DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+
+	UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
+	UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
+}
+
 type WorkingSchedule struct {
 	db    dbsql.Store
 	cache *cache.Scope[model.WorkingSchedule]

@@ -23,7 +23,6 @@ import (
 	// _ "github.com/webitel/webitel-go-kit/otel/sdk/trace/stdout"
 
 	"github.com/webitel/webitel-wfm/config"
-	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/pubsub"
 	"github.com/webitel/webitel-wfm/infra/server"
@@ -32,7 +31,6 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
-	"github.com/webitel/webitel-wfm/internal/handler"
 )
 
 const (
@@ -148,8 +146,7 @@ type app struct {
 	shutdown *shutdown.Tracker
 	health   *health.CheckRegistry
 
-	grpcServer *server.Server
-	resources  *resources
+	resources *resources
 
 	// startedCh closed once the app has finished starting.
 	startedCh chan struct{}
@@ -158,25 +155,15 @@ type app struct {
 }
 
 type resources struct {
-	storage   dbsql.Store
-	cache     cache.Manager
-	authcli   authmanager.AuthManager
-	engine    *engine.Client
-	loggercli *logger.Client
-	audit     *logger.Audit
-	sd        discovery.ServiceDiscovery
-	ps        *pubsub.Manager
-}
-
-type handlers struct {
-	pauseTemplate          *handler.PauseTemplate
-	shiftTemplate          *handler.ShiftTemplate
-	workingCondition       *handler.WorkingCondition
-	agentWorkingConditions *handler.AgentWorkingConditions
-	agentAbsence           *handler.AgentAbsence
-	forecastCalculation    *handler.ForecastCalculation
-	workingSchedule        *handler.WorkingSchedule
-	agentWorkingSchedule   *handler.AgentWorkingSchedule
+	grpcServer *server.Server
+	storage    dbsql.Store
+	cache      cache.Manager
+	authcli    authmanager.AuthManager
+	engine     *engine.Client
+	loggercli  *logger.Client
+	audit      *logger.Audit
+	sd         discovery.ServiceDiscovery
+	ps         *pubsub.Manager
 }
 
 func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *shutdown.Tracker) (*app, error) {
@@ -218,26 +205,19 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 
 	// Create handlers for gRPC service using generated code
 	// by github.com/google/wire.
-	h, err := initHandlers(log, res, fs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create gRPC server and register handlers.
-	grpcServer, err := rpcServer(log, cfg, h, res.authcli, tracker)
+	_, err = initHandlers(log, res, fs)
 	if err != nil {
 		return nil, err
 	}
 
 	return &app{
-		cfg:        cfg,
-		log:        log,
-		health:     health.NewCheckRegistry(log),
-		shutdown:   tracker,
-		grpcServer: grpcServer,
-		resources:  res,
-		startedCh:  startedCh,
-		eg:         &errgroup.Group{},
+		cfg:       cfg,
+		log:       log,
+		health:    health.NewCheckRegistry(log),
+		shutdown:  tracker,
+		resources: res,
+		startedCh: startedCh,
+		eg:        &errgroup.Group{},
 	}, nil
 }
 
@@ -287,7 +267,7 @@ func (a *app) run(ctx context.Context) error {
 			return err
 		}
 
-		return a.grpcServer.Serve(l)
+		return a.resources.grpcServer.Serve(l)
 	})
 
 	a.eg.Go(func() error {
@@ -440,7 +420,7 @@ func webitelEngine(log *wlog.Logger, sd discovery.ServiceDiscovery, health *heal
 	return conn, nil
 }
 
-func rpcServer(log *wlog.Logger, cfg *config.Config, h *handlers, authcli authmanager.AuthManager, tracker *shutdown.Tracker) (*server.Server, error) {
+func rpcServer(log *wlog.Logger, authcli authmanager.AuthManager, tracker *shutdown.Tracker) (*server.Server, error) {
 	const scope = "grpc-server"
 	srv, err := server.New(log, authcli)
 	if err != nil {
@@ -450,16 +430,6 @@ func rpcServer(log *wlog.Logger, cfg *config.Config, h *handlers, authcli authma
 	if err := tracker.RegisterShutdownHandler(scope, srv); err != nil {
 		return nil, err
 	}
-
-	// Register gRPC services.
-	pb.RegisterPauseTemplateServiceServer(srv, h.pauseTemplate)
-	pb.RegisterShiftTemplateServiceServer(srv, h.shiftTemplate)
-	pb.RegisterWorkingConditionServiceServer(srv, h.workingCondition)
-	pb.RegisterAgentWorkingConditionsServiceServer(srv, h.agentWorkingConditions)
-	pb.RegisterAgentAbsenceServiceServer(srv, h.agentAbsence)
-	pb.RegisterForecastCalculationServiceServer(srv, h.forecastCalculation)
-	pb.RegisterWorkingScheduleServiceServer(srv, h.workingSchedule)
-	pb.RegisterAgentWorkingScheduleServiceServer(srv, h.agentWorkingSchedule)
 
 	return srv, nil
 }

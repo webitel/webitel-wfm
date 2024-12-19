@@ -3,39 +3,38 @@ package handler
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/service"
 )
-
-type WorkingConditionManager interface {
-	CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error)
-	ReadWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingCondition, error)
-	SearchWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingCondition, bool, error)
-	UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error
-	DeleteWorkingCondition(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
-}
 
 type WorkingCondition struct {
 	pb.UnimplementedWorkingConditionServiceServer
 
-	svc WorkingConditionManager
+	service service.WorkingConditionManager
 }
 
-func NewWorkingCondition(svc WorkingConditionManager) *WorkingCondition {
-	return &WorkingCondition{
-		svc: svc,
+func NewWorkingCondition(sr grpc.ServiceRegistrar, service service.WorkingConditionManager) *WorkingCondition {
+	s := &WorkingCondition{
+		service: service,
 	}
+
+	pb.RegisterWorkingConditionServiceServer(sr, s)
+
+	return s
 }
 
 func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, req *pb.CreateWorkingConditionRequest) (*pb.CreateWorkingConditionResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := w.svc.CreateWorkingCondition(ctx, s.SignedInUser, unmarshalWorkingConditionProto(req.GetItem()))
+	id, err := w.service.CreateWorkingCondition(ctx, s.SignedInUser, unmarshalWorkingConditionProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := w.svc.ReadWorkingCondition(ctx, s.SignedInUser, &model.SearchItem{Id: id})
+	out, err := w.service.ReadWorkingCondition(ctx, s.SignedInUser, &model.SearchItem{Id: id})
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +49,7 @@ func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, req *pb.Rea
 		Fields: req.Fields,
 	}
 
-	out, err := w.svc.ReadWorkingCondition(ctx, s.SignedInUser, search)
+	out, err := w.service.ReadWorkingCondition(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +67,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, req *pb.S
 		Fields: req.Fields,
 	}
 
-	items, next, err := w.svc.SearchWorkingCondition(ctx, s.SignedInUser, search)
+	items, next, err := w.service.SearchWorkingCondition(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -78,11 +77,11 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, req *pb.S
 
 func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, req *pb.UpdateWorkingConditionRequest) (*pb.UpdateWorkingConditionResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	if err := w.svc.UpdateWorkingCondition(ctx, s.SignedInUser, unmarshalWorkingConditionProto(req.GetItem())); err != nil {
+	if err := w.service.UpdateWorkingCondition(ctx, s.SignedInUser, unmarshalWorkingConditionProto(req.GetItem())); err != nil {
 		return nil, err
 	}
 
-	out, err := w.svc.ReadWorkingCondition(ctx, s.SignedInUser, &model.SearchItem{Id: req.Item.Id})
+	out, err := w.service.ReadWorkingCondition(ctx, s.SignedInUser, &model.SearchItem{Id: req.Item.Id})
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +91,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, req *pb.U
 
 func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, req *pb.DeleteWorkingConditionRequest) (*pb.DeleteWorkingConditionResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := w.svc.DeleteWorkingCondition(ctx, s.SignedInUser, req.Id)
+	id, err := w.service.DeleteWorkingCondition(ctx, s.SignedInUser, req.Id)
 	if err != nil {
 		return nil, err
 	}

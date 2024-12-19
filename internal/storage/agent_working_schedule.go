@@ -14,6 +14,11 @@ const (
 	agentWorkingScheduleHolidaysView = agentWorkingScheduleTable + "_holidays_v"
 )
 
+type AgentWorkingScheduleManager interface {
+	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error)
+	Holidays(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.Holiday, error)
+}
+
 type AgentWorkingSchedule struct {
 	db    dbsql.Store
 	cache *cache.Scope[model.AgentWorkingSchedule]

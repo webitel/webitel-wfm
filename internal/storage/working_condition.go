@@ -13,6 +13,14 @@ const (
 	workingConditionView  = workingConditionTable + "_v"
 )
 
+type WorkingConditionManager interface {
+	CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error)
+	ReadWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingCondition, error)
+	SearchWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingCondition, error)
+	UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error
+	DeleteWorkingCondition(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+}
+
 type WorkingCondition struct {
 	db dbsql.Store
 }

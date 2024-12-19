@@ -14,6 +14,17 @@ const (
 	agentAbsenceView  = agentAbsenceTable + "_v"
 )
 
+type AgentAbsenceManager interface {
+	CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
+	ReadAgentAbsence(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.AgentAbsence, error)
+	UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error)
+	DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error
+
+	CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error)
+	ReadAgentAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) (*model.AgentAbsences, error)
+	SearchAgentsAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) ([]*model.AgentAbsences, error)
+}
+
 type AgentAbsence struct {
 	db    dbsql.Store
 	cache *cache.Scope[model.AgentAbsence]

@@ -5,22 +5,22 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
 type AgentWorkingConditionsManager interface {
 	ReadAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64) (*model.AgentWorkingConditions, error)
 	UpdateAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64, in *model.AgentWorkingConditions) error
 }
-
 type AgentWorkingConditions struct {
-	store  AgentWorkingConditionsManager
-	engine *engine.Client
+	storage storage.AgentWorkingConditionsManager
+	engine  *engine.Client
 }
 
-func NewAgentWorkingConditions(store AgentWorkingConditionsManager, engine *engine.Client) *AgentWorkingConditions {
+func NewAgentWorkingConditions(storage storage.AgentWorkingConditionsManager, engine *engine.Client) *AgentWorkingConditions {
 	return &AgentWorkingConditions{
-		store:  store,
-		engine: engine,
+		storage: storage,
+		engine:  engine,
 	}
 }
 
@@ -30,7 +30,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 		return nil, err
 	}
 
-	item, err := a.store.ReadAgentWorkingConditions(ctx, user, agentId)
+	item, err := a.storage.ReadAgentWorkingConditions(ctx, user, agentId)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Contex
 		return err
 	}
 
-	if err := a.store.UpdateAgentWorkingConditions(ctx, user, agentId, in); err != nil {
+	if err := a.storage.UpdateAgentWorkingConditions(ctx, user, agentId, in); err != nil {
 		return err
 	}
 

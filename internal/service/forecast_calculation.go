@@ -4,23 +4,23 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
 type ForecastCalculationManager interface {
 	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	ReadForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.ForecastCalculation, error)
-	SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, error)
+	SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, bool, error)
 	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
 	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
 }
-
 type ForecastCalculation struct {
-	storage ForecastCalculationManager
+	storage storage.ForecastCalculationManager
 }
 
-func NewForecastCalculation(svc ForecastCalculationManager) *ForecastCalculation {
+func NewForecastCalculation(svc storage.ForecastCalculationManager) *ForecastCalculation {
 	return &ForecastCalculation{
 		storage: svc,
 	}

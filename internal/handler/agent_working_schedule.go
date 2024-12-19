@@ -3,25 +3,28 @@ package handler
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/service"
 )
-
-type AgentWorkingScheduleService interface {
-	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error)
-}
 
 type AgentWorkingSchedule struct {
 	pb.UnimplementedAgentWorkingScheduleServiceServer
 
-	svc AgentWorkingScheduleService
+	service service.AgentWorkingScheduleManager
 }
 
-func NewAgentWorkingSchedule(svc AgentWorkingScheduleService) *AgentWorkingSchedule {
-	return &AgentWorkingSchedule{
-		svc: svc,
+func NewAgentWorkingSchedule(sr grpc.ServiceRegistrar, service service.AgentWorkingScheduleManager) *AgentWorkingSchedule {
+	s := &AgentWorkingSchedule{
+		service: service,
 	}
+
+	pb.RegisterAgentWorkingScheduleServiceServer(sr, s)
+
+	return s
 }
 
 func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, req *pb.SearchAgentsWorkingScheduleRequest) (*pb.SearchAgentsWorkingScheduleResponse, error) {
@@ -40,7 +43,7 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		},
 	}
 
-	items, holidays, err := a.svc.SearchAgentWorkingSchedule(ctx, s.SignedInUser, search)
+	items, holidays, err := a.service.SearchAgentWorkingSchedule(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}

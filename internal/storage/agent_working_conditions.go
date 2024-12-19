@@ -12,6 +12,11 @@ const (
 	agentWorkingConditionsView  = agentWorkingConditionsTable + "_v"
 )
 
+type AgentWorkingConditionsManager interface {
+	ReadAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64) (*model.AgentWorkingConditions, error)
+	UpdateAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64, in *model.AgentWorkingConditions) error
+}
+
 type AgentWorkingConditions struct {
 	db dbsql.Store
 }

@@ -23,7 +23,7 @@ type pauseTemplateTestSuite struct {
 	suite.Suite
 
 	log *wlog.Logger
-	svc handler.PauseTemplateManager
+	svc handler.pauseTemplateManager
 	c   cache.Manager
 
 	store *pauseTemplates

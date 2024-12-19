@@ -3,36 +3,33 @@ package handler
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/service"
 )
-
-type ForecastCalculationManager interface {
-	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
-	ReadForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.ForecastCalculation, error)
-	SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, bool, error)
-	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
-	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
-
-	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
-}
 
 type ForecastCalculation struct {
 	pb.UnimplementedForecastCalculationServiceServer
 
-	svc ForecastCalculationManager
+	service service.ForecastCalculationManager
 }
 
-func NewForecastCalculation(svc ForecastCalculationManager) *ForecastCalculation {
-	return &ForecastCalculation{
-		svc: svc,
+func NewForecastCalculation(sr grpc.ServiceRegistrar, service service.ForecastCalculationManager) *ForecastCalculation {
+	s := &ForecastCalculation{
+		service: service,
 	}
+
+	pb.RegisterForecastCalculationServiceServer(sr, s)
+
+	return s
 }
 
 func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, req *pb.CreateForecastCalculationRequest) (*pb.CreateForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := f.svc.CreateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
+	out, err := f.service.CreateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +39,7 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, req
 
 func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, req *pb.ReadForecastCalculationRequest) (*pb.ReadForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := f.svc.ReadForecastCalculation(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
+	out, err := f.service.ReadForecastCalculation(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +57,7 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, req
 		Fields: req.Fields,
 	}
 
-	items, next, err := f.svc.SearchForecastCalculation(ctx, s.SignedInUser, search)
+	items, next, err := f.service.SearchForecastCalculation(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +67,7 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, req
 
 func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, req *pb.UpdateForecastCalculationRequest) (*pb.UpdateForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := f.svc.UpdateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
+	out, err := f.service.UpdateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +77,7 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, req
 
 func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req *pb.DeleteForecastCalculationRequest) (*pb.DeleteForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := f.svc.DeleteForecastCalculation(ctx, s.SignedInUser, req.Id)
+	id, err := f.service.DeleteForecastCalculation(ctx, s.SignedInUser, req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +92,7 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, re
 		To:   model.NewTimestamp(req.ForecastData.To),
 	}
 
-	out, err := f.svc.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id, req.TeamId, forecast)
+	out, err := f.service.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id, req.TeamId, forecast)
 	if err != nil {
 		return nil, err
 	}

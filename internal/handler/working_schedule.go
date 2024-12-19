@@ -3,37 +3,33 @@ package handler
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/service"
 )
-
-type WorkingScheduleService interface {
-	CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
-	ReadWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingSchedule, error)
-	SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, bool, error)
-	UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
-	DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
-
-	UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
-	UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
-}
 
 type WorkingSchedule struct {
 	pb.UnimplementedWorkingScheduleServiceServer
 
-	svc WorkingScheduleService
+	service service.WorkingScheduleManager
 }
 
-func NewWorkingSchedule(svc WorkingScheduleService) *WorkingSchedule {
-	return &WorkingSchedule{
-		svc: svc,
+func NewWorkingSchedule(sr grpc.ServiceRegistrar, service service.WorkingScheduleManager) *WorkingSchedule {
+	s := &WorkingSchedule{
+		service: service,
 	}
+
+	pb.RegisterWorkingScheduleServiceServer(sr, s)
+
+	return s
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.CreateWorkingScheduleRequest) (*pb.CreateWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := w.svc.CreateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
+	out, err := w.service.CreateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +39,7 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.Cre
 
 func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, req *pb.ReadWorkingScheduleRequest) (*pb.ReadWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := w.svc.ReadWorkingSchedule(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
+	out, err := w.service.ReadWorkingSchedule(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +57,7 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.Sea
 		Fields: req.Fields,
 	}
 
-	items, next, err := w.svc.SearchWorkingSchedule(ctx, s.SignedInUser, search)
+	items, next, err := w.service.SearchWorkingSchedule(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +67,7 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.Sea
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.UpdateWorkingScheduleRequest) (*pb.UpdateWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := w.svc.UpdateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
+	out, err := w.service.UpdateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +77,7 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.Upd
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, req *pb.DeleteWorkingScheduleRequest) (*pb.DeleteWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := w.svc.DeleteWorkingSchedule(ctx, s.SignedInUser, req.Id)
+	id, err := w.service.DeleteWorkingSchedule(ctx, s.SignedInUser, req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +92,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 		agents = append(agents, agent.Id)
 	}
 
-	items, err := w.svc.UpdateWorkingScheduleAddAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
+	items, err := w.service.UpdateWorkingScheduleAddAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +112,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context,
 		agents = append(agents, agent.Id)
 	}
 
-	items, err := w.svc.UpdateWorkingScheduleRemoveAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
+	items, err := w.service.UpdateWorkingScheduleRemoveAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
 	if err != nil {
 		return nil, err
 	}

@@ -7,32 +7,31 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/storage"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 var ErrAgentWorkingScheduleDateFilter = werror.InvalidArgument("invalid input: agent working schedule date filter")
 
-type AgentWorkingScheduleStorage interface {
-	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error)
-	Holidays(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.Holiday, error)
+type AgentWorkingScheduleManager interface {
+	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error)
 }
-
 type AgentWorkingSchedule struct {
-	storage         AgentWorkingScheduleStorage
-	workingSchedule WorkingScheduleStorage
-	engine          *engine.Client
+	storage                storage.AgentWorkingScheduleManager
+	workingScheduleStorage storage.WorkingScheduleManager
+	engine                 *engine.Client
 }
 
-func NewAgentWorkingSchedule(storage AgentWorkingScheduleStorage, workingSchedule WorkingScheduleStorage, engine *engine.Client) *AgentWorkingSchedule {
+func NewAgentWorkingSchedule(storage storage.AgentWorkingScheduleManager, workingScheduleStorage storage.WorkingScheduleManager, engine *engine.Client) *AgentWorkingSchedule {
 	return &AgentWorkingSchedule{
-		storage:         storage,
-		workingSchedule: workingSchedule,
-		engine:          engine,
+		storage:                storage,
+		workingScheduleStorage: workingScheduleStorage,
+		engine:                 engine,
 	}
 }
 
 func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error) {
-	ws, err := a.workingSchedule.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: search.WorkingScheduleId})
+	ws, err := a.workingScheduleStorage.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: search.WorkingScheduleId})
 	if err != nil {
 		return nil, nil, err
 	}

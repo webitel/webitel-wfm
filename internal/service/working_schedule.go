@@ -5,6 +5,7 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/storage"
 	"github.com/webitel/webitel-wfm/pkg/compare"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -14,10 +15,10 @@ var (
 	ErrAgentNotAllowed            = werror.Forbidden("you haven't read access to a desired set of agents")
 )
 
-type WorkingScheduleStorage interface {
+type WorkingScheduleManager interface {
 	CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
 	ReadWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingSchedule, error)
-	SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, error)
+	SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, bool, error)
 	UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
 	DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
@@ -26,11 +27,11 @@ type WorkingScheduleStorage interface {
 }
 
 type WorkingSchedule struct {
-	storage WorkingScheduleStorage
+	storage storage.WorkingScheduleManager
 	engine  *engine.Client
 }
 
-func NewWorkingSchedule(storage WorkingScheduleStorage, engine *engine.Client) *WorkingSchedule {
+func NewWorkingSchedule(storage storage.WorkingScheduleManager, engine *engine.Client) *WorkingSchedule {
 	return &WorkingSchedule{
 		storage: storage,
 		engine:  engine,

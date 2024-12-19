@@ -4,28 +4,29 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
 type ShiftTemplateManager interface {
 	CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error)
 	ReadShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.ShiftTemplate, error)
-	SearchShiftTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ShiftTemplate, error)
+	SearchShiftTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ShiftTemplate, bool, error)
 	UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error
 	DeleteShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 }
 
 type ShiftTemplate struct {
-	store ShiftTemplateManager
+	storage storage.ShiftTemplateManager
 }
 
-func NewShiftTemplate(store ShiftTemplateManager) *ShiftTemplate {
+func NewShiftTemplate(storage storage.ShiftTemplateManager) *ShiftTemplate {
 	return &ShiftTemplate{
-		store: store,
+		storage: storage,
 	}
 }
 
 func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error) {
-	id, err := s.store.CreateShiftTemplate(ctx, user, in)
+	id, err := s.storage.CreateShiftTemplate(ctx, user, in)
 	if err != nil {
 		return 0, err
 	}
@@ -34,7 +35,7 @@ func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.Sig
 }
 
 func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.ShiftTemplate, error) {
-	out, err := s.store.ReadShiftTemplate(ctx, user, id, fields)
+	out, err := s.storage.ReadShiftTemplate(ctx, user, id, fields)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, user *model.Signe
 }
 
 func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ShiftTemplate, bool, error) {
-	out, err := s.store.SearchShiftTemplate(ctx, user, search)
+	out, err := s.storage.SearchShiftTemplate(ctx, user, search)
 	if err != nil {
 		return nil, false, err
 	}
@@ -54,7 +55,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.Sig
 }
 
 func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error {
-	if err := s.store.UpdateShiftTemplate(ctx, user, in); err != nil {
+	if err := s.storage.UpdateShiftTemplate(ctx, user, in); err != nil {
 		return err
 	}
 
@@ -62,7 +63,7 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.Sig
 }
 
 func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	out, err := s.store.DeleteShiftTemplate(ctx, user, id)
+	out, err := s.storage.DeleteShiftTemplate(ctx, user, id)
 	if err != nil {
 		return 0, err
 	}

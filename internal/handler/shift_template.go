@@ -3,39 +3,38 @@ package handler
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/service"
 )
-
-type ShiftTemplateManager interface {
-	CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error)
-	ReadShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.ShiftTemplate, error)
-	SearchShiftTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ShiftTemplate, bool, error)
-	UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error
-	DeleteShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
-}
 
 type ShiftTemplate struct {
 	pb.UnimplementedShiftTemplateServiceServer
 
-	svc ShiftTemplateManager
+	service service.ShiftTemplateManager
 }
 
-func NewShiftTemplate(svc ShiftTemplateManager) *ShiftTemplate {
-	return &ShiftTemplate{
-		svc: svc,
+func NewShiftTemplate(sr grpc.ServiceRegistrar, service service.ShiftTemplateManager) *ShiftTemplate {
+	s := &ShiftTemplate{
+		service: service,
 	}
+
+	pb.RegisterShiftTemplateServiceServer(sr, s)
+
+	return s
 }
 
 func (h *ShiftTemplate) CreateShiftTemplate(ctx context.Context, req *pb.CreateShiftTemplateRequest) (*pb.CreateShiftTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := h.svc.CreateShiftTemplate(ctx, s.SignedInUser, unmarshalShiftTemplateProto(req.GetItem()))
+	id, err := h.service.CreateShiftTemplate(ctx, s.SignedInUser, unmarshalShiftTemplateProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := h.svc.ReadShiftTemplate(ctx, s.SignedInUser, id, nil)
+	out, err := h.service.ReadShiftTemplate(ctx, s.SignedInUser, id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +44,7 @@ func (h *ShiftTemplate) CreateShiftTemplate(ctx context.Context, req *pb.CreateS
 
 func (h *ShiftTemplate) ReadShiftTemplate(ctx context.Context, req *pb.ReadShiftTemplateRequest) (*pb.ReadShiftTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := h.svc.ReadShiftTemplate(ctx, s.SignedInUser, req.Id, req.Fields)
+	out, err := h.service.ReadShiftTemplate(ctx, s.SignedInUser, req.Id, req.Fields)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +62,7 @@ func (h *ShiftTemplate) SearchShiftTemplate(ctx context.Context, req *pb.SearchS
 		Fields: req.Fields,
 	}
 
-	items, next, err := h.svc.SearchShiftTemplate(ctx, s.SignedInUser, search)
+	items, next, err := h.service.SearchShiftTemplate(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +72,11 @@ func (h *ShiftTemplate) SearchShiftTemplate(ctx context.Context, req *pb.SearchS
 
 func (h *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, req *pb.UpdateShiftTemplateRequest) (*pb.UpdateShiftTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	if err := h.svc.UpdateShiftTemplate(ctx, s.SignedInUser, unmarshalShiftTemplateProto(req.GetItem())); err != nil {
+	if err := h.service.UpdateShiftTemplate(ctx, s.SignedInUser, unmarshalShiftTemplateProto(req.GetItem())); err != nil {
 		return nil, err
 	}
 
-	out, err := h.svc.ReadShiftTemplate(ctx, s.SignedInUser, req.Item.Id, nil)
+	out, err := h.service.ReadShiftTemplate(ctx, s.SignedInUser, req.Item.Id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +86,7 @@ func (h *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, req *pb.UpdateS
 
 func (h *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, req *pb.DeleteShiftTemplateRequest) (*pb.DeleteShiftTemplateResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := h.svc.DeleteShiftTemplate(ctx, s.SignedInUser, req.Id)
+	id, err := h.service.DeleteShiftTemplate(ctx, s.SignedInUser, req.Id)
 	if err != nil {
 		return nil, err
 	}
