@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/fastcache"
+	"github.com/webitel/webitel-wfm/config"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -85,12 +86,12 @@ type Cache struct {
 // New creates new cache with the given maxBytes capacity in bytes and *cacheExpireDuration expiration.
 //
 // Stop must be called on the returned cache when it is no longer needed.
-func New(maxBytes int) (*Cache, error) {
-	curr := fastcache.New(maxBytes / 2)
+func New(cfg *config.Cache) (*Cache, error) {
+	curr := fastcache.New(cfg.Size / 2)
 	prev := fastcache.New(1024)
 
 	c := &Cache{
-		maxBytes:            maxBytes,
+		maxBytes:            cfg.Size,
 		stopCh:              make(chan struct{}),
 		tracer:              NewTracer(),
 		cacheExpireDuration: time.Hour * 24,

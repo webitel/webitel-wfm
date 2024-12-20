@@ -27,7 +27,7 @@ type Database struct {
 }
 
 type Cache struct {
-	Size    int64
+	Size    int
 	Type    string
 	Address string
 }
@@ -92,6 +92,7 @@ func New() *Config {
 			DSN: "postgres://opensips:webitel@127.0.0.1:5432/webitel?application_name=wfm&sslmode=disable&connect_timeout=10",
 		},
 		Cache: Cache{
+			Size: 1024,
 			Type: "inmemory",
 		},
 		Consul: Consul{

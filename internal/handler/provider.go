@@ -6,6 +6,7 @@ var Set = wire.NewSet(NewPauseTemplate, NewShiftTemplate, NewWorkingCondition, N
 	NewAgentAbsence, NewForecastCalculation, NewWorkingSchedule, NewAgentWorkingSchedule,
 )
 
+// Handlers needed for google/wire to build body of generated function.
 type Handlers struct {
 	PauseTemplate          *PauseTemplate
 	ShiftTemplate          *ShiftTemplate

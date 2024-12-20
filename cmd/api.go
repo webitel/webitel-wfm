@@ -110,7 +110,7 @@ func apiFlags(cfg *config.Config) []cli.Flag {
 			Destination: &cfg.Database.ForecastCalculationDSN,
 			Aliases:     []string{"fc"},
 		},
-		&cli.Int64Flag{
+		&cli.IntFlag{
 			Name:        "cache-size",
 			Category:    "storage/cache",
 			Usage:       "cache capacity in bytes; must be smaller than the available RAM size for the app, since the cache holds data in memory",
@@ -205,7 +205,7 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 
 	// Create handlers for gRPC service using generated code
 	// by github.com/google/wire.
-	_, err = initHandlers(log, res, fs)
+	_, err = initHandlers(res, fs)
 	if err != nil {
 		return nil, err
 	}
@@ -332,15 +332,6 @@ func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.Ch
 	return conn, nil
 }
 
-func inmemoryCache() (cache.Manager, error) {
-	conn, err := cache.New(1024)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
-}
-
 func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*dbsql.Cluster, error) {
 	const scope = "sql-storage"
 	dsns := strings.Fields(cfg.Database.DSN)
@@ -402,65 +393,4 @@ func auth(sd discovery.ServiceDiscovery, health *health.CheckRegistry, tracker *
 	})
 
 	return conn, nil
-}
-
-func webitelEngine(log *wlog.Logger, sd discovery.ServiceDiscovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (*engine.Client, error) {
-	const scope = "webitel-engine"
-	conn, err := engine.New(log, sd)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tracker.RegisterShutdownHandler(scope, conn); err != nil {
-		return nil, err
-	}
-
-	health.Register(conn)
-
-	return conn, nil
-}
-
-func rpcServer(log *wlog.Logger, authcli authmanager.AuthManager, tracker *shutdown.Tracker) (*server.Server, error) {
-	const scope = "grpc-server"
-	srv, err := server.New(log, authcli)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tracker.RegisterShutdownHandler(scope, srv); err != nil {
-		return nil, err
-	}
-
-	return srv, nil
-}
-
-func pubsubConn(log *wlog.Logger, cfg *config.Config, tracker *shutdown.Tracker) (*pubsub.Manager, error) {
-	ps, err := pubsub.New(log, cfg.Pubsub.Address)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tracker.RegisterShutdownHandler("pubsub", ps); err != nil {
-		return nil, err
-	}
-
-	return ps, nil
-}
-
-func webitelLogger(log *wlog.Logger, sd discovery.ServiceDiscovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (*logger.Client, error) {
-	c, err := logger.New(log, sd)
-	if err != nil {
-		return nil, err
-	}
-
-	health.Register(c)
-	if err := tracker.RegisterShutdownHandler("webitel-logger", c); err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
-
-func audit(svc *logger.Client, pub *pubsub.Manager) *logger.Audit {
-	return logger.NewAudit(svc.ConfigService, pub)
 }

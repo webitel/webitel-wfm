@@ -20,7 +20,7 @@ type Client struct {
 	Conn *webitel.ConnectionManager[*webitel.Connection]
 }
 
-func New(log *wlog.Logger, sd discovery.ServiceDiscovery) (*Client, error) {
+func New(log *wlog.Logger, sd discovery.ServiceDiscovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (*Client, error) {
 	c, err := webitel.New[*webitel.Connection](log, sd, serviceName)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,19 @@ func New(log *wlog.Logger, sd discovery.ServiceDiscovery) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{Conn: c, AgentService: agentSvc, CalendarService: calendarSvc}, nil
+	cli := &Client{
+		Conn:            c,
+		AgentService:    agentSvc,
+		CalendarService: calendarSvc,
+	}
+
+	if err := tracker.RegisterShutdownHandler(serviceName, cli); err != nil {
+		return nil, err
+	}
+
+	health.Register(cli)
+
+	return cli, nil
 }
 
 func (c *Client) Shutdown(p *shutdown.Process) error {

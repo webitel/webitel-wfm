@@ -8,6 +8,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
+	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 )
 
@@ -30,9 +31,9 @@ type Manager struct {
 	runningHandlers sync.WaitGroup
 }
 
-func New(log *wlog.Logger, address string) (*Manager, error) {
+func New(log *wlog.Logger, cfg *config.Pubsub, tracker *shutdown.Tracker) (*Manager, error) {
 	m := &Manager{
-		address:         address,
+		address:         cfg.Address,
 		log:             log,
 		close:           make(chan bool),
 		waitConnection:  make(chan struct{}),
@@ -47,6 +48,9 @@ func New(log *wlog.Logger, address string) (*Manager, error) {
 
 	// Its bad case of nil == waitConnection, so close it at start.
 	close(m.waitConnection)
+	if err := tracker.RegisterShutdownHandler("pubsub", m); err != nil {
+		return nil, err
+	}
 
 	return m, nil
 }
