@@ -1,4 +1,4 @@
-package health
+package health_test
 
 import (
 	"context"
@@ -9,12 +9,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
-	mockhealth "github.com/webitel/webitel-wfm/gen/go/mocks/health"
+	mockhealth "github.com/webitel/webitel-wfm/gen/go/mocks/infra/health"
+	"github.com/webitel/webitel-wfm/infra/health"
 )
 
 func TestCheckRegistry_Register(t *testing.T) {
 	log := wlog.NewLogger(&wlog.LoggerConfiguration{})
-	registry := NewCheckRegistry(log)
+	registry := health.NewCheckRegistry(log)
 	check := mockhealth.NewMockCheck(t)
 	registry.Register(check)
 
@@ -23,7 +24,7 @@ func TestCheckRegistry_Register(t *testing.T) {
 
 func TestCheckRegistry_RegisterFunc(t *testing.T) {
 	log := wlog.NewLogger(&wlog.LoggerConfiguration{})
-	registry := NewCheckRegistry(log)
+	registry := health.NewCheckRegistry(log)
 	checkFunc := func(ctx context.Context) error { return nil }
 
 	registry.RegisterFunc("test-check", checkFunc)
@@ -32,7 +33,7 @@ func TestCheckRegistry_RegisterFunc(t *testing.T) {
 
 func TestCheckRegistry_GetChecks(t *testing.T) {
 	log := wlog.NewLogger(&wlog.LoggerConfiguration{})
-	registry := NewCheckRegistry(log)
+	registry := health.NewCheckRegistry(log)
 	check := mockhealth.NewMockCheck(t)
 	registry.Register(check)
 	checks := registry.GetChecks()
@@ -43,9 +44,9 @@ func TestCheckRegistry_GetChecks(t *testing.T) {
 
 func TestCheckRegistry_RunAll(t *testing.T) {
 	log := wlog.NewLogger(&wlog.LoggerConfiguration{})
-	registry := NewCheckRegistry(log)
+	registry := health.NewCheckRegistry(log)
 	check := mockhealth.NewMockCheck(t)
-	checkResult := []CheckResult{{Name: "test-check", Err: nil}}
+	checkResult := []health.CheckResult{{Name: "test-check", Err: nil}}
 
 	check.On("HealthCheck", mock.Anything).Return(checkResult)
 	registry.Register(check)
@@ -59,11 +60,11 @@ func TestCheckRegistry_RunAll(t *testing.T) {
 
 func TestCheckRegistry_RunAll_WithTimeout(t *testing.T) {
 	log := wlog.NewLogger(&wlog.LoggerConfiguration{})
-	registry := NewCheckRegistry(log)
+	registry := health.NewCheckRegistry(log)
 	check := mockhealth.NewMockCheck(t)
-	checkResult := []CheckResult{{Name: "test-check", Err: nil}}
+	checkResult := []health.CheckResult{{Name: "test-check", Err: nil}}
 
-	check.On("HealthCheck", mock.Anything).Return(checkResult)
+	check.On("HealthCheck", mock.Anything).Return(checkResult).Maybe()
 	registry.Register(check)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
@@ -78,7 +79,7 @@ func TestCheckRegistry_RunAll_WithTimeout(t *testing.T) {
 
 func TestCheckRegistry_RunAll_WithPanic(t *testing.T) {
 	log := wlog.NewLogger(&wlog.LoggerConfiguration{})
-	registry := NewCheckRegistry(log)
+	registry := health.NewCheckRegistry(log)
 	check := mockhealth.NewMockCheck(t)
 
 	check.On("HealthCheck", mock.Anything).Run(func(args mock.Arguments) {

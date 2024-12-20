@@ -12,8 +12,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/gen/go/mocks/handler"
-	grpchandler "github.com/webitel/webitel-wfm/internal/handler"
+	mockservice "github.com/webitel/webitel-wfm/gen/go/mocks/internal_/service"
+	"github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/tests/testinfra"
 )
 
@@ -39,8 +39,8 @@ func (s *workingScheduleTestSuite) SetupSuite() {
 	s.srv = testinfra.NewTestServer(s.T(), s.log)
 	s.cli = pb.NewWorkingScheduleServiceClient(testinfra.NewTestGrpcClient(s.T(), s.srv.Lis))
 
-	svc := handler.NewMockWorkingScheduleService(s.T())
-	pb.RegisterWorkingScheduleServiceServer(s.srv.Server, grpchandler.NewWorkingSchedule(svc))
+	svc := mockservice.NewMockWorkingScheduleManager(s.T())
+	_ = handler.NewWorkingSchedule(s.srv.Server, svc)
 
 	go func() {
 		if err := s.srv.Serve(); err != nil {

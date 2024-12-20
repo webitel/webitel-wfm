@@ -1,4 +1,4 @@
-package storage
+package storage_test
 
 import (
 	"context"
@@ -10,9 +10,10 @@ import (
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
+	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/internal/model"
-	"github.com/webitel/webitel-wfm/internal/service"
+	"github.com/webitel/webitel-wfm/internal/storage"
 	"github.com/webitel/webitel-wfm/internal/tests"
 	"github.com/webitel/webitel-wfm/internal/tests/testinfra"
 )
@@ -24,7 +25,7 @@ type agentAbsenceTestSuite struct {
 	cluster *testinfra.TestStorageCluster
 	cache   cache.Manager
 
-	store service.AgentAbsenceManager
+	store storage.AgentAbsenceManager
 }
 
 func TestNewAgentAbsence(t *testing.T) {
@@ -39,12 +40,12 @@ func (s *agentAbsenceTestSuite) SetupSuite() {
 		s.T().Error(err)
 	}
 
-	s.cache, err = cache.New(1024)
+	s.cache, err = cache.New(&config.Cache{Size: 1024})
 	if err != nil {
 		s.T().Error(err)
 	}
 
-	s.store = NewAgentAbsence(s.cluster.Store(), s.cache)
+	s.store = storage.NewAgentAbsence(s.cluster.Store(), s.cache)
 }
 
 func (s *agentAbsenceTestSuite) TearDownSuite() {
@@ -99,10 +100,7 @@ func (s *agentAbsenceTestSuite) TestCreateAgentAbsence() {
 			rows := pgxmock.NewRows([]string{"id"}).AddRow(int64(1))
 			s.cluster.Mock().ExpectQuery(sql).WithArgs(args...).WillReturnRows(rows)
 			out, err := s.store.CreateAgentAbsence(ctx, tt.user, tt.in)
-			if err != nil {
-				s.T().Error(err)
-			}
-
+			s.NoError(err)
 			s.Equal(tt.expected.out, out.Absence.Id)
 		})
 	}

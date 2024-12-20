@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -166,6 +167,35 @@ type resources struct {
 	ps         *pubsub.Manager
 }
 
+func (r *resources) registerShutdownAndHealthHooks(tracker *shutdown.Tracker, checker *health.CheckRegistry) error {
+	elem := reflect.ValueOf(r).Elem()
+	elemType := elem.Type()
+
+	for i := 0; i < elem.NumField(); i++ {
+		fieldType := elemType.Field(i).Type
+		fieldValue := elem.Field(i)
+		fieldName := fieldType.Name()
+
+		if fieldType.Implements(reflect.TypeOf((*shutdown.Handler)(nil)).Elem()) {
+			hook, ok := fieldValue.Interface().(shutdown.Handler)
+			if ok {
+				if err := tracker.RegisterShutdownHandler(fieldName, hook); err != nil {
+					return err
+				}
+			}
+		}
+
+		if fieldType.Implements(reflect.TypeOf((*health.Check)(nil)).Elem()) {
+			hook, ok := fieldValue.Interface().(health.Check)
+			if ok {
+				checker.Register(hook)
+			}
+		}
+	}
+
+	return nil
+}
+
 func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *shutdown.Tracker) (*app, error) {
 	startedCh := make(chan struct{})
 
@@ -193,6 +223,12 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 	// using generated code by github.com/google/wire.
 	res, err := initResources(ctx, cfg, log, check, tracker)
 	if err != nil {
+		return nil, err
+	}
+
+	// Iterates over struct fields to find those which implement
+	// shutdown.Handler interface and register shutdown and healthcheck hooks.
+	if err = res.registerShutdownAndHealthHooks(tracker, check); err != nil {
 		return nil, err
 	}
 
@@ -332,8 +368,7 @@ func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.Ch
 	return conn, nil
 }
 
-func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*dbsql.Cluster, error) {
-	const scope = "sql-storage"
+func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger) (*dbsql.Cluster, error) {
 	dsns := strings.Fields(cfg.Database.DSN)
 	conns, err := dbsql.NewConnections(ctx, log, dsns...)
 	if err != nil {
@@ -344,12 +379,6 @@ func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, healt
 	if err != nil {
 		return nil, err
 	}
-
-	if err := tracker.RegisterShutdownHandler(scope, conn); err != nil {
-		return nil, err
-	}
-
-	health.Register(conn)
 
 	return conn, nil
 }

@@ -15,12 +15,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/gen/go/mocks/handler"
-	grpchandler "github.com/webitel/webitel-wfm/internal/handler"
+	mockservice "github.com/webitel/webitel-wfm/gen/go/mocks/internal_/service"
+	"github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/tests"
 	"github.com/webitel/webitel-wfm/internal/tests/testinfra"
-	"github.com/webitel/webitel-wfm/pkg/werror/old"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type workingConditionTestSuite struct {
@@ -56,7 +56,7 @@ func (s *workingConditionTestSuite) SetupSuite() {
 	}
 
 	svc := s.mockWorkingConditionServiceBehavior()
-	pb.RegisterWorkingConditionServiceServer(s.srv.Server, grpchandler.NewWorkingCondition(svc))
+	_ = handler.NewWorkingCondition(s.srv.Server, svc)
 
 	go func() {
 		if err := s.srv.Serve(); err != nil {
@@ -166,10 +166,10 @@ func (s *workingConditionTestSuite) TestUpdateWorkingCondition() {}
 
 func (s *workingConditionTestSuite) TestDeleteWorkingCondition() {}
 
-func (s *workingConditionTestSuite) mockWorkingConditionServiceBehavior() *handler.MockWorkingConditionManager {
+func (s *workingConditionTestSuite) mockWorkingConditionServiceBehavior() *mockservice.MockWorkingConditionManager {
 	s.T().Helper()
 
-	svc := handler.NewMockWorkingConditionManager(s.T())
+	svc := mockservice.NewMockWorkingConditionManager(s.T())
 	svc.EXPECT().CreateWorkingCondition(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error) {
 			in.Id = int64(len(s.store.items) + 1)
@@ -191,7 +191,7 @@ func (s *workingConditionTestSuite) mockWorkingConditionServiceBehavior() *handl
 			te, ok := s.store.items[search.Id]
 			s.store.mu.RUnlock()
 			if !ok {
-				return nil, werror.NewDBNoRowsErr("tests")
+				return nil, werror.New("tests")
 			}
 
 			return te, nil
@@ -216,7 +216,7 @@ func (s *workingConditionTestSuite) mockWorkingConditionServiceBehavior() *handl
 			_, ok := s.store.items[in.Id]
 			s.store.mu.RUnlock()
 			if !ok {
-				return werror.NewDBNoRowsErr("tests")
+				return werror.New("tests")
 			}
 
 			in.DomainId = user.DomainId

@@ -15,12 +15,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/gen/go/mocks/handler"
-	grpchandler "github.com/webitel/webitel-wfm/internal/handler"
+	mockservice "github.com/webitel/webitel-wfm/gen/go/mocks/internal_/service"
+	"github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/tests"
 	"github.com/webitel/webitel-wfm/internal/tests/testinfra"
-	"github.com/webitel/webitel-wfm/pkg/werror/old"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type agentWorkingConditionsTestSuite struct {
@@ -67,7 +67,7 @@ func (s *agentWorkingConditionsTestSuite) SetupSuite() {
 	}
 
 	svc := s.mockWorkingConditionsServiceBehavior()
-	pb.RegisterAgentWorkingConditionsServiceServer(s.srv.Server, grpchandler.NewAgentWorkingConditions(svc))
+	_ = handler.NewAgentWorkingConditions(s.srv.Server, svc)
 
 	go func() {
 		if err := s.srv.Serve(); err != nil {
@@ -233,16 +233,16 @@ func (s *agentWorkingConditionsTestSuite) TestUpdateAgentWorkingConditions() {
 	}
 }
 
-func (s *agentWorkingConditionsTestSuite) mockWorkingConditionsServiceBehavior() *handler.MockAgentWorkingConditionsManager {
+func (s *agentWorkingConditionsTestSuite) mockWorkingConditionsServiceBehavior() *mockservice.MockAgentWorkingConditionsManager {
 	s.T().Helper()
-	svc := handler.NewMockAgentWorkingConditionsManager(s.T())
+	svc := mockservice.NewMockAgentWorkingConditionsManager(s.T())
 	svc.EXPECT().ReadAgentWorkingConditions(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(ctx context.Context, user *model.SignedInUser, agentId int64) (*model.AgentWorkingConditions, error) {
 			s.store.mu.RLock()
 			te, ok := s.store.items[agentId]
 			s.store.mu.RUnlock()
 			if !ok {
-				return nil, werror.NewDBNoRowsErr("tests")
+				return nil, werror.New("test")
 			}
 
 			return te, nil
@@ -254,7 +254,7 @@ func (s *agentWorkingConditionsTestSuite) mockWorkingConditionsServiceBehavior()
 			_, ok := s.store.items[agentId]
 			s.store.mu.RUnlock()
 			if !ok {
-				return werror.NewDBNoRowsErr("tests")
+				return werror.New("tests")
 			}
 
 			s.store.mu.Lock()

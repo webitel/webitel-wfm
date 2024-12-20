@@ -19,7 +19,7 @@ type Client struct {
 	Conn *webitel.ConnectionManager[*webitel.Connection]
 }
 
-func New(log *wlog.Logger, sd discovery.ServiceDiscovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (*Client, error) {
+func New(log *wlog.Logger, sd discovery.ServiceDiscovery) (*Client, error) {
 	c, err := webitel.New[*webitel.Connection](log, sd, serviceName)
 	if err != nil {
 		return nil, err
@@ -27,16 +27,6 @@ func New(log *wlog.Logger, sd discovery.ServiceDiscovery, health *health.CheckRe
 
 	cfgSvc, err := NewConfigServiceClient(log, c)
 	if err != nil {
-		return nil, err
-	}
-
-	cli := &Client{
-		Conn:          c,
-		ConfigService: cfgSvc,
-	}
-
-	health.Register(cli)
-	if err := tracker.RegisterShutdownHandler(serviceName, cli); err != nil {
 		return nil, err
 	}
 

@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
 )
 
 func TestCheckedNodesList_Len(t *testing.T) {
@@ -46,10 +48,10 @@ func TestGroupedCheckedNodes_Alive(t *testing.T) {
 	var expected []Node
 	var input groupedCheckedNodes
 	for i := 0; i < count; i++ {
-		db := cluster.NewMockQueryer(t)
+		db := dbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		n, err := newNode(fmt.Sprintf("%d", i), db)
+		n, err := newNode(fmt.Sprintf("%d", i), db, nil)
 		require.NoError(t, err)
 
 		node := checkedNode{Node: n, Latency: time.Duration(i+1) * time.Nanosecond}
@@ -77,10 +79,10 @@ func TestCheckNodes(t *testing.T) {
 	expected := AliveNodes{Alive: make([]Node, count)}
 	for i := 0; i < count; i++ {
 
-		db := cluster.NewMockQueryer(t)
+		db := dbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		node, err := newNode(uuid.NewString(), db)
+		node, err := newNode(uuid.NewString(), db, nil)
 		require.NoError(t, err)
 
 		for {
@@ -149,10 +151,10 @@ func TestCheckNodesWithErrors(t *testing.T) {
 	const count = 5
 	var nodes []Node
 	for i := 0; i < count; i++ {
-		db := cluster.NewMockQueryer(t)
+		db := dbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		n, err := newNode(uuid.NewString(), db)
+		n, err := newNode(uuid.NewString(), db, nil)
 		require.NoError(t, err)
 		nodes = append(nodes, n)
 	}
@@ -175,10 +177,10 @@ func TestCheckNodesWithErrorsWhenNodesBecameAlive(t *testing.T) {
 	const count = 5
 	var nodes []Node
 	for i := 0; i < count; i++ {
-		db := cluster.NewMockQueryer(t)
+		db := dbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		n, err := newNode(uuid.NewString(), db)
+		n, err := newNode(uuid.NewString(), db, nil)
 		require.NoError(t, err)
 		nodes = append(nodes, n)
 	}

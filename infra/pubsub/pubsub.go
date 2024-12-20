@@ -31,7 +31,7 @@ type Manager struct {
 	runningHandlers sync.WaitGroup
 }
 
-func New(log *wlog.Logger, cfg *config.Pubsub, tracker *shutdown.Tracker) (*Manager, error) {
+func New(log *wlog.Logger, cfg *config.Pubsub) (*Manager, error) {
 	m := &Manager{
 		address:         cfg.Address,
 		log:             log,
@@ -48,9 +48,6 @@ func New(log *wlog.Logger, cfg *config.Pubsub, tracker *shutdown.Tracker) (*Mana
 
 	// Its bad case of nil == waitConnection, so close it at start.
 	close(m.waitConnection)
-	if err := tracker.RegisterShutdownHandler("pubsub", m); err != nil {
-		return nil, err
-	}
 
 	return m, nil
 }

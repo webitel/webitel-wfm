@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
-	amock "github.com/webitel/webitel-wfm/gen/go/mocks/github.com/webitel/engine/auth_manager"
+	authmock "github.com/webitel/webitel-wfm/gen/go/mocks/infra/webitel/auth"
 	"github.com/webitel/webitel-wfm/infra/server"
 )
 
@@ -36,7 +36,7 @@ func NewTestServer(t *testing.T, log *wlog.Logger) *TestServer {
 		Expire:   time.Now().Add(1 * time.Hour).Unix(),
 	}
 
-	a := amock.NewMockAuthManager(t)
+	a := authmock.NewMockManager(t)
 	a.EXPECT().GetSession(mock.AnythingOfType("string")).RunAndReturn(func(token string) (*auth_manager.Session, error) {
 		session.Id = token
 		session.Token = token

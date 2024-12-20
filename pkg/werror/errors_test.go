@@ -1,4 +1,4 @@
-package werror
+package werror_test
 
 import (
 	"errors"
@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 func TestErrWithValue_Format(t *testing.T) {
 	// %v and %s print the same as err.Error() if there is no cause
-	err := &errWithValue{err: errors.New("Hi")}
-	assert.IsType(t, &errWithValue{}, err)
+	err := werror.Wrap(errors.New("Hi"), werror.WithValue("test", "value"))
 	assert.Equal(t, fmt.Sprintf("%v", err), err.Error())
 	assert.Equal(t, fmt.Sprintf("%s", err), err.Error())
 
@@ -19,20 +20,17 @@ func TestErrWithValue_Format(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("%q", err), fmt.Sprintf("%q", err.Error()))
 
 	// if there is a cause in the chain, include it.
-	err = Wrap(err, WithCause(New("Bye")), WithValue("color", "red")).(*errWithValue)
+	err = werror.Wrap(err, werror.WithCause(werror.New("Bye")), werror.WithValue("color", "red"))
 	assert.Equal(t, fmt.Sprintf("%v", err), "Hi: Bye")
 	assert.Equal(t, fmt.Sprintf("%s", err), "Hi: Bye")
 
-	err = Wrap(err, WithValue("raw", "blue")).(*errWithValue)
-	assert.Equal(t, fmt.Sprintf("%+v", err), Details(err))
+	err = werror.Wrap(err, werror.WithValue("raw", "blue"))
+	assert.Equal(t, fmt.Sprintf("%+v", err), werror.Details(err))
 }
 
 func TestErrWithCause_Format(t *testing.T) {
 	// %v and %s also print the cause, if there is one
-	err := &errWithCause{err: New("Hi"), cause: New("Bye")}
-	// make sure we have an errWithCause here, to ensure that it also implements
-	// fmt.Formatter
-	assert.IsType(t, &errWithCause{}, err)
+	err := werror.New("Hi", werror.WithCause(werror.New("Bye")))
 	assert.Equal(t, fmt.Sprintf("%v", err), "Hi: Bye")
 	assert.Equal(t, fmt.Sprintf("%s", err), "Hi: Bye")
 
@@ -41,19 +39,19 @@ func TestErrWithCause_Format(t *testing.T) {
 
 	// %+v should return full details, including properties registered with RegisterXXX() functions
 	// and the stack.
-	assert.Equal(t, fmt.Sprintf("%+v", err), Details(err))
+	assert.Equal(t, fmt.Sprintf("%+v", err), werror.Details(err))
 }
 
 func TestErrWithValue_Error(t *testing.T) {
-	err := &errWithValue{err: errors.New("red")}
+	err := werror.New("red")
 	assert.Equal(t, "red", err.Error())
 
-	err = Wrap(err, WithValue("raw", "blue")).(*errWithValue)
-	assert.Equal(t, "blue", Value(err, "raw"))
+	err = werror.Wrap(err, werror.WithValue("raw", "blue"))
+	assert.Equal(t, "blue", werror.Value(err, "raw"))
 }
 
 func TestErrWithCause_Error(t *testing.T) {
-	err := &errWithCause{err: errors.New("blue"), cause: errors.New("red")}
+	err := werror.New("blue", werror.WithCause(werror.New("red")))
 	assert.Equal(t, "blue", err.Error())
 }
 
@@ -72,12 +70,12 @@ func (w *UnwrapperError) Unwrap() error {
 }
 
 func TestErrWithValue_Unwrap(t *testing.T) {
-	e1 := &errWithValue{err: errors.New("blue"), key: "color", value: "red"}
-	assert.EqualError(t, e1.Unwrap(), "blue")
+	e1 := werror.New("blue", werror.WithValue("color", "red"))
+	assert.EqualError(t, errors.Unwrap(e1), "blue")
 }
 
 func TestErrWithCause_Unwrap(t *testing.T) {
-	err := Wrap(errors.New("blue"), WithCause(errors.New("red")))
+	err := werror.Wrap(errors.New("blue"), werror.WithCause(errors.New("red")))
 
 	// unwrapping the layers should return blue, then the cause (red).
 	// first unwrap should return blue
@@ -92,7 +90,7 @@ func TestErrWithCause_Unwrap(t *testing.T) {
 
 	// If another cause is attached, it should override the older cause.
 	// Unwrap should no longer return the older cause.
-	unwrapped = Wrap(err, WithCause(errors.New("yellow")))
+	unwrapped = werror.Wrap(err, werror.WithCause(errors.New("yellow")))
 	layers = nil
 	for unwrapped != nil {
 		layers = append(layers, unwrapped.Error())
@@ -103,36 +101,36 @@ func TestErrWithCause_Unwrap(t *testing.T) {
 }
 
 func TestErrWithValue_String(t *testing.T) {
-	err := New("blue")
-	assert.Equal(t, "blue", err.(*formatError).String())
+	err := werror.New("blue")
+	assert.Equal(t, "blue", err.Error())
 
-	err = Wrap(err, WithValue("raw", "red"))
-	assert.Equal(t, "red", Value(err, "raw"))
+	err = werror.Wrap(err, werror.WithValue("raw", "red"))
+	assert.Equal(t, "red", werror.Value(err, "raw"))
 }
 
 func TestErrWithCause_String(t *testing.T) {
-	assert.Equal(t, "blue", (&errWithCause{err: errors.New("blue")}).String())
+	assert.Equal(t, "blue", werror.New("blue", werror.WithCause(werror.New("green"))).Error())
 }
 
 func TestIs(t *testing.T) {
 	// an error is all the errors it wraps
-	e1 := New("blue")
-	e2 := Wrap(e1, WithCode(5))
+	e1 := werror.New("blue")
+	e2 := werror.Wrap(e1, werror.WithCode(5))
 	assert.True(t, errors.Is(e2, e1))
 	assert.False(t, errors.Is(e1, e2))
 
 	// is works through other unwrapper implementations
 	e3 := &UnwrapperError{err: e2}
-	e4 := Wrap(e3, WithValue("raw", "hi"))
+	e4 := werror.Wrap(e3, werror.WithValue("raw", "hi"))
 	assert.True(t, errors.Is(e4, e3))
 	assert.True(t, errors.Is(e4, e2))
 	assert.True(t, errors.Is(e4, e1))
 
 	// an error is also any of the causes
 	rootCause := errors.New("ioerror")
-	rootCause1 := Wrap(rootCause)
-	outererr := New("failed", WithCause(rootCause1))
-	outererr1 := Wrap(outererr, WithValue("raw", "sorry!"))
+	rootCause1 := werror.Wrap(rootCause)
+	outererr := werror.New("failed", werror.WithCause(rootCause1))
+	outererr1 := werror.Wrap(outererr, werror.WithValue("raw", "sorry!"))
 
 	assert.True(t, errors.Is(outererr1, outererr))
 	assert.True(t, errors.Is(outererr1, rootCause1))
@@ -140,7 +138,7 @@ func TestIs(t *testing.T) {
 
 	// but only the latest cause
 	newCause := errors.New("new cause")
-	outererr1 = Wrap(outererr1, WithCause(newCause))
+	outererr1 = werror.Wrap(outererr1, werror.WithCause(newCause))
 	assert.ErrorIs(t, outererr1, newCause)
 	assert.NotErrorIs(t, outererr1, rootCause)
 	assert.NotErrorIs(t, outererr1, rootCause1)
@@ -153,7 +151,7 @@ func (*redError) Error() string {
 }
 
 func TestAs(t *testing.T) {
-	err := New("blue error")
+	err := werror.New("blue error")
 
 	// as will find matching errors in the chain
 	var rerr *redError
@@ -161,7 +159,7 @@ func TestAs(t *testing.T) {
 	assert.Nil(t, rerr)
 
 	rr := redError(3)
-	err = Wrap(&rr)
+	err = werror.Wrap(&rr)
 
 	assert.True(t, errors.As(err, &rerr))
 	assert.Equal(t, &rr, rerr)
@@ -173,7 +171,7 @@ func TestAs(t *testing.T) {
 	assert.True(t, errors.As(err, &rerr))
 	assert.Equal(t, &rr, rerr)
 
-	err = Wrap(err, PrependMessage("asdf"))
+	err = werror.Wrap(err, werror.PrependMessage("asdf"))
 
 	rerr = nil
 
@@ -181,7 +179,7 @@ func TestAs(t *testing.T) {
 	assert.Equal(t, &rr, rerr)
 
 	// will search causes as well
-	err = New("boom", WithCause(err))
+	err = werror.New("boom", werror.WithCause(err))
 
 	rerr = nil
 
@@ -189,6 +187,6 @@ func TestAs(t *testing.T) {
 	assert.Equal(t, &rr, rerr)
 
 	// but only the latest cause
-	err = Wrap(err, WithCause(errors.New("new cause")))
+	err = werror.Wrap(err, werror.WithCause(errors.New("new cause")))
 	assert.False(t, errors.As(err, &rerr))
 }

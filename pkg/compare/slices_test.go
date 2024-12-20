@@ -1,9 +1,11 @@
-package compare
+package compare_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/webitel/webitel-wfm/pkg/compare"
 )
 
 func TestElementsMatch(t *testing.T) {
@@ -59,7 +61,7 @@ func TestElementsMatch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expect, ElementsMatch(tt.x, tt.y))
+			assert.Equal(t, tt.expect, compare.ElementsMatch(tt.x, tt.y))
 		})
 	}
 }

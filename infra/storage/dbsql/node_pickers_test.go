@@ -4,12 +4,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
 )
 
 func TestRandom(t *testing.T) {
-	n1, _ := newNode("shimba", nil)
-	n2, _ := newNode("boomba", nil)
-	n3, _ := newNode("looken", nil)
+	db := dbsql.NewMockDatabase(t)
+	n1, _ := newNode("shimba", db, nil)
+	n2, _ := newNode("boomba", db, nil)
+	n3, _ := newNode("looken", db, nil)
 	nodes := []Node{n1, n2, n3}
 	rr := PickNodeRandom()
 	pickedNodes := make(map[string]struct{})
@@ -22,12 +25,13 @@ func TestRandom(t *testing.T) {
 }
 
 func TestPickNodeRoundRobin(t *testing.T) {
-	n1, _ := newNode("shimba", nil)
-	n2, _ := newNode("boomba", nil)
-	n3, _ := newNode("looken", nil)
-	n4, _ := newNode("tooken", nil)
-	n5, _ := newNode("chicken", nil)
-	n6, _ := newNode("cooken", nil)
+	db := dbsql.NewMockDatabase(t)
+	n1, _ := newNode("shimba", db, nil)
+	n2, _ := newNode("boomba", db, nil)
+	n3, _ := newNode("looken", db, nil)
+	n4, _ := newNode("tooken", db, nil)
+	n5, _ := newNode("chicken", db, nil)
+	n6, _ := newNode("cooken", db, nil)
 	nodes := []Node{n1, n2, n3, n4, n5, n6}
 	iterCount := len(nodes) * 3
 
@@ -47,9 +51,10 @@ func TestPickNodeRoundRobin(t *testing.T) {
 }
 
 func TestClosest(t *testing.T) {
-	n1, _ := newNode("shimba", nil)
-	n2, _ := newNode("boomba", nil)
-	n3, _ := newNode("looken", nil)
+	db := dbsql.NewMockDatabase(t)
+	n1, _ := newNode("shimba", db, nil)
+	n2, _ := newNode("boomba", db, nil)
+	n3, _ := newNode("looken", db, nil)
 
 	nodes := []Node{n1, n2, n3}
 

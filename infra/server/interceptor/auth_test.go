@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 
-	authmock "github.com/webitel/webitel-wfm/gen/go/mocks/auth"
+	authmock "github.com/webitel/webitel-wfm/gen/go/mocks/infra/webitel/auth"
 	"github.com/webitel/webitel-wfm/internal/tests"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )

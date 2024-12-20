@@ -1,4 +1,4 @@
-package werror
+package werror_test
 
 import (
 	"errors"
@@ -6,61 +6,63 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
+
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 func TestWrappers(t *testing.T) {
 	tests := []struct {
 		name       string
-		wrapper    Wrapper
+		wrapper    werror.Wrapper
 		assertions func(*testing.T, error)
 	}{
 		{
 			name:    "AppendMessage",
-			wrapper: AppendMessage("boom"),
+			wrapper: werror.AppendMessage("boom"),
 			assertions: func(t *testing.T, err error) {
 				assert.EqualError(t, err, "bang: boom")
 			},
 		},
 		{
 			name:    "AppendMessagef",
-			wrapper: AppendMessagef("%s %s", "big", "boom"),
+			wrapper: werror.AppendMessagef("%s %s", "big", "boom"),
 			assertions: func(t *testing.T, err error) {
 				assert.EqualError(t, err, "bang: big boom")
 			},
 		},
 		{
 			name:    "PrependMessage",
-			wrapper: PrependMessage("boom"),
+			wrapper: werror.PrependMessage("boom"),
 			assertions: func(t *testing.T, err error) {
 				assert.EqualError(t, err, "boom: bang")
 			},
 		},
 		{
 			name:    "PrependMessagef",
-			wrapper: PrependMessagef("%s %s", "big", "boom"),
+			wrapper: werror.PrependMessagef("%s %s", "big", "boom"),
 			assertions: func(t *testing.T, err error) {
 				assert.EqualError(t, err, "big boom: bang")
 			},
 		},
 		{
 			name:    "WithValue",
-			wrapper: WithValue("color", "red"),
+			wrapper: werror.WithValue("color", "red"),
 			assertions: func(t *testing.T, err error) {
-				assert.Equal(t, "red", Value(err, "color"))
+				assert.Equal(t, "red", werror.Value(err, "color"))
 			},
 		},
 		{
 			name:    "WithCode",
-			wrapper: WithCode(56),
+			wrapper: werror.WithCode(56),
 			assertions: func(t *testing.T, err error) {
-				assert.Equal(t, codes.Code(56), Code(err))
+				assert.Equal(t, codes.Code(56), werror.Code(err))
 			},
 		},
 		{
 			name:    "WithCause",
-			wrapper: WithCause(errors.New("crash")),
+			wrapper: werror.WithCause(errors.New("crash")),
 			assertions: func(t *testing.T, err error) {
-				assert.EqualError(t, Cause(err), "crash")
+				assert.EqualError(t, werror.Cause(err), "crash")
 			},
 		},
 	}
@@ -78,8 +80,8 @@ func TestWrappers(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	// nil -> nil
-	assert.Nil(t, Set(nil, "color", "red"))
+	assert.Nil(t, werror.Set(nil, "color", "red"))
 
-	err := Set(errors.New("bang"), "color", "red")
-	assert.Equal(t, "red", Value(err, "color"))
+	err := werror.Set(errors.New("bang"), "color", "red")
+	assert.Equal(t, "red", werror.Value(err, "color"))
 }

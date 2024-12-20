@@ -1,10 +1,12 @@
-package timeutils
+package timeutils_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/webitel/webitel-wfm/pkg/timeutils"
 )
 
 func TestBetween(t *testing.T) {
@@ -68,7 +70,7 @@ func TestBetween(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expect, Between(tt.curr, tt.from, tt.to))
+			assert.Equal(t, tt.expect, timeutils.Between(tt.curr, tt.from, tt.to))
 		})
 	}
 }

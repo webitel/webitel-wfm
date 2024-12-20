@@ -8,9 +8,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
+	mockdbsql "github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/pg"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 )
 
 type TestStorageCluster struct {
@@ -48,27 +49,24 @@ func (t *TestStorageCluster) Store() dbsql.Store {
 	return t.cluster
 }
 
-func (t *TestStorageCluster) Queryer() dbsql.Queryer {
-	return t.queryer
-}
-
 func (t *TestStorageCluster) Mock() pgxmock.PgxPoolIface {
 	return t.dbmock
 }
 
 func mockDatabase(t *testing.T, db pgxmock.PgxPoolIface) (dbsql.Database, error) {
-	conn := dbsqlmock.NewMockDatabase(t)
+	conn := mockdbsql.NewMockDatabase(t)
 	conn.EXPECT().Exec(mock.Anything, mock.AnythingOfType("string")).
-		RunAndReturn(func(ctx context.Context, sql string, args ...any) error {
-			if _, err := db.Exec(ctx, sql, args...); err != nil {
-				return err
+		RunAndReturn(func(ctx context.Context, sql string, args ...any) (int64, error) {
+			ra, err := db.Exec(ctx, sql, args...)
+			if err != nil {
+				return 0, err
 			}
 
-			return nil
+			return ra.RowsAffected(), nil
 		}).Maybe()
 
 	conn.EXPECT().Query(mock.Anything, mock.AnythingOfType("string"), mock.Anything).
-		RunAndReturn(func(ctx context.Context, sql string, args ...any) (dbsql.Rows, error) {
+		RunAndReturn(func(ctx context.Context, sql string, args ...any) (scanner.Rows, error) {
 			rows, err := db.Query(ctx, sql, args...)
 			if err != nil {
 				return nil, err

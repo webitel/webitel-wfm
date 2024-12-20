@@ -53,7 +53,7 @@ func (db *Database) Query(ctx context.Context, query string, args ...any) (scann
 		return nil, err
 	}
 
-	return newRowsAdapter(r), nil
+	return NewRowsAdapter(r), nil
 }
 
 func (db *Database) Batch() batch.Batcher {

@@ -54,7 +54,7 @@ func (b *batchResults) Query() (scanner.Rows, error) {
 		return nil, err
 	}
 
-	return newRowsAdapter(rows), nil
+	return NewRowsAdapter(rows), nil
 }
 
 // Exec reads the results from the next query in the batch

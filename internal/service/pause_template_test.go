@@ -10,20 +10,19 @@ import (
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
-	servicemock "github.com/webitel/webitel-wfm/gen/go/mocks/service"
+	mockstorage "github.com/webitel/webitel-wfm/gen/go/mocks/internal_/storage"
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
-	"github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/service"
 	"github.com/webitel/webitel-wfm/internal/tests"
-	"github.com/webitel/webitel-wfm/pkg/werror/old"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type pauseTemplateTestSuite struct {
 	suite.Suite
 
 	log *wlog.Logger
-	svc handler.pauseTemplateManager
+	svc service.PauseTemplateManager
 	c   cache.Manager
 
 	store *pauseTemplates
@@ -203,7 +202,7 @@ func (s *pauseTemplateTestSuite) TestReadPauseTemplate() {
 
 	for scenario, tt := range t {
 		s.T().Run(scenario, func(t *testing.T) {
-			out, err := s.svc.ReadPauseTemplate(ctx, tt.user, tt.in)
+			out, err := s.svc.ReadPauseTemplate(ctx, tt.user, tt.in.Id, tt.in.Fields)
 			s.Require().Nil(err)
 			s.Require().Equal(tt.expected.out, out)
 		})
@@ -216,9 +215,9 @@ func (s *pauseTemplateTestSuite) TestUpdatePauseTemplate() {}
 
 func (s *pauseTemplateTestSuite) TestDeletePauseTemplate() {}
 
-func (s *pauseTemplateTestSuite) mockPauseTemplateRepositoryBehavior() *servicemock.MockPauseTemplateManager {
+func (s *pauseTemplateTestSuite) mockPauseTemplateRepositoryBehavior() *mockstorage.MockPauseTemplateManager {
 	s.T().Helper()
-	r := servicemock.NewMockPauseTemplateManager(s.T())
+	r := mockstorage.NewMockPauseTemplateManager(s.T())
 	r.EXPECT().CreatePauseTemplate(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error) {
 			s.store.mu.Lock()
@@ -253,7 +252,7 @@ func (s *pauseTemplateTestSuite) mockPauseTemplateRepositoryBehavior() *servicem
 			_, ok := s.store.items[in.Id]
 			s.store.mu.RUnlock()
 			if !ok {
-				return werror.NewDBNoRowsErr("tests")
+				return werror.New("tests")
 			}
 
 			s.store.mu.Lock()

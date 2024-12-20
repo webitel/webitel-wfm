@@ -15,12 +15,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/gen/go/mocks/handler"
-	grpchandler "github.com/webitel/webitel-wfm/internal/handler"
+	mockservice "github.com/webitel/webitel-wfm/gen/go/mocks/internal_/service"
+	"github.com/webitel/webitel-wfm/internal/handler"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/tests"
 	"github.com/webitel/webitel-wfm/internal/tests/testinfra"
-	"github.com/webitel/webitel-wfm/pkg/werror/old"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type pauseTemplateTestSuite struct {
@@ -56,7 +56,7 @@ func (s *pauseTemplateTestSuite) SetupSuite() {
 	}
 
 	svc := s.mockPauseTemplateServiceBehavior()
-	pb.RegisterPauseTemplateServiceServer(s.srv.Server, grpchandler.NewPauseTemplate(svc))
+	_ = handler.NewPauseTemplate(s.srv.Server, svc)
 
 	go func() {
 		if err := s.srv.Serve(); err != nil {
@@ -321,9 +321,9 @@ func (s *pauseTemplateTestSuite) TestUpdatePauseTemplateCauseBulk() {
 
 }
 
-func (s *pauseTemplateTestSuite) mockPauseTemplateServiceBehavior() *handler.MockPauseTemplateManager {
+func (s *pauseTemplateTestSuite) mockPauseTemplateServiceBehavior() *mockservice.MockPauseTemplateManager {
 	s.T().Helper()
-	svc := handler.NewMockPauseTemplateManager(s.T())
+	svc := mockservice.NewMockPauseTemplateManager(s.T())
 	svc.EXPECT().CreatePauseTemplate(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error) {
 			in.Id = int64(len(s.store.items) + 1)
@@ -345,7 +345,7 @@ func (s *pauseTemplateTestSuite) mockPauseTemplateServiceBehavior() *handler.Moc
 			te, ok := s.store.items[id]
 			s.store.mu.RUnlock()
 			if !ok {
-				return nil, werror.NewDBNoRowsErr("tests")
+				return nil, werror.New("tests")
 			}
 
 			return te, nil
@@ -370,7 +370,7 @@ func (s *pauseTemplateTestSuite) mockPauseTemplateServiceBehavior() *handler.Moc
 			_, ok := s.store.items[in.Id]
 			s.store.mu.RUnlock()
 			if !ok {
-				return werror.NewDBNoRowsErr("tests")
+				return werror.New("tests")
 			}
 
 			in.DomainId = user.DomainId

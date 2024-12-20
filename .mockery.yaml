@@ -1,30 +1,37 @@
-with-expecter: true
 filename: "mock_{{ .InterfaceName | snakecase }}.go"
-dir: "gen/go/mocks/{{ .PackageName }}"
+dir: gen/go/mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_" }}
 mockname: "{{ .Mock }}{{ .InterfaceName }}"
 outpkg: "{{ .PackageName }}"
 inpackage: false
+
+with-expecter: true
 unroll-variadic: false # https://vektra.github.io/mockery/latest/notes/#variadic-arguments
+issue-845-fix: true # https://vektra.github.io/mockery/v2.50/deprecations/#issue-845-fix
+resolve-type-alias: false # https://vektra.github.io/mockery/v2.50/deprecations/#resolve-type-alias
 
 packages:
   github.com/webitel/webitel-wfm/infra/health:
     interfaces:
       Check:
+
   github.com/webitel/webitel-wfm/infra/webitel/auth:
     interfaces:
       Manager:
+
   github.com/webitel/webitel-wfm/infra/storage/dbsql:
     interfaces:
       Database:
-  github.com/webitel/webitel-wfm/internal/handler:
+
+  github.com/webitel/webitel-wfm/internal/service:
     interfaces:
       PauseTemplateManager:
       ShiftTemplateManager:
       WorkingConditionManager:
       AgentWorkingConditionsManager:
       AgentAbsenceManager:
-      WorkingScheduleService:
-  github.com/webitel/webitel-wfm/internal/service:
+      WorkingScheduleManager:
+
+  github.com/webitel/webitel-wfm/internal/storage:
     interfaces:
       PauseTemplateManager:
       ShiftTemplateManager:

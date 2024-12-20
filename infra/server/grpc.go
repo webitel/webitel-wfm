@@ -19,7 +19,7 @@ type Server struct {
 }
 
 // New provides a new gRPC server.
-func New(log *wlog.Logger, authcli auth_manager.AuthManager, tracker *shutdown.Tracker) (*Server, error) {
+func New(log *wlog.Logger, authcli auth_manager.AuthManager) (*Server, error) {
 	val, err := protovalidate.New()
 	if err != nil {
 		return nil, fmt.Errorf("construct protovalidate rules: %w", err)
@@ -40,8 +40,6 @@ func New(log *wlog.Logger, authcli auth_manager.AuthManager, tracker *shutdown.T
 
 	// Register reflection service on gRPC server.
 	reflection.Register(srv.Server)
-
-	tracker.RegisterShutdownHandler("grpc-server", srv)
 
 	return srv, nil
 }

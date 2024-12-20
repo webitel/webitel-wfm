@@ -59,7 +59,7 @@ func newMigrator(cfg *config.Config, log *wlog.Logger) *migrator {
 
 func (m *migrator) run(ctx context.Context) error {
 	defer close(m.doneCh)
-	cl, err := sqlStorage(ctx, m.cfg, m.log, m.health, m.shutdown)
+	cl, err := sqlStorage(ctx, m.cfg, m.log)
 	if err != nil {
 		return err
 	}

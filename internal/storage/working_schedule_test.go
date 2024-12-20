@@ -3,12 +3,14 @@ package storage_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/suite"
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
+	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/storage"
@@ -46,7 +48,7 @@ func (s *workingScheduleTestSuite) SetupSuite() {
 		s.T().Error(err)
 	}
 
-	s.cache, err = cache.New(1024)
+	s.cache, err = cache.New(&config.Cache{Size: 1024})
 	if err != nil {
 		s.T().Error(err)
 	}
@@ -79,8 +81,8 @@ func (s *workingScheduleTestSuite) TestCreateWorkingSchedule() {
 				Name:                 "foo",
 				Team:                 model.LookupItem{Id: 1},
 				Calendar:             model.LookupItem{Id: 1},
-				StartDateAt:          0,
-				EndDateAt:            0,
+				StartDateAt:          model.NewDate(time.Now().Unix()),
+				EndDateAt:            model.NewDate(time.Now().Unix()),
 				StartTimeAt:          0,
 				EndTimeAt:            1440,
 				ExtraSkills:          []*model.LookupItem{{Id: 1}},
