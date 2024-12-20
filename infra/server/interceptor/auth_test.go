@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 
-	authmock "github.com/webitel/webitel-wfm/gen/go/mocks/github.com/webitel/engine/auth_manager"
+	authmock "github.com/webitel/webitel-wfm/gen/go/mocks/auth"
 	"github.com/webitel/webitel-wfm/internal/tests"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -120,7 +120,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 				return tt.session, nil
 			}
 
-			am := authmock.NewMockAuthManager(t)
+			am := authmock.NewMockManager(t)
 			am.EXPECT().GetSession(mock.AnythingOfType("string")).RunAndReturn(f).Maybe()
 			if tt.token != nil {
 				md := metadata.New(map[string]string{

@@ -7,14 +7,12 @@ inpackage: false
 unroll-variadic: false # https://vektra.github.io/mockery/latest/notes/#variadic-arguments
 
 packages:
-  github.com/webitel/engine/auth_manager:
-    config:
-      dir: "gen/go/mocks/{{ .InterfaceDirRelative }}"
-    interfaces:
-      AuthManager:
   github.com/webitel/webitel-wfm/infra/health:
     interfaces:
       Check:
+  github.com/webitel/webitel-wfm/infra/webitel/auth:
+    interfaces:
+      Manager:
   github.com/webitel/webitel-wfm/infra/storage/dbsql:
     interfaces:
       Database:
