@@ -1,6 +1,8 @@
 package scanner
 
 import (
+	"database/sql"
+
 	"github.com/georgysavva/scany/v2/dbscan"
 )
 
@@ -11,7 +13,7 @@ type DBScan struct {
 }
 
 func NewDBScan() (*DBScan, error) {
-	cli, err := dbscan.NewAPI()
+	cli, err := dbscan.NewAPI(dbscan.WithScannableTypes((*sql.Scanner)(nil)))
 	if err != nil {
 		return nil, err
 	}

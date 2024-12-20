@@ -35,6 +35,35 @@ func (l *LookupItem) Value() (driver.Value, error) {
 	return json.Marshal(l)
 }
 
+func (l *LookupItem) Scan(src interface{}) error {
+	switch v := src.(type) {
+	case []byte:
+		if err := json.Unmarshal(v, l); err != nil {
+			return err
+		}
+
+		if l.Id == 0 {
+			name := "[deleted]"
+			l.Name = &name
+		}
+
+		return nil
+	case string:
+		if err := json.Unmarshal([]byte(v), l); err != nil {
+			return err
+		}
+
+		if l.Id == 0 {
+			name := "[deleted]"
+			l.Name = &name
+		}
+
+		return nil
+	}
+
+	return nil
+}
+
 func (l *LookupItem) IsZero() bool {
 	return l == &LookupItem{}
 }
