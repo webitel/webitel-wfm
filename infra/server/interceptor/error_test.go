@@ -19,7 +19,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 		FullMethod: "/FakeService/FakeMethod",
 	}
 
-	t.Run("not nil AppError received", func(t *testing.T) {
+	t.Run("not nil werror received", func(t *testing.T) {
 		_, err := interceptor(context.Background(), nil, info, func(context.Context, any) (any, error) {
 			return nil, werror.New("testing", werror.WithID("server.interceptor.error.testing"), werror.WithCode(codes.InvalidArgument))
 		})
@@ -34,7 +34,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, `rpc error: code = Internal desc = {"id":"server.interceptor.error","code":500,"detail":"testing","status":"Internal Server Error"}`)
+		assert.EqualError(t, err, `rpc error: code = Code(500) desc = {"id":"","detail":"testing","status":"Internal Server Error"}`)
 	})
 
 	t.Run("nil err received", func(t *testing.T) {
