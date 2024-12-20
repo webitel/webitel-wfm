@@ -12,6 +12,9 @@ packages:
       dir: "gen/go/mocks/{{ .InterfaceDirRelative }}"
     interfaces:
       AuthManager:
+  github.com/webitel/webitel-wfm/infra/health:
+    interfaces:
+      Check:
   github.com/webitel/webitel-wfm/infra/storage/dbsql:
     interfaces:
       Database:
