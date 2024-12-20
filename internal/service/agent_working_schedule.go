@@ -8,6 +8,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/storage"
+	"github.com/webitel/webitel-wfm/pkg/timeutils"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -37,7 +38,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 	}
 
 	if search.SearchItem.Date.From.Valid {
-		if search.SearchItem.Date.From.Time.Before(ws.StartDateAt.Time) || search.SearchItem.Date.From.Time.After(ws.EndDateAt.Time) {
+		if !timeutils.Between(search.SearchItem.Date.From.Time, ws.StartDateAt.Time, ws.EndDateAt.Time) {
 			return nil, nil, werror.Wrap(ErrAgentWorkingScheduleDateFilter, werror.WithID("service.agent_working_schedule.date.from"),
 				werror.AppendMessage("from date should be after (or equal) working schedule start date or before (equal) end period"),
 			)
@@ -45,7 +46,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 	}
 
 	if search.SearchItem.Date.To.Valid {
-		if search.SearchItem.Date.To.Time.After(ws.EndDateAt.Time) || search.SearchItem.Date.To.Time.Before(ws.StartDateAt.Time) {
+		if !timeutils.Between(search.SearchItem.Date.To.Time, ws.StartDateAt.Time, ws.EndDateAt.Time) {
 			return nil, nil, werror.Wrap(ErrAgentWorkingScheduleDateFilter, werror.WithID("service.agent_working_schedule.date.to"),
 				werror.AppendMessage("end date should be before (or equal) working schedule end date or after (equal) start period"),
 			)
