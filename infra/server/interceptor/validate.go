@@ -21,8 +21,10 @@ func ValidateUnaryServerInterceptor(val *protovalidate.Validator) grpc.UnaryServ
 				if ok := errors.As(err, &ve); ok {
 					wrappers := make([]werror.Wrapper, 0)
 					for _, violation := range ve.Violations {
-						wrappers = append(wrappers, werror.WithValue(violation.GetFieldPath()+"["+violation.GetConstraintId()+"]",
-							violation.GetMessage()),
+						// TODO: deprecated proto message; use new protovalidate.Violation structure
+						// 		 https://github.com/bufbuild/protovalidate-go/releases/tag/v0.8.0
+						wrappers = append(wrappers, werror.WithValue(violation.Proto.GetFieldPath()+"["+violation.Proto.GetConstraintId()+"]",
+							violation.Proto.GetMessage()),
 						)
 					}
 
