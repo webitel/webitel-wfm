@@ -6,6 +6,8 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -28,12 +30,12 @@ type ForecastCalculationManager interface {
 }
 
 type ForecastCalculation struct {
-	db         dbsql.Store
-	forecastDB dbsql.ForecastStore
+	db         cluster.Store
+	forecastDB cluster.ForecastStore
 	cache      *cache.Scope[model.ForecastCalculation]
 }
 
-func NewForecastCalculation(db dbsql.Store, manager cache.Manager, forecastDB dbsql.ForecastStore) *ForecastCalculation {
+func NewForecastCalculation(db cluster.Store, manager cache.Manager, forecastDB cluster.ForecastStore) *ForecastCalculation {
 	return &ForecastCalculation{
 		db:         db,
 		cache:      cache.NewScope[model.ForecastCalculation](manager, forecastCalculationTable),
@@ -59,7 +61,7 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 		},
 	}
 
-	sql, args := f.db.SQL().Insert(forecastCalculationTable, columns).SQL("RETURNING id").Build()
+	sql, args := builder.Insert(forecastCalculationTable, columns).SQL("RETURNING id").Build()
 	if err := f.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		return nil, err
 	}
@@ -100,7 +102,7 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, use
 		columns = search.Fields
 	}
 
-	sb := f.db.SQL().Select(columns...).From(forecastCalculationView)
+	sb := builder.Select(columns...).From(forecastCalculationView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
 		OrderBy(search.OrderBy(forecastCalculationView)).
@@ -128,7 +130,7 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 		"args":        in.Args,
 	}
 
-	ub := f.db.SQL().Update(forecastCalculationTable, columns)
+	ub := builder.Update(forecastCalculationTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Id),
@@ -148,7 +150,7 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 }
 
 func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	db := f.db.SQL().Delete(forecastCalculationTable)
+	db := builder.Delete(forecastCalculationTable)
 	clauses := []string{
 		db.Equal("domain_id", user.DomainId),
 		db.Equal("id", id),

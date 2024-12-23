@@ -10,13 +10,14 @@ import (
 
 	mockdbsql "github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/pg"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 )
 
 type TestStorageCluster struct {
 	dbmock  pgxmock.PgxPoolIface
-	cluster dbsql.Store
+	cluster cluster.Store
 	queryer dbsql.Database
 }
 
@@ -33,7 +34,7 @@ func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster,
 		return nil, err
 	}
 
-	cl, err := dbsql.NewCluster(log, map[string]dbsql.Database{"mock": conn})
+	cl, err := cluster.New(log, []dbsql.Node{dbsql.New("mock", conn, scanner.MustNewDBScan())})
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,7 @@ func NewTestStorageCluster(t *testing.T, log *wlog.Logger) (*TestStorageCluster,
 	}, nil
 }
 
-func (t *TestStorageCluster) Store() dbsql.Store {
+func (t *TestStorageCluster) Store() cluster.Store {
 	return t.cluster
 }
 

@@ -1,4 +1,4 @@
-package dbsql
+package cluster
 
 import (
 	"context"
@@ -8,13 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/huandu/go-sqlbuilder"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 )
 
 // Default values for Cluster config
@@ -24,15 +22,15 @@ const (
 )
 
 type nodeWaiter struct {
-	ch            chan Node
+	ch            chan dbsql.Node
 	stateCriteria NodeStateCriteria
 }
 
 // AliveNodes of Store
 type AliveNodes struct {
-	Alive     []Node
-	Primaries []Node
-	Standbys  []Node
+	Alive     []dbsql.Node
+	Primaries []dbsql.Node
+	Standbys  []dbsql.Node
 }
 
 // Store represents a store that manages a Cluster of nodes.
@@ -42,20 +40,18 @@ type Store interface {
 	Close() error
 	Err() error
 
-	Nodes() []Node
-	Alive() Node
-	Primary() Node
-	Standby() Node
-	StandbyPreferred() Node
-	Node(criteria NodeStateCriteria) Node
+	Nodes() []dbsql.Node
+	Alive() dbsql.Node
+	Primary() dbsql.Node
+	Standby() dbsql.Node
+	StandbyPreferred() dbsql.Node
+	Node(criteria NodeStateCriteria) dbsql.Node
 
-	WaitForPrimary(ctx context.Context) (Node, error)
-	WaitForStandby(ctx context.Context) (Node, error)
-	WaitForPrimaryPreferred(ctx context.Context) (Node, error)
-	WaitForStandbyPreferred(ctx context.Context) (Node, error)
-	WaitForAlive(ctx context.Context) (Node, error)
-
-	SQL() *builder.Builder
+	WaitForPrimary(ctx context.Context) (dbsql.Node, error)
+	WaitForStandby(ctx context.Context) (dbsql.Node, error)
+	WaitForPrimaryPreferred(ctx context.Context) (dbsql.Node, error)
+	WaitForStandbyPreferred(ctx context.Context) (dbsql.Node, error)
+	WaitForAlive(ctx context.Context) (dbsql.Node, error)
 }
 
 // ForecastStore is a type alias for plumbing it through Wire.
@@ -70,33 +66,25 @@ type Cluster struct {
 	update         bool
 	updateInterval time.Duration
 	updateTimeout  time.Duration
-	checker        NodeChecker
-	picker         NodePicker
+	checker        Checker
+	picker         Picker
 
 	// Status
 	updateStopper chan struct{}
 	aliveNodes    atomic.Value
-	nodes         []Node
+	nodes         []dbsql.Node
 	errCollector  errorsCollector
 
 	// Notification
 	muWaiters sync.Mutex
 	waiters   []nodeWaiter
-
-	builder *builder.Builder
-	scanner scanner.Scanner
 }
 
-// NewCluster constructs Cluster object representing a single 'Cluster' of SQL database.
+// New constructs Cluster object representing a single 'Cluster' of SQL database.
 // Close function must be called when a Cluster isn't necessary anymore.
-func NewCluster(log *wlog.Logger, conns map[string]Database, opts ...Option) (*Cluster, error) {
-	if len(conns) == 0 {
-		return nil, errors.New("please provide at least one database connection")
-	}
-
-	s, err := scanner.NewDBScan()
-	if err != nil {
-		return nil, fmt.Errorf("create scan API client: %v", err)
+func New(log *wlog.Logger, nodes []dbsql.Node, opts ...Option) (*Cluster, error) {
+	if len(nodes) == 0 {
+		return nil, errors.New("please provide at least one database node")
 	}
 
 	cl := &Cluster{
@@ -106,23 +94,12 @@ func NewCluster(log *wlog.Logger, conns map[string]Database, opts ...Option) (*C
 		updateTimeout:  DefaultUpdateTimeout,
 		checker:        PostgreSQL,
 		picker:         PickNodeClosest(),
-		nodes:          make([]Node, 0, len(conns)),
+		nodes:          nodes,
 		errCollector:   newErrorsCollector(),
-		builder:        builder.NewBuilder(sqlbuilder.PostgreSQL),
-		scanner:        s,
 	}
 
 	for _, opt := range opts {
 		opt(cl)
-	}
-
-	for i, c := range conns {
-		n, err := newNode(i, c, cl.scanner)
-		if err != nil {
-			return nil, err
-		}
-
-		cl.nodes = append(cl.nodes, n)
 	}
 
 	// Store initial nodes state.
@@ -183,7 +160,7 @@ func (cl *Cluster) HealthCheck(ctx context.Context) []health.CheckResult {
 }
 
 // Nodes returns list of all nodes
-func (cl *Cluster) Nodes() []Node {
+func (cl *Cluster) Nodes() []dbsql.Node {
 	return cl.nodes
 }
 
@@ -191,10 +168,10 @@ func (cl *Cluster) nodesAlive() AliveNodes {
 	return cl.aliveNodes.Load().(AliveNodes)
 }
 
-func (cl *Cluster) addUpdateWaiter(criteria NodeStateCriteria) <-chan Node {
+func (cl *Cluster) addUpdateWaiter(criteria NodeStateCriteria) <-chan dbsql.Node {
 	// Buffered channel is essential.
 	// Read WaitForNode function for more information.
-	ch := make(chan Node, 1)
+	ch := make(chan dbsql.Node, 1)
 	cl.muWaiters.Lock()
 	defer cl.muWaiters.Unlock()
 	cl.waiters = append(cl.waiters, nodeWaiter{ch: ch, stateCriteria: criteria})
@@ -203,32 +180,32 @@ func (cl *Cluster) addUpdateWaiter(criteria NodeStateCriteria) <-chan Node {
 }
 
 // WaitForAlive node to appear or until context is canceled
-func (cl *Cluster) WaitForAlive(ctx context.Context) (Node, error) {
+func (cl *Cluster) WaitForAlive(ctx context.Context) (dbsql.Node, error) {
 	return cl.WaitForNode(ctx, Alive)
 }
 
 // WaitForPrimary node to appear or until context is canceled
-func (cl *Cluster) WaitForPrimary(ctx context.Context) (Node, error) {
+func (cl *Cluster) WaitForPrimary(ctx context.Context) (dbsql.Node, error) {
 	return cl.WaitForNode(ctx, Primary)
 }
 
 // WaitForStandby node to appear or until context is canceled
-func (cl *Cluster) WaitForStandby(ctx context.Context) (Node, error) {
+func (cl *Cluster) WaitForStandby(ctx context.Context) (dbsql.Node, error) {
 	return cl.WaitForNode(ctx, Standby)
 }
 
 // WaitForPrimaryPreferred node to appear or until context is canceled
-func (cl *Cluster) WaitForPrimaryPreferred(ctx context.Context) (Node, error) {
+func (cl *Cluster) WaitForPrimaryPreferred(ctx context.Context) (dbsql.Node, error) {
 	return cl.WaitForNode(ctx, PreferPrimary)
 }
 
 // WaitForStandbyPreferred node to appear or until context is canceled
-func (cl *Cluster) WaitForStandbyPreferred(ctx context.Context) (Node, error) {
+func (cl *Cluster) WaitForStandbyPreferred(ctx context.Context) (dbsql.Node, error) {
 	return cl.WaitForNode(ctx, PreferStandby)
 }
 
 // WaitForNode with specified status to appear or until context is canceled
-func (cl *Cluster) WaitForNode(ctx context.Context, criteria NodeStateCriteria) (Node, error) {
+func (cl *Cluster) WaitForNode(ctx context.Context, criteria NodeStateCriteria) (dbsql.Node, error) {
 	// Node already exists?
 	node := cl.Node(criteria)
 	if node != nil {
@@ -266,24 +243,24 @@ func (cl *Cluster) WaitForNode(ctx context.Context, criteria NodeStateCriteria) 
 }
 
 // Alive returns node that is considered alive
-func (cl *Cluster) Alive() Node {
+func (cl *Cluster) Alive() dbsql.Node {
 	return cl.alive(cl.nodesAlive())
 }
 
-func (cl *Cluster) alive(nodes AliveNodes) Node {
+func (cl *Cluster) alive(nodes AliveNodes) dbsql.Node {
 	if len(nodes.Alive) == 0 {
-		return &sqlNode{}
+		return &dbsql.SqlNode{}
 	}
 
 	return cl.picker(nodes.Alive)
 }
 
 // Primary returns first available node that is considered alive and is primary (able to execute write operations)
-func (cl *Cluster) Primary() Node {
+func (cl *Cluster) Primary() dbsql.Node {
 	return cl.primary(cl.nodesAlive())
 }
 
-func (cl *Cluster) primary(nodes AliveNodes) Node {
+func (cl *Cluster) primary(nodes AliveNodes) dbsql.Node {
 	if len(nodes.Primaries) == 0 {
 		return nil
 	}
@@ -292,11 +269,11 @@ func (cl *Cluster) primary(nodes AliveNodes) Node {
 }
 
 // Standby returns node that is considered alive and is standby (unable to execute write operations)
-func (cl *Cluster) Standby() Node {
+func (cl *Cluster) Standby() dbsql.Node {
 	return cl.standby(cl.nodesAlive())
 }
 
-func (cl *Cluster) standby(nodes AliveNodes) Node {
+func (cl *Cluster) standby(nodes AliveNodes) dbsql.Node {
 	if len(nodes.Standbys) == 0 {
 		return nil
 	}
@@ -306,11 +283,11 @@ func (cl *Cluster) standby(nodes AliveNodes) Node {
 }
 
 // PrimaryPreferred returns primary node if possible, standby otherwise
-func (cl *Cluster) PrimaryPreferred() Node {
+func (cl *Cluster) PrimaryPreferred() dbsql.Node {
 	return cl.primaryPreferred(cl.nodesAlive())
 }
 
-func (cl *Cluster) primaryPreferred(nodes AliveNodes) Node {
+func (cl *Cluster) primaryPreferred(nodes AliveNodes) dbsql.Node {
 	node := cl.primary(nodes)
 	if node == nil {
 		node = cl.standby(nodes)
@@ -320,11 +297,11 @@ func (cl *Cluster) primaryPreferred(nodes AliveNodes) Node {
 }
 
 // StandbyPreferred returns standby node if possible, primary otherwise
-func (cl *Cluster) StandbyPreferred() Node {
+func (cl *Cluster) StandbyPreferred() dbsql.Node {
 	return cl.standbyPreferred(cl.nodesAlive())
 }
 
-func (cl *Cluster) standbyPreferred(nodes AliveNodes) Node {
+func (cl *Cluster) standbyPreferred(nodes AliveNodes) dbsql.Node {
 	node := cl.standby(nodes)
 	if node == nil {
 		node = cl.primary(nodes)
@@ -334,11 +311,11 @@ func (cl *Cluster) standbyPreferred(nodes AliveNodes) Node {
 }
 
 // Node returns Cluster node with specified status.
-func (cl *Cluster) Node(criteria NodeStateCriteria) Node {
+func (cl *Cluster) Node(criteria NodeStateCriteria) dbsql.Node {
 	return cl.node(cl.nodesAlive(), criteria)
 }
 
-func (cl *Cluster) node(nodes AliveNodes, criteria NodeStateCriteria) Node {
+func (cl *Cluster) node(nodes AliveNodes, criteria NodeStateCriteria) dbsql.Node {
 	switch criteria {
 	case Alive:
 		return cl.alive(nodes)
@@ -426,8 +403,4 @@ func (cl *Cluster) notifyWaiters(nodes AliveNodes) {
 	}
 
 	cl.waiters = nodelessWaiters
-}
-
-func (cl *Cluster) SQL() *builder.Builder {
-	return cl.builder
 }

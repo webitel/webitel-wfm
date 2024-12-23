@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -22,10 +24,10 @@ type WorkingConditionManager interface {
 }
 
 type WorkingCondition struct {
-	db dbsql.Store
+	db cluster.Store
 }
 
-func NewWorkingCondition(db dbsql.Store) *WorkingCondition {
+func NewWorkingCondition(db cluster.Store) *WorkingCondition {
 	return &WorkingCondition{
 		db: db,
 	}
@@ -51,7 +53,7 @@ func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *mod
 		},
 	}
 
-	sql, args := w.db.SQL().Insert(workingConditionTable, columns).SQL("RETURNING id").Build()
+	sql, args := builder.Insert(workingConditionTable, columns).SQL("RETURNING id").Build()
 	if err := w.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		return 0, err
 	}
@@ -87,7 +89,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *mod
 		columns = search.Fields
 	}
 
-	sb := w.db.SQL().Select(columns...).From(workingConditionView)
+	sb := builder.Select(columns...).From(workingConditionView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
 		OrderBy(search.OrderBy(workingConditionView)).
@@ -117,7 +119,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 		"shift_template_id":  in.ShiftTemplate.SafeId(),
 	}
 
-	ub := w.db.SQL().Update(workingConditionTable, columns)
+	ub := builder.Update(workingConditionTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Id),
@@ -132,7 +134,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 }
 
 func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	db := w.db.SQL().Delete(workingConditionTable)
+	db := builder.Delete(workingConditionTable)
 	clauses := []string{
 		db.Equal("domain_id", user.DomainId),
 		db.Equal("id", id),

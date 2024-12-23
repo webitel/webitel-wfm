@@ -3,13 +3,11 @@ package builder
 import "github.com/huandu/go-sqlbuilder"
 
 type CTEQuery struct {
-	flavor  sqlbuilder.Flavor
 	queries []*sqlbuilder.CTEQueryBuilder
 }
 
-func NewCTEQuery(flavor sqlbuilder.Flavor, queries ...*sqlbuilder.CTEQueryBuilder) *CTEQuery {
+func NewCTEQuery(queries ...*sqlbuilder.CTEQueryBuilder) *CTEQuery {
 	return &CTEQuery{
-		flavor:  flavor,
 		queries: queries,
 	}
 }
@@ -21,5 +19,6 @@ func (c *CTEQuery) With(table *sqlbuilder.CTEQueryBuilder) *CTEQuery {
 }
 
 func (c *CTEQuery) Builder() *sqlbuilder.CTEBuilder {
-	return c.flavor.NewCTEBuilder().With(c.queries...)
+	sqlbuilder.DefaultFlavor.NewCTEQueryBuilder()
+	return sqlbuilder.With(c.queries...)
 }

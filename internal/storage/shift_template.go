@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -22,10 +24,10 @@ type ShiftTemplateManager interface {
 }
 
 type ShiftTemplate struct {
-	db dbsql.Store
+	db cluster.Store
 }
 
-func NewShiftTemplate(db dbsql.Store) *ShiftTemplate {
+func NewShiftTemplate(db cluster.Store) *ShiftTemplate {
 	return &ShiftTemplate{
 		db: db,
 	}
@@ -44,7 +46,7 @@ func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.Sig
 		},
 	}
 
-	sql, args := s.db.SQL().Insert(shiftTemplateTable, columns).SQL("RETURNING id").Build()
+	sql, args := builder.Insert(shiftTemplateTable, columns).SQL("RETURNING id").Build()
 	if err := s.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		return 0, err
 	}
@@ -80,7 +82,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.Sig
 		columns = search.Fields
 	}
 
-	sb := s.db.SQL().Select(columns...).From(shiftTemplateView)
+	sb := builder.Select(columns...).From(shiftTemplateView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
 		OrderBy(search.OrderBy(shiftTemplateView)).
@@ -103,7 +105,7 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.Sig
 		"times":       in.Times,
 	}
 
-	ub := s.db.SQL().Update(shiftTemplateTable, columns)
+	ub := builder.Update(shiftTemplateTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Id),
@@ -118,7 +120,7 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.Sig
 }
 
 func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	db := s.db.SQL().Delete(shiftTemplateTable)
+	db := builder.Delete(shiftTemplateTable)
 	clauses := []string{
 		db.Equal("domain_id", user.DomainId),
 		db.Equal("id", id),

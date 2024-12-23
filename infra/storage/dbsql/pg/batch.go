@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/batch"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 )
 
@@ -28,7 +28,7 @@ func (b *batchAdapter) Queue(query string, arguments ...any) {
 	b.batch.Queue(query, arguments...)
 }
 
-func (b *batchAdapter) Send(ctx context.Context) batch.BatcherResults {
+func (b *batchAdapter) Send(ctx context.Context) dbsql.BatcherResults {
 	return newBatchResults(b.cli.SendBatch(ctx, b.batch))
 }
 

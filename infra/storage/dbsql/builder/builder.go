@@ -6,26 +6,20 @@ import (
 	"github.com/huandu/go-sqlbuilder"
 )
 
-type Builder struct {
-	flavor sqlbuilder.Flavor
+func init() {
+	sqlbuilder.DefaultFlavor = sqlbuilder.PostgreSQL
 }
 
-func NewBuilder(flavor sqlbuilder.Flavor) *Builder {
-	sqlbuilder.DefaultFlavor = flavor
-
-	return &Builder{flavor: flavor}
-}
-
-func (b *Builder) Format(format string, args ...any) sqlbuilder.Builder {
+func Format(format string, args ...any) sqlbuilder.Builder {
 	return sqlbuilder.Build(format, args...)
 }
 
-func (b *Builder) Select(cols ...string) *sqlbuilder.SelectBuilder {
-	return b.flavor.NewSelectBuilder().Select(cols...)
+func Select(cols ...string) *sqlbuilder.SelectBuilder {
+	return sqlbuilder.NewSelectBuilder().Select(cols...)
 }
 
-func (b *Builder) Insert(table string, args []map[string]any) *sqlbuilder.InsertBuilder {
-	ib := b.flavor.NewInsertBuilder().InsertInto(table)
+func Insert(table string, args []map[string]any) *sqlbuilder.InsertBuilder {
+	ib := sqlbuilder.NewInsertBuilder().InsertInto(table)
 	for _, arg := range args {
 		if len(arg) > 0 {
 			keys := make([]string, 0, len(args))
@@ -54,8 +48,8 @@ func (b *Builder) Insert(table string, args []map[string]any) *sqlbuilder.Insert
 //
 //	Update("test", map[string]any{"foo": "bar"})
 //	// Resulting to: UPDATE test SET foo = "bar"
-func (b *Builder) Update(table string, args map[string]any) *sqlbuilder.UpdateBuilder {
-	ub := b.flavor.NewUpdateBuilder().Update(table)
+func Update(table string, args map[string]any) *sqlbuilder.UpdateBuilder {
+	ub := sqlbuilder.NewUpdateBuilder().Update(table)
 	if len(args) > 0 {
 		keys := make([]string, 0, len(args))
 		for k := range args {
@@ -74,29 +68,29 @@ func (b *Builder) Update(table string, args map[string]any) *sqlbuilder.UpdateBu
 	return ub
 }
 
-func (b *Builder) Delete(table string) *sqlbuilder.DeleteBuilder {
-	return b.flavor.NewDeleteBuilder().DeleteFrom(table)
+func Delete(table string) *sqlbuilder.DeleteBuilder {
+	return sqlbuilder.NewDeleteBuilder().DeleteFrom(table)
 }
 
-func (b *Builder) CTE(tables ...*sqlbuilder.CTEQueryBuilder) *CTEQuery {
-	return NewCTEQuery(b.flavor, tables...)
+func CTE(tables ...*sqlbuilder.CTEQueryBuilder) *CTEQuery {
+	return NewCTEQuery(tables...)
 }
 
-func (b *Builder) With(table string) *sqlbuilder.CTEQueryBuilder {
-	return b.flavor.NewCTEQueryBuilder().Table(table)
+func With(table string) *sqlbuilder.CTEQueryBuilder {
+	return sqlbuilder.DefaultFlavor.NewCTEQueryBuilder().Table(table)
 }
 
-func (b *Builder) Values(value ...any) *sqlbuilder.InsertBuilder {
-	vb := b.flavor.NewInsertBuilder()
-
+func Values(value ...any) *sqlbuilder.InsertBuilder {
+	vb := sqlbuilder.NewInsertBuilder()
 	if len(value) > 0 {
 		vb.Values(value...)
 	}
+
 	return vb
 }
 
-func (b *Builder) RBAC(use bool, acl string, id int64, domain int64, groups []int, access uint32) *sqlbuilder.WhereClause {
-	sb := b.flavor.NewSelectBuilder()
+func RBAC(use bool, acl string, id int64, domain int64, groups []int, access uint32) *sqlbuilder.WhereClause {
+	sb := sqlbuilder.NewSelectBuilder()
 	sb.Select(sb.As(sb.Var("1"), "rbac")).
 		From(acl).
 		Where(sb.Equal("dc", domain),

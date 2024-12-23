@@ -6,6 +6,8 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -28,11 +30,11 @@ type PauseTemplateManager interface {
 	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 }
 type PauseTemplate struct {
-	db    dbsql.Store
+	db    cluster.Store
 	cache *cache.Scope[model.PauseTemplate]
 }
 
-func NewPauseTemplate(db dbsql.Store, manager cache.Manager) *PauseTemplate {
+func NewPauseTemplate(db cluster.Store, manager cache.Manager) *PauseTemplate {
 	return &PauseTemplate{
 		db:    db,
 		cache: cache.NewScope[model.PauseTemplate](manager, pauseTemplateTable),
@@ -54,7 +56,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	for _, cause := range in.Causes {
 		columns := map[string]any{
 			"domain_id":         user.DomainId,
-			"pause_template_id": p.db.SQL().Format("(SELECT id FROM pause_template)::bigint"), // get created pause template id from CTE
+			"pause_template_id": builder.Format("(SELECT id FROM pause_template)::bigint"), // get created pause template id from CTE
 			"duration":          cause.Duration,
 			"pause_cause_id":    cause.Cause.SafeId(),
 		}
@@ -62,9 +64,9 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 		causes = append(causes, columns)
 	}
 
-	cte := p.db.SQL().CTE(
-		p.db.SQL().With("pause_template").As(p.db.SQL().Insert(pauseTemplateTable, template).SQL("RETURNING id")),
-		p.db.SQL().With("causes").As(p.db.SQL().Insert(pauseTemplateCauseTable, causes).SQL("RETURNING id")),
+	cte := builder.CTE(
+		builder.With("pause_template").As(builder.Insert(pauseTemplateTable, template).SQL("RETURNING id")),
+		builder.With("causes").As(builder.Insert(pauseTemplateCauseTable, causes).SQL("RETURNING id")),
 	).Builder()
 
 	var id int64
@@ -79,7 +81,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	// 	)
 	//
 	// SELECT distinct pause_template.id FROM pause_template, causes;
-	sql, args := p.db.SQL().Select("distinct pause_template.id").With(cte).From("pause_template", "causes").Build()
+	sql, args := builder.Select("distinct pause_template.id").With(cte).From("pause_template", "causes").Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		return 0, err
 	}
@@ -115,7 +117,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.Sig
 		columns = search.Fields
 	}
 
-	sb := p.db.SQL().Select(columns...).From(pauseTemplateView)
+	sb := builder.Select(columns...).From(pauseTemplateView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("name").WhereClause).
 		OrderBy(search.OrderBy(pauseTemplateView)).
@@ -137,7 +139,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 		"description": in.Description,
 	}
 
-	updateTemplate := p.db.SQL().Update(pauseTemplateTable, template)
+	updateTemplate := builder.Update(pauseTemplateTable, template)
 	clauses := []string{
 		updateTemplate.Equal("domain_id", user.DomainId),
 		updateTemplate.Equal("id", in.Id),
@@ -145,8 +147,8 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 
 	updateTemplate.Where(clauses...).SQL("RETURNING id")
 
-	templateId := p.db.SQL().Format("(SELECT id FROM pause_template)::bigint") // get created pause template id from CTE
-	deleteCauses := p.db.SQL().Delete(pauseTemplateCauseTable)
+	templateId := builder.Format("(SELECT id FROM pause_template)::bigint") // get created pause template id from CTE
+	deleteCauses := builder.Delete(pauseTemplateCauseTable)
 	deleteCauses.Where(
 		deleteCauses.Equal("domain_id", user.DomainId),
 		deleteCauses.Equal("pause_template_id", templateId),
@@ -164,11 +166,11 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 		causes = append(causes, columns)
 	}
 
-	insertCauses := p.db.SQL().Insert(pauseTemplateCauseTable, causes).SQL("RETURNING id")
-	cte := p.db.SQL().CTE(
-		p.db.SQL().With("pause_template").As(updateTemplate),
-		p.db.SQL().With("del_causes").As(deleteCauses),
-		p.db.SQL().With("ins_causes").As(insertCauses),
+	insertCauses := builder.Insert(pauseTemplateCauseTable, causes).SQL("RETURNING id")
+	cte := builder.CTE(
+		builder.With("pause_template").As(updateTemplate),
+		builder.With("del_causes").As(deleteCauses),
+		builder.With("ins_causes").As(insertCauses),
 	).Builder()
 
 	var id int64
@@ -187,7 +189,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	// 	)
 	//
 	// SELECT distinct pause_template.id FROM pause_template, del_causes, ins_causes;
-	sql, args := p.db.SQL().Select("distinct pause_template.id").From("pause_template", "del_causes", "ins_causes").With(cte).Build()
+	sql, args := builder.Select("distinct pause_template.id").From("pause_template", "del_causes", "ins_causes").With(cte).Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		if errors.Is(err, dbsql.ErrNoRows) {
 			return werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.pause_template.update"), werror.WithCause(err))
@@ -200,7 +202,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 }
 
 func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	db := p.db.SQL().Delete(pauseTemplateTable)
+	db := builder.Delete(pauseTemplateTable)
 	clauses := []string{
 		db.Equal("domain_id", user.DomainId),
 		db.Equal("id", id),

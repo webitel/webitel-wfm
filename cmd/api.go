@@ -30,6 +30,9 @@ import (
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/pg"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 )
@@ -157,7 +160,7 @@ type app struct {
 
 type resources struct {
 	grpcServer *server.Server
-	storage    dbsql.Store
+	storage    cluster.Store
 	cache      cache.Manager
 	authcli    authmanager.AuthManager
 	engine     *engine.Client
@@ -368,14 +371,19 @@ func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.Ch
 	return conn, nil
 }
 
-func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger) (*dbsql.Cluster, error) {
+func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger) (*cluster.Cluster, error) {
 	dsns := strings.Fields(cfg.Database.DSN)
-	conns, err := dbsql.NewConnections(ctx, log, dsns...)
-	if err != nil {
-		return nil, err
+	nodes := make([]dbsql.Node, 0, len(dsns))
+	for _, dsn := range dsns {
+		db, err := pg.New(ctx, log, dsn)
+		if err != nil {
+			return nil, err
+		}
+
+		nodes = append(nodes, dbsql.New(dsn, db, scanner.MustNewDBScan()))
 	}
 
-	conn, err := dbsql.NewCluster(log, conns, dbsql.WithUpdate())
+	conn, err := cluster.New(log, nodes, cluster.WithUpdate())
 	if err != nil {
 		return nil, err
 	}
@@ -383,14 +391,14 @@ func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger) (*dbs
 	return conn, nil
 }
 
-func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*dbsql.Cluster, error) {
+func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*cluster.Cluster, error) {
 	const scope = "forecast-sql-storage"
-	conns, err := dbsql.NewConnections(ctx, log, cfg.Database.ForecastCalculationDSN)
+	db, err := pg.New(ctx, log, cfg.Database.ForecastCalculationDSN)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := dbsql.NewCluster(log, conns, dbsql.WithUpdate(), dbsql.WithForecastScan())
+	conn, err := cluster.New(log, []dbsql.Node{dbsql.New(cfg.Database.ForecastCalculationDSN, db, scanner.MustNewDBScan())})
 	if err != nil {
 		return nil, err
 	}

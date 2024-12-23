@@ -5,6 +5,8 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -26,11 +28,11 @@ type AgentAbsenceManager interface {
 }
 
 type AgentAbsence struct {
-	db    dbsql.Store
+	db    cluster.Store
 	cache *cache.Scope[model.AgentAbsence]
 }
 
-func NewAgentAbsence(db dbsql.Store, manager cache.Manager) *AgentAbsence {
+func NewAgentAbsence(db cluster.Store, manager cache.Manager) *AgentAbsence {
 	return &AgentAbsence{
 		db:    db,
 		cache: cache.NewScope[model.AgentAbsence](manager, agentAbsenceTable),
@@ -74,7 +76,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.Signe
 		"absence_type_id": in.Absence.AbsenceType,
 	}
 
-	ub := a.db.SQL().Update(agentAbsenceTable, columns)
+	ub := builder.Update(agentAbsenceTable, columns)
 	clauses := []string{
 		ub.Equal("domain_id", user.DomainId),
 		ub.Equal("id", in.Absence.Id),
@@ -95,7 +97,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.Signe
 }
 
 func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error {
-	db := a.db.SQL().Delete(agentAbsenceTable)
+	db := builder.Delete(agentAbsenceTable)
 	clauses := []string{
 		db.Equal("domain_id", user.DomainId),
 		db.Equal("id", id),
@@ -178,7 +180,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 	}
 
 	columns = append(columns, "agent")
-	ssb := a.db.SQL().Select(columns...)
+	ssb := builder.Select(columns...)
 	ssb.From(ssb.As(agentAbsenceView, "v")).
 		Where(ssb.Equal("domain_id", user.DomainId)).
 		AddWhereClause(&search.Where("agent ->> 'name'").WhereClause)
@@ -187,7 +189,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 		ssb.OrderBy(search.SearchItem.OrderBy(pauseTemplateView))
 	}
 
-	sb := a.db.SQL().Select("agent", "json_agg(row_to_json(x)) absence")
+	sb := builder.Select("agent", "json_agg(row_to_json(x)) absence")
 	if search.SearchItem.Sort == &defaultSort {
 		sb.OrderBy(search.SearchItem.OrderBy(pauseTemplateView))
 	}
@@ -217,5 +219,5 @@ func (a *AgentAbsence) createAgentAbsenceQuery(user *model.SignedInUser, in *mod
 		},
 	}
 
-	return a.db.SQL().Insert(agentAbsenceTable, columns).SQL("RETURNING id").Build()
+	return builder.Insert(agentAbsenceTable, columns).SQL("RETURNING id").Build()
 }

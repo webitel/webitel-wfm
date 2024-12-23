@@ -1,14 +1,23 @@
-package dbsql
+package cluster
 
 import (
 	"context"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 )
 
+// Checker is a signature for functions that check if a specific node is alive and is primary.
+// Returns true for primary and false if not.
+// If error is returned, the node is considered dead.
+// Check function can be used to perform a Query returning single boolean value that signals
+// if node is primary or not.
+type Checker func(ctx context.Context, db dbsql.Node) (bool, error)
+
 type checkedNode struct {
-	Node    Node
+	Node    dbsql.Node
 	Latency time.Duration
 }
 
@@ -28,10 +37,10 @@ func (list checkedNodesList) Swap(i, j int) {
 	list[i], list[j] = list[j], list[i]
 }
 
-func (list checkedNodesList) Nodes() []Node {
-	res := make([]Node, 0, len(list))
-	for _, node := range list {
-		res = append(res, node.Node)
+func (list checkedNodesList) Nodes() []dbsql.Node {
+	res := make([]dbsql.Node, 0, len(list))
+	for _, item := range list {
+		res = append(res, item.Node)
 	}
 
 	return res
@@ -44,8 +53,8 @@ type groupedCheckedNodes struct {
 
 // Alive returns merged primaries and standbys sorted by latency. Primaries and standbys are expected to be
 // sorted beforehand.
-func (nodes groupedCheckedNodes) Alive() []Node {
-	res := make([]Node, len(nodes.Primaries)+len(nodes.Standbys))
+func (nodes groupedCheckedNodes) Alive() []dbsql.Node {
+	res := make([]dbsql.Node, len(nodes.Primaries)+len(nodes.Standbys))
 
 	var i int
 	for len(nodes.Primaries) > 0 && len(nodes.Standbys) > 0 {
@@ -73,11 +82,11 @@ func (nodes groupedCheckedNodes) Alive() []Node {
 	return res
 }
 
-type checkExecutorFunc func(ctx context.Context, node Node) (bool, time.Duration, error)
+type checkExecutorFunc func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error)
 
 // checkNodes takes slice of nodes, checks them in parallel and returns the alive ones.
 // Accepts customizable executor which enables time-independent tests for node sorting based on 'latency'.
-func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, tracer Tracer, errCollector *errorsCollector) AliveNodes {
+func checkNodes(ctx context.Context, nodes []dbsql.Node, executor checkExecutorFunc, tracer Tracer, errCollector *errorsCollector) AliveNodes {
 	checkedNodes := groupedCheckedNodes{
 		Primaries: make(checkedNodesList, 0, len(nodes)),
 		Standbys:  make(checkedNodesList, 0, len(nodes)),
@@ -86,38 +95,38 @@ func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, t
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	wg.Add(len(nodes))
-	for _, node := range nodes {
-		go func(node Node, wg *sync.WaitGroup) {
+	for _, item := range nodes {
+		go func(n dbsql.Node, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			primary, duration, err := executor(ctx, node)
+			primary, duration, err := executor(ctx, n)
 			if err != nil {
-				node.SetState(NodeDead)
+				n.SetState(dbsql.Dead)
 
 				if tracer.NodeDead != nil {
-					tracer.NodeDead(node, err)
+					tracer.NodeDead(n, err)
 				}
 
 				if errCollector != nil {
-					errCollector.Add(node.Addr(), err, time.Now())
+					errCollector.Add(n.Addr(), err, time.Now())
 				}
 
 				return
 			}
 
 			if errCollector != nil {
-				errCollector.Remove(node.Addr())
+				errCollector.Remove(n.Addr())
 			}
 
-			if ok := node.CompareState(NodeAlive); !ok {
+			if ok := n.CompareState(dbsql.Alive); !ok {
 				if tracer.NodeAlive != nil {
-					tracer.NodeAlive(node)
+					tracer.NodeAlive(n)
 				}
 			}
 
-			node.SetState(NodeAlive)
+			n.SetState(dbsql.Alive)
 
-			nl := checkedNode{Node: node, Latency: duration}
+			nl := checkedNode{Node: n, Latency: duration}
 
 			mu.Lock()
 			defer mu.Unlock()
@@ -126,7 +135,7 @@ func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, t
 			} else {
 				checkedNodes.Standbys = append(checkedNodes.Standbys, nl)
 			}
-		}(node, &wg)
+		}(item, &wg)
 	}
 	wg.Wait()
 
@@ -141,8 +150,8 @@ func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, t
 }
 
 // checkExecutor returns checkExecutorFunc which can execute supplied check.
-func checkExecutor(checker NodeChecker) checkExecutorFunc {
-	return func(ctx context.Context, node Node) (bool, time.Duration, error) {
+func checkExecutor(checker Checker) checkExecutorFunc {
+	return func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error) {
 		ts := time.Now()
 		primary, err := checker(ctx, node)
 		d := time.Since(ts)

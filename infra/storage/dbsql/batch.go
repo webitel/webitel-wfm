@@ -4,24 +4,49 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/batch"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
-type BatchNode interface {
-	Queue(query string, args ...any)
-	Select(ctx context.Context, dest any) error
-	Exec(ctx context.Context) error
+type Batcher interface {
+	// Queue queues a query to batch.
+	// Query can be an SQL query or the name of a prepared statement.
+	Queue(query string, arguments ...any)
+
+	Send(ctx context.Context) BatcherResults
+
+	// Len returns number of queries that have been queued so far.
+	Len() int
+}
+
+type BatcherResults interface {
+	// Query reads the results from the next query in the batch
+	// as if the query has been sent with Conn.Query.
+	Query() (scanner.Rows, error)
+
+	// Exec reads the results from the next query in the batch
+	// as if the query has been sent with Conn.Exec.
+	Exec() error
+
+	// Close closes the batch operation, must be called before the underlying connection
+	// can be used again. Any error that occurred during a batch operation may have made
+	// it impossible to resyncronize the connection with the server.
+	// In this case the underlying connection will have been closed.
+	// Close is safe to call multiple times. If it returns an error subsequent calls
+	// will return the same error. Callback functions will not be rerun
+	Close() error
 }
 
 type sqlNodeBatch struct {
-	batcher batch.Batcher
+	batcher Batcher
 	scanner scanner.Scanner
 }
 
-func newSqlNodeBatch(batcher batch.Batcher) *sqlNodeBatch {
-	return &sqlNodeBatch{batcher: batcher, scanner: scanner.MustNewBatchScan()}
+func newSqlNodeBatch(batcher Batcher) *sqlNodeBatch {
+	return &sqlNodeBatch{
+		batcher: batcher,
+		scanner: scanner.MustNewBatchScan(),
+	}
 }
 
 func (n *sqlNodeBatch) Queue(sql string, args ...any) {

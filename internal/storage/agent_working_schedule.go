@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
@@ -20,11 +21,11 @@ type AgentWorkingScheduleManager interface {
 }
 
 type AgentWorkingSchedule struct {
-	db    dbsql.Store
+	db    cluster.Store
 	cache *cache.Scope[model.AgentWorkingSchedule]
 }
 
-func NewAgentWorkingSchedule(db dbsql.Store, manager cache.Manager) *AgentWorkingSchedule {
+func NewAgentWorkingSchedule(db cluster.Store, manager cache.Manager) *AgentWorkingSchedule {
 	return &AgentWorkingSchedule{
 		db:    db,
 		cache: cache.NewScope[model.AgentWorkingSchedule](manager, agentWorkingScheduleTable),
@@ -32,7 +33,7 @@ func NewAgentWorkingSchedule(db dbsql.Store, manager cache.Manager) *AgentWorkin
 }
 
 func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error) {
-	sb := a.db.SQL().Select("agent AS agent", "jsonb_agg(schedule.json) AS schedule")
+	sb := builder.Select("agent AS agent", "jsonb_agg(schedule.json) AS schedule")
 	if len(search.AgentIds) > 0 {
 		in := make([]any, 0, len(search.AgentIds))
 		for _, id := range search.AgentIds {
@@ -48,7 +49,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 
 	sql, args := sb.From(agentWorkingScheduleView,
 		sb.LateralAs(
-			a.db.SQL().Select("jsonb_build_object('date', date, 'type', type, 'absence', absence, 'shifts', shifts) as json"),
+			builder.Select("jsonb_build_object('date', date, 'type', type, 'absence', absence, 'shifts', shifts) as json"),
 			"schedule",
 		)).
 		Where(sb.Equal("domain_id", user.DomainId),
@@ -67,7 +68,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 }
 
 func (a *AgentWorkingSchedule) Holidays(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.Holiday, error) {
-	sb := a.db.SQL().Select("date", "name").From(agentWorkingScheduleHolidaysView)
+	sb := builder.Select("date", "name").From(agentWorkingScheduleHolidaysView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId),
 		sb.Equal("working_schedule_id", search.WorkingScheduleId),
 		sb.Between("date", search.SearchItem.Date.From, search.SearchItem.Date.To)).Build()

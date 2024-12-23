@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
@@ -18,10 +20,10 @@ type AgentWorkingConditionsManager interface {
 }
 
 type AgentWorkingConditions struct {
-	db dbsql.Store
+	db cluster.Store
 }
 
-func NewAgentWorkingConditions(db dbsql.Store) *AgentWorkingConditions {
+func NewAgentWorkingConditions(db cluster.Store) *AgentWorkingConditions {
 	return &AgentWorkingConditions{
 		db: db,
 	}
@@ -31,7 +33,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 	var item model.AgentWorkingConditions
 
 	columns := []string{dbsql.Wildcard(model.AgentWorkingConditions{})}
-	sb := a.db.SQL().Select(columns...).From(agentWorkingConditionsView)
+	sb := builder.Select(columns...).From(agentWorkingConditionsView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId), sb.Equal("(agent ->> 'id')::bigint", agentId)).Build()
 	if err := a.db.StandbyPreferred().Get(ctx, &item, sql, args...); err != nil {
 		return nil, err
@@ -51,7 +53,7 @@ func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Contex
 		},
 	}
 
-	sql, args := a.db.SQL().Insert(agentWorkingConditionsTable, columns).Build()
+	sql, args := builder.Insert(agentWorkingConditionsTable, columns).Build()
 	if err := a.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return err
 	}

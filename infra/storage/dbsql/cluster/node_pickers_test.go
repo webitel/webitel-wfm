@@ -1,19 +1,20 @@
-package dbsql
+package cluster
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
+	mockdbsql "github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 )
 
 func TestRandom(t *testing.T) {
-	db := dbsql.NewMockDatabase(t)
-	n1, _ := newNode("shimba", db, nil)
-	n2, _ := newNode("boomba", db, nil)
-	n3, _ := newNode("looken", db, nil)
-	nodes := []Node{n1, n2, n3}
+	db := mockdbsql.NewMockDatabase(t)
+	n1 := dbsql.New("shimba", db, nil)
+	n2 := dbsql.New("boomba", db, nil)
+	n3 := dbsql.New("looken", db, nil)
+	nodes := []dbsql.Node{n1, n2, n3}
 	rr := PickNodeRandom()
 	pickedNodes := make(map[string]struct{})
 	for i := 0; i < 100; i++ {
@@ -25,14 +26,14 @@ func TestRandom(t *testing.T) {
 }
 
 func TestPickNodeRoundRobin(t *testing.T) {
-	db := dbsql.NewMockDatabase(t)
-	n1, _ := newNode("shimba", db, nil)
-	n2, _ := newNode("boomba", db, nil)
-	n3, _ := newNode("looken", db, nil)
-	n4, _ := newNode("tooken", db, nil)
-	n5, _ := newNode("chicken", db, nil)
-	n6, _ := newNode("cooken", db, nil)
-	nodes := []Node{n1, n2, n3, n4, n5, n6}
+	db := mockdbsql.NewMockDatabase(t)
+	n1 := dbsql.New("shimba", db, nil)
+	n2 := dbsql.New("boomba", db, nil)
+	n3 := dbsql.New("looken", db, nil)
+	n4 := dbsql.New("tooken", db, nil)
+	n5 := dbsql.New("chicken", db, nil)
+	n6 := dbsql.New("cooken", db, nil)
+	nodes := []dbsql.Node{n1, n2, n3, n4, n5, n6}
 	iterCount := len(nodes) * 3
 
 	rr := PickNodeRoundRobin()
@@ -51,12 +52,12 @@ func TestPickNodeRoundRobin(t *testing.T) {
 }
 
 func TestClosest(t *testing.T) {
-	db := dbsql.NewMockDatabase(t)
-	n1, _ := newNode("shimba", db, nil)
-	n2, _ := newNode("boomba", db, nil)
-	n3, _ := newNode("looken", db, nil)
+	db := mockdbsql.NewMockDatabase(t)
+	n1 := dbsql.New("shimba", db, nil)
+	n2 := dbsql.New("boomba", db, nil)
+	n3 := dbsql.New("looken", db, nil)
 
-	nodes := []Node{n1, n2, n3}
+	nodes := []dbsql.Node{n1, n2, n3}
 
 	rr := PickNodeClosest()
 	assert.Equal(t, nodes[0], rr(nodes))

@@ -1,4 +1,4 @@
-package dbsql
+package cluster
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
+	mockdbsql "github.com/webitel/webitel-wfm/gen/go/mocks/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 )
 
 func TestCheckedNodesList_Len(t *testing.T) {
@@ -45,14 +45,14 @@ func TestCheckedNodesList_Sort(t *testing.T) {
 func TestGroupedCheckedNodes_Alive(t *testing.T) {
 	// TODO: this test does not cover all the cases but better than nothing
 	const count = 10
-	var expected []Node
+	var expected []dbsql.Node
 	var input groupedCheckedNodes
 	for i := 0; i < count; i++ {
-		db := dbsql.NewMockDatabase(t)
+		db := mockdbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		n, err := newNode(fmt.Sprintf("%d", i), db, nil)
-		require.NoError(t, err)
+		n := dbsql.New(fmt.Sprintf("%d", i), db, nil)
+		require.NotNil(t, n)
 
 		node := checkedNode{Node: n, Latency: time.Duration(i+1) * time.Nanosecond}
 		expected = append(expected, node.Node)
@@ -75,26 +75,26 @@ func TestGroupedCheckedNodes_Alive(t *testing.T) {
 
 func TestCheckNodes(t *testing.T) {
 	const count = 100
-	var nodes []Node
-	expected := AliveNodes{Alive: make([]Node, count)}
+	var nodes []dbsql.Node
+	expected := AliveNodes{Alive: make([]dbsql.Node, count)}
 	for i := 0; i < count; i++ {
 
-		db := dbsql.NewMockDatabase(t)
+		db := mockdbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		node, err := newNode(uuid.NewString(), db, nil)
-		require.NoError(t, err)
+		n := dbsql.New(fmt.Sprintf("%d", i), db, nil)
+		require.NotNil(t, n)
 
 		for {
 			// Randomize 'order' (latency)
 			pos := rand.Intn(count)
 			if expected.Alive[pos] == nil {
-				expected.Alive[pos] = node
+				expected.Alive[pos] = n
 				break
 			}
 		}
 
-		nodes = append(nodes, node)
+		nodes = append(nodes, n)
 	}
 
 	require.Len(t, expected.Alive, count)
@@ -112,7 +112,7 @@ func TestCheckNodes(t *testing.T) {
 	require.NotEmpty(t, expected.Standbys)
 	require.Equal(t, count, len(expected.Primaries)+len(expected.Standbys))
 
-	executor := func(ctx context.Context, node Node) (bool, time.Duration, error) {
+	executor := func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error) {
 		// Alive nodes set the expected 'order' (latency) of all available nodes.
 		// Return duration based on that order.
 		var duration time.Duration
@@ -149,17 +149,17 @@ func TestCheckNodes(t *testing.T) {
 
 func TestCheckNodesWithErrors(t *testing.T) {
 	const count = 5
-	var nodes []Node
+	var nodes []dbsql.Node
 	for i := 0; i < count; i++ {
-		db := dbsql.NewMockDatabase(t)
+		db := mockdbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		n, err := newNode(uuid.NewString(), db, nil)
-		require.NoError(t, err)
+		n := dbsql.New(fmt.Sprintf("%d", i), db, nil)
+		require.NotNil(t, n)
 		nodes = append(nodes, n)
 	}
 
-	executor := func(ctx context.Context, node Node) (bool, time.Duration, error) {
+	executor := func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error) {
 		return false, 0, errors.New("node not found")
 	}
 
@@ -175,17 +175,17 @@ func TestCheckNodesWithErrors(t *testing.T) {
 
 func TestCheckNodesWithErrorsWhenNodesBecameAlive(t *testing.T) {
 	const count = 5
-	var nodes []Node
+	var nodes []dbsql.Node
 	for i := 0; i < count; i++ {
-		db := dbsql.NewMockDatabase(t)
+		db := mockdbsql.NewMockDatabase(t)
 		require.NotNil(t, db)
 
-		n, err := newNode(uuid.NewString(), db, nil)
-		require.NoError(t, err)
+		n := dbsql.New(fmt.Sprintf("%d", i), db, nil)
+		require.NotNil(t, n)
 		nodes = append(nodes, n)
 	}
 
-	executor := func(ctx context.Context, node Node) (bool, time.Duration, error) {
+	executor := func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error) {
 		return false, 0, errors.New("node not found")
 	}
 
@@ -193,7 +193,7 @@ func TestCheckNodesWithErrorsWhenNodesBecameAlive(t *testing.T) {
 	checkNodes(context.Background(), nodes, executor, Tracer{}, &errCollector)
 	require.Error(t, errCollector.Err())
 
-	executor = func(ctx context.Context, node Node) (bool, time.Duration, error) {
+	executor = func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error) {
 		return true, 1, nil
 	}
 	checkNodes(context.Background(), nodes, executor, Tracer{}, &errCollector)

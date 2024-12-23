@@ -1,10 +1,6 @@
-package dbsql
+package cluster
 
-import (
-	"time"
-
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
-)
+import "time"
 
 // Option is a functional option type for Cluster constructor.
 type Option func(*Cluster)
@@ -24,7 +20,7 @@ func WithUpdateTimeout(d time.Duration) Option {
 }
 
 // WithNodePicker sets algorithm for node selection (e.g., random, round-robin etc.).
-func WithNodePicker(picker NodePicker) Option {
+func WithNodePicker(picker Picker) Option {
 	return func(cl *Cluster) {
 		cl.picker = picker
 	}
@@ -42,29 +38,5 @@ func WithTracer(tracer Tracer) Option {
 func WithUpdate() Option {
 	return func(cl *Cluster) {
 		cl.update = true
-	}
-}
-
-func WithDBScan() Option {
-	return func(cl *Cluster) {
-		cl.scanner = scanner.MustNewDBScan()
-	}
-}
-
-func WithBatchScan() Option {
-	return func(cl *Cluster) {
-		cl.scanner = scanner.MustNewBatchScan()
-	}
-}
-
-func WithFrameScan() Option {
-	return func(cl *Cluster) {
-		cl.scanner = scanner.MustNewFrameScan()
-	}
-}
-
-func WithForecastScan() Option {
-	return func(cl *Cluster) {
-		cl.scanner = scanner.MustNewForecastScan()
 	}
 }

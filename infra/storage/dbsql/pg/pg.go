@@ -10,7 +10,7 @@ import (
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 	otelpgx "github.com/webitel/webitel-go-kit/tracing/pgx"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/batch"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 )
 
@@ -19,7 +19,7 @@ type Database struct {
 	cli *pgxpool.Pool
 }
 
-func NewDatabase(ctx context.Context, log *wlog.Logger, dsn string) (*Database, error) {
+func New(ctx context.Context, log *wlog.Logger, dsn string) (*Database, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("parse dsn: %v", err)
@@ -56,7 +56,7 @@ func (db *Database) Query(ctx context.Context, query string, args ...any) (scann
 	return NewRowsAdapter(r), nil
 }
 
-func (db *Database) Batch() batch.Batcher {
+func (db *Database) Batch() dbsql.Batcher {
 	return newBatch(db.cli)
 }
 
