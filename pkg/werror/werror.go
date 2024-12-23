@@ -43,6 +43,10 @@ func Internal(msg string, wrappers ...Wrapper) error {
 	return New(msg, append(wrappers, WithCode(codes.Internal))...)
 }
 
+func Unavailable(msg string, wrappers ...Wrapper) error {
+	return New(msg, append(wrappers, WithCode(codes.Unavailable))...)
+}
+
 // Wrap adds context to errors by applying Wrappers.
 // See WithXXX() functions for Wrappers supplied by this package.
 func Wrap(err error, wrappers ...Wrapper) error {

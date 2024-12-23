@@ -6,8 +6,7 @@ import (
 	gogrpc "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
 	pb "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
-
-	"github.com/webitel/webitel-wfm/infra/webitel"
+	"google.golang.org/grpc"
 )
 
 type ConfigService struct {
@@ -15,13 +14,11 @@ type ConfigService struct {
 	cli gogrpc.ConfigServiceClient
 }
 
-func NewConfigServiceClient(log *wlog.Logger, conn *webitel.ConnectionManager[*webitel.Connection]) (*ConfigService, error) {
-	cli, err := conn.Connection()
-	if err != nil {
-		return nil, err
+func newConfigServiceClient(log *wlog.Logger, conn *grpc.ClientConn) *ConfigService {
+	return &ConfigService{
+		log: log,
+		cli: gogrpc.NewConfigServiceClient(conn),
 	}
-
-	return &ConfigService{log: log, cli: gogrpc.NewConfigServiceClient(cli.Client())}, nil
 }
 
 func (c *ConfigService) Active(ctx context.Context, domainId int64, object string) (bool, error) {

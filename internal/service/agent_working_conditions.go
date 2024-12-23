@@ -25,7 +25,7 @@ func NewAgentWorkingConditions(storage storage.AgentWorkingConditionsManager, en
 }
 
 func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64) (*model.AgentWorkingConditions, error) {
-	_, err := a.engine.Agent(ctx, agentId)
+	_, err := a.engine.AgentService().Agent(ctx, agentId)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 }
 
 func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64, in *model.AgentWorkingConditions) error {
-	_, err := a.engine.Agent(ctx, agentId)
+	_, err := a.engine.AgentService().Agent(ctx, agentId)
 	if err != nil {
 		return err
 	}

@@ -39,7 +39,7 @@ func NewWorkingSchedule(storage storage.WorkingScheduleManager, engine *engine.C
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
-	agentIds, err := w.engine.Agents(ctx, &model.AgentSearch{TeamIds: []int64{in.Team.Id}})
+	agentIds, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{TeamIds: []int64{in.Team.Id}})
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, user *model
 }
 
 func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error) {
-	agents, err := w.engine.Agents(ctx, &model.AgentSearch{Ids: agentIds})
+	agents, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{Ids: agentIds})
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, us
 }
 
 func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error) {
-	agents, err := w.engine.Agents(ctx, &model.AgentSearch{Ids: agentIds})
+	agents, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{Ids: agentIds})
 	if err != nil {
 		return nil, err
 	}

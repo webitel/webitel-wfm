@@ -36,7 +36,7 @@ func NewAgentAbsence(storage storage.AgentAbsenceManager, audit *logger.Audit, e
 }
 
 func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error) {
-	_, err := a.engine.Agent(ctx, in.Agent.Id)
+	_, err := a.engine.AgentService().Agent(ctx, in.Agent.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, user *model.Signe
 }
 
 func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.SignedInUser, in *model.AgentAbsence) (*model.AgentAbsence, error) {
-	_, err := a.engine.Agent(ctx, in.Agent.Id)
+	_, err := a.engine.AgentService().Agent(ctx, in.Agent.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, user *model.Signe
 }
 
 func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.SignedInUser, agentId, id int64) error {
-	_, err := a.engine.Agent(ctx, agentId)
+	_, err := a.engine.AgentService().Agent(ctx, agentId)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, user *model.Signe
 }
 
 func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, user *model.SignedInUser, search *model.AgentAbsenceSearch) (*model.AgentAbsences, error) {
-	_, err := a.engine.Agent(ctx, search.AgentIds[0])
+	_, err := a.engine.AgentService().Agent(ctx, search.AgentIds[0])
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, user *model.Signed
 }
 
 func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, user *model.SignedInUser, agentIds []int64, in []*model.AgentAbsenceBulk) ([]*model.AgentAbsences, error) {
-	agents, err := a.engine.Agents(ctx, &model.AgentSearch{Ids: agentIds})
+	agents, err := a.engine.AgentService().Agents(ctx, &model.AgentSearch{Ids: agentIds})
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 		SkillIds:      search.SkillIds,
 	}
 
-	agents, err := a.engine.Agents(ctx, s)
+	agents, err := a.engine.AgentService().Agents(ctx, s)
 	if err != nil {
 		return nil, false, err
 	}

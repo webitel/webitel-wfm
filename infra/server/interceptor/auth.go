@@ -57,7 +57,7 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 
 		ok, useRBAC := validateSessionPermission(session, objClass, action)
 		if !ok { // FIXME: must be !ok
-			return nil, werror.Wrap(ErrForbidden, werror.WithValue("objclass", objClass), werror.WithValue("action", action))
+			return nil, werror.Wrap(ErrForbidden, werror.WithValue("objclass", objClass), werror.WithValue("action", action.Name()))
 		}
 
 		s := &model.SignedInUser{
@@ -99,7 +99,7 @@ func validateSession(authcli auth_manager.AuthManager, token string) (*auth_mana
 	if err != nil {
 		return nil, werror.Prepend(err, "client")
 	}
-	
+
 	if err := session.IsValid(); err != nil {
 		return nil, err
 	}

@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"reflect"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/urfave/cli/v2"
 	authmanager "github.com/webitel/engine/auth_manager"
-	"github.com/webitel/engine/discovery"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 	"golang.org/x/sync/errgroup"
 
@@ -26,6 +24,9 @@ import (
 	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/pubsub"
+	"github.com/webitel/webitel-wfm/infra/registry"
+	amdiscovery "github.com/webitel/webitel-wfm/infra/registry/authmanager"
+	"github.com/webitel/webitel-wfm/infra/registry/provider/consul"
 	"github.com/webitel/webitel-wfm/infra/server"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
@@ -35,19 +36,27 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
+	"github.com/webitel/webitel-wfm/pkg/endpoint"
 )
 
 const (
-	serviceName                  = "wfm"
-	serviceTTL                   = time.Second * 30
-	serviceDeregisterCriticalTTL = time.Minute * 2
-
 	// sessionCacheSize is the maximum size of sessions to be cached.
 	sessionCacheSize = 35000
 
 	// sessionCacheTime is the duration in seconds for which a session will be cached.
 	sessionCacheTime = 60 * 5
 )
+
+var serviceInstance = &registry.ServiceInstance{
+	Name:    "wfm",
+	Version: version,
+	Metadata: map[string]string{
+		"commit":         commit,
+		"commitDate":     commitDate,
+		"branch":         branch,
+		"buildTimestamp": strconv.FormatInt(buildTimestamp, 10),
+	},
+}
 
 func api(cfg *config.Config, log *wlog.Logger) *cli.Command {
 	return &cli.Command{
@@ -166,7 +175,7 @@ type resources struct {
 	engine     *engine.Client
 	loggercli  *logger.Client
 	audit      *logger.Audit
-	sd         discovery.ServiceDiscovery
+	registry   *consul.Registry
 	ps         *pubsub.Manager
 }
 
@@ -231,9 +240,10 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 
 	// Iterates over struct fields to find those which implement
 	// shutdown.Handler interface and register shutdown and healthcheck hooks.
-	if err = res.registerShutdownAndHealthHooks(tracker, check); err != nil {
-		return nil, err
-	}
+	// TODO: reflect.Value.Interface: cannot return value obtained from unexported field or method
+	// if err = res.registerShutdownAndHealthHooks(tracker, check); err != nil {
+	// 	return nil, err
+	// }
 
 	// Initialize database cluster with checks for executing forecast
 	// calculation queries.
@@ -281,23 +291,7 @@ func (a *app) run(ctx context.Context) error {
 	})
 
 	a.eg.Go(func() error {
-		if err := a.resources.engine.Conn.Start(); err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	a.eg.Go(func() error {
 		return a.resources.ps.Start()
-	})
-
-	a.eg.Go(func() error {
-		if err := a.resources.loggercli.Conn.Start(); err != nil {
-			return err
-		}
-
-		return nil
 	})
 
 	a.eg.Go(func() error {
@@ -310,17 +304,17 @@ func (a *app) run(ctx context.Context) error {
 	})
 
 	a.eg.Go(func() error {
-		host, port, err := net.SplitHostPort(a.cfg.Service.Address)
-		if err != nil {
-			return err
+		serviceInstance = &registry.ServiceInstance{
+			ID:       a.cfg.Service.NodeID,
+			Name:     serviceInstance.Name,
+			Version:  serviceInstance.Version,
+			Metadata: serviceInstance.Metadata,
+			Endpoints: []string{
+				endpoint.NewEndpoint("grpc", a.cfg.Service.Address).String(),
+			},
 		}
 
-		pi, err := strconv.Atoi(port)
-		if err != nil {
-			return err
-		}
-
-		return a.resources.sd.RegisterService(serviceName, host, pi, serviceTTL, serviceDeregisterCriticalTTL)
+		return a.resources.registry.Register(ctx, serviceInstance)
 	})
 
 	if err := a.eg.Wait(); err != nil {
@@ -330,45 +324,26 @@ func (a *app) run(ctx context.Context) error {
 	return nil
 }
 
-func serviceDiscovery(ctx context.Context, cfg *config.Config, health *health.CheckRegistry, tracker *shutdown.Tracker) (discovery.ServiceDiscovery, error) {
-	const scope = "consul-service-discovery"
-	f := func() (bool, error) {
-		ch := health.RunAll(ctx)
-		for _, c := range ch {
-			if c.Err != nil {
-				return false, fmt.Errorf("%s: %w", c.Name, c.Err)
-			}
-		}
-
-		return true, nil
+func serviceDiscovery(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*consul.Registry, error) {
+	opts := []consul.Option{
+		consul.WithHeartbeat(true),
+		consul.WithTimeout(time.Second * 30),
 	}
 
-	conn, err := discovery.NewServiceDiscovery(cfg.Service.NodeID, cfg.Consul.Address, f)
+	reg, err := consul.New(log, cfg.Consul.Address, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	shutdownFunc := func(p *shutdown.Process) error {
-		conn.Shutdown()
-		p.MarkServicesShutdownCompleted(nil)
-
-		return nil
+	f := func(p *shutdown.Process) error {
+		return reg.Deregister(ctx, serviceInstance)
 	}
 
-	if err := tracker.RegisterShutdownHandlerFunc(scope, shutdownFunc); err != nil {
+	if err := tracker.RegisterShutdownHandlerFunc("consul", f); err != nil {
 		return nil, err
 	}
 
-	health.RegisterFunc(scope, func(ctx context.Context) error {
-		_, err := conn.GetByName(serviceName)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	return conn, nil
+	return reg, nil
 }
 
 func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger) (*cluster.Cluster, error) {
@@ -412,9 +387,9 @@ func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, 
 	return conn, nil
 }
 
-func auth(sd discovery.ServiceDiscovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (authmanager.AuthManager, error) {
+func auth(discovery registry.Discovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (authmanager.AuthManager, error) {
 	const scope = "webitel-auth"
-	conn := authmanager.NewAuthManager(sessionCacheSize, sessionCacheTime, sd)
+	conn := authmanager.NewAuthManager(sessionCacheSize, sessionCacheTime, amdiscovery.New(discovery))
 	shutdownFunc := func(p *shutdown.Process) error {
 		conn.Stop()
 

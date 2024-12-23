@@ -16,13 +16,11 @@ type CalendarService struct {
 	cli gogrpc.CalendarServiceClient
 }
 
-func NewCalendarServiceClient(log *wlog.Logger, conn *webitel.ConnectionManager[*webitel.Connection]) (*CalendarService, error) {
-	cli, err := conn.Connection()
-	if err != nil {
-		return nil, err
+func newCalendarServiceClient(cli *Client) *CalendarService {
+	return &CalendarService{
+		log: cli.log,
+		cli: gogrpc.NewCalendarServiceClient(cli.conn),
 	}
-
-	return &CalendarService{log: log, cli: gogrpc.NewCalendarServiceClient(cli.Client())}, nil
 }
 
 func (c *CalendarService) Holidays(ctx context.Context, calendarId int64) ([]*model.Holiday, error) {

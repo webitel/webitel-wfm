@@ -17,13 +17,11 @@ type AgentService struct {
 	cli gogrpc.AgentServiceClient
 }
 
-func NewAgentServiceClient(log *wlog.Logger, conn *webitel.ConnectionManager[*webitel.Connection]) (*AgentService, error) {
-	cli, err := conn.Connection()
-	if err != nil {
-		return nil, err
+func newAgentServiceClient(cli *Client) *AgentService {
+	return &AgentService{
+		log: cli.log,
+		cli: gogrpc.NewAgentServiceClient(cli.conn),
 	}
-
-	return &AgentService{log: log, cli: gogrpc.NewAgentServiceClient(cli.Client())}, nil
 }
 
 func (a *AgentService) Agent(ctx context.Context, id int64) (int64, error) {

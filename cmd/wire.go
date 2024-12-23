@@ -13,6 +13,8 @@ import (
 	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra"
 	"github.com/webitel/webitel-wfm/infra/health"
+	"github.com/webitel/webitel-wfm/infra/registry"
+	"github.com/webitel/webitel-wfm/infra/registry/provider/consul"
 	"github.com/webitel/webitel-wfm/infra/server"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
@@ -23,7 +25,8 @@ import (
 )
 
 func initResources(context.Context, *config.Config, *wlog.Logger, *health.CheckRegistry, *shutdown.Tracker) (*resources, error) {
-	panic(wire.Build(sqlStorage, wire.Bind(new(cluster.Store), new(*cluster.Cluster)), serviceDiscovery, auth, infra.Set,
+	panic(wire.Build(sqlStorage, wire.Bind(new(cluster.Store), new(*cluster.Cluster)), auth, infra.Set,
+		serviceDiscovery, wire.Bind(new(registry.Discovery), new(*consul.Registry)),
 		wire.FieldsOf(new(*config.Config), "Cache", "Pubsub"),
 		wire.FieldsOf(new(*logger.Client), "ConfigService"),
 		wire.Struct(new(resources), "*")),

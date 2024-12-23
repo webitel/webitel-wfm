@@ -54,7 +54,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 	}
 
 	if len(search.SupervisorIds) > 0 || len(search.TeamIds) > 0 || len(search.SkillIds) > 0 {
-		search.AgentIds, err = a.engine.Agents(ctx, &model.AgentSearch{SupervisorIds: search.SupervisorIds, TeamIds: search.TeamIds, SkillIds: search.SkillIds})
+		search.AgentIds, err = a.engine.AgentService().Agents(ctx, &model.AgentSearch{SupervisorIds: search.SupervisorIds, TeamIds: search.TeamIds, SkillIds: search.SkillIds})
 		if err != nil {
 			return nil, nil, err
 		}
