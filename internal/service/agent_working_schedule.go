@@ -12,10 +12,14 @@ import (
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
-var ErrAgentWorkingScheduleDateFilter = werror.InvalidArgument("invalid input: agent working schedule date filter")
+var (
+	ErrAgentWorkingScheduleDateFilter   = werror.InvalidArgument("invalid input: date should be within working schedule period", werror.WithID("service.agent_working_schedule.date"))
+	ErrAgentWorkingScheduleDateShiftMap = werror.InvalidArgument("invalid input: required at least one shift day within date period", werror.WithID("service.agent_working_schedule.shift"))
+)
 
 type AgentWorkingScheduleManager interface {
-	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error)
+	CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, in *model.CreateAgentsWorkingScheduleShifts) ([]*model.AgentWorkingSchedule, error)
+	SearchAgentsWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error)
 }
 type AgentWorkingSchedule struct {
 	storage                storage.AgentWorkingScheduleManager
@@ -31,26 +35,57 @@ func NewAgentWorkingSchedule(storage storage.AgentWorkingScheduleManager, workin
 	}
 }
 
-func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error) {
+func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, in *model.CreateAgentsWorkingScheduleShifts) ([]*model.AgentWorkingSchedule, error) {
+	ws, err := a.workingScheduleStorage.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: in.WorkingScheduleID})
+	if err != nil {
+		return nil, err
+	}
+
+	period := timeutils.NewPeriod(in.Date.From.Time, in.Date.To.Time, timeutils.IncludeAll)
+	if !timeutils.NewPeriod(ws.StartDateAt.Time, ws.EndDateAt.Time, timeutils.IncludeAll).Contains(period) {
+		return nil, ErrAgentWorkingScheduleDateFilter
+	}
+
+	series := period.GenerateSeries(0, 0, 1)
+	schedules := make([]*model.AgentSchedule, 0, len(in.Shifts))
+	for _, time := range series {
+		if v, ok := in.Shifts[int64(time.Weekday())]; ok {
+			schedules = append(schedules, &model.AgentSchedule{
+				Date:  model.NewDate(time.Unix()),
+				Shift: v,
+			})
+		}
+	}
+
+	if len(schedules) == 0 {
+		return nil, ErrAgentWorkingScheduleDateShiftMap
+	}
+
+	agents := make([]*model.AgentWorkingSchedule, 0, len(in.Agents))
+	for _, agent := range in.Agents {
+		agents = append(agents, &model.AgentWorkingSchedule{
+			Agent:    *agent,
+			Schedule: schedules,
+		})
+	}
+
+	out, err := a.storage.CreateAgentsWorkingScheduleShifts(ctx, user, ws.Id, agents)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error) {
 	ws, err := a.workingScheduleStorage.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: search.WorkingScheduleId})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if search.SearchItem.Date.From.Valid {
-		if !timeutils.Between(search.SearchItem.Date.From.Time, ws.StartDateAt.Time, ws.EndDateAt.Time) {
-			return nil, nil, werror.Wrap(ErrAgentWorkingScheduleDateFilter, werror.WithID("service.agent_working_schedule.date.from"),
-				werror.AppendMessage("from date should be after (or equal) working schedule start date or before (equal) end period"),
-			)
-		}
-	}
-
-	if search.SearchItem.Date.To.Valid {
-		if !timeutils.Between(search.SearchItem.Date.To.Time, ws.StartDateAt.Time, ws.EndDateAt.Time) {
-			return nil, nil, werror.Wrap(ErrAgentWorkingScheduleDateFilter, werror.WithID("service.agent_working_schedule.date.to"),
-				werror.AppendMessage("end date should be before (or equal) working schedule end date or after (equal) start period"),
-			)
-		}
+	period := timeutils.NewPeriod(search.SearchItem.Date.From.Time, search.SearchItem.Date.To.Time, timeutils.IncludeAll)
+	if !timeutils.NewPeriod(ws.StartDateAt.Time, ws.EndDateAt.Time, timeutils.IncludeAll).Contains(period) {
+		return nil, nil, ErrAgentWorkingScheduleDateFilter
 	}
 
 	if len(search.SupervisorIds) > 0 || len(search.TeamIds) > 0 || len(search.SkillIds) > 0 {

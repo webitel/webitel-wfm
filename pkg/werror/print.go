@@ -17,11 +17,15 @@ func Details(err error) string {
 	values := Values(err)
 	for key, value := range values {
 		if k, ok := key.(string); ok {
-			det = fmt.Sprintf("; %s = %s", k, value)
+			det = fmt.Sprintf("%s; %s = %s", det, k, value)
 		}
 	}
 
 	msg := err.Error() + det
+	if id := ID(err); id != "" {
+		msg = id + ": " + msg
+	}
+
 	if cause := Cause(err); cause != nil {
 		msg += "; caused by: " + Details(cause)
 	}

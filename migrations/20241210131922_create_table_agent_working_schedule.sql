@@ -62,32 +62,45 @@ FROM wfm.agent_working_schedule_pause t
          LEFT JOIN directory.wbt_user u ON t.updated_by = u.id
     );
 
+CREATE TABLE wfm.agent_working_schedule_skill
+(
+    id                        SERIAL PRIMARY KEY,
+    domain_id                 BIGINT NOT NULL,
+
+    agent_working_schedule_id BIGINT NOT NULL,
+    skill_id                  BIGINT NOT NULL,
+    capacity                  INT2   NOT NULL,
+
+    FOREIGN KEY (domain_id, agent_working_schedule_id) REFERENCES wfm.agent_working_schedule (domain_id, id) ON DELETE CASCADE,
+    FOREIGN KEY (domain_id, skill_id) REFERENCES call_center.cc_skill (domain_id, id) ON DELETE CASCADE
+);
+
 CREATE VIEW wfm.agent_working_schedule_v AS
 (
 SELECT ws.id                                                           AS working_schedule_id
      , ws.domain_id                                                    AS domain_id
      , call_center.cc_get_lookup(a.id, coalesce(wu.name, wu.username)) AS agent
      , x.date                                                          AS date
-     , x.type                                                          AS type
+     , x.locked                                                        AS locked
      , x.absence                                                       AS absence
-     , x.shifts                                                        AS shifts
+     , x.shift                                                         AS shift
 FROM wfm.working_schedule ws
          INNER JOIN wfm.working_schedule_agent wsa ON wsa.working_schedule_id = ws.id
          INNER JOIN call_center.cc_agent a ON a.id = wsa.agent_id
          INNER JOIN directory.wbt_user wu ON wu.id = a.user_id
          LEFT JOIN LATERAL (
-    SELECT 1                  AS type
+    SELECT null               AS locked
          , aa.absent_at       AS date
          , aa.agent_id        AS agent_id
          , aa.absence_type_id AS absence
-         , null::jsonb           shifts
+         , null::jsonb           shift
     FROM wfm.agent_absence aa
     WHERE aa.agent_id = wsa.agent_id
       AND aa.absent_at BETWEEN ws.start_date_at AND ws.end_date_at
 
     UNION ALL
 
-    select 2
+    select true
          , aws.schedule_at
          , wsa2.agent_id
          , null
@@ -101,11 +114,11 @@ FROM wfm.working_schedule ws
 
     UNION ALL
 
-    select 3
+    select null
          , aws.schedule_at
          , wsa.agent_id
          , null
-         , jsonb_build_array(jsonb_build_object('id', aws.id
+         , jsonb_build_object('id', aws.id
         , 'domain_id', aws.domain_id
         , 'created_at', aws.created_at
         , 'created_by', call_center.cc_get_lookup(c.id, c.name)
@@ -113,7 +126,7 @@ FROM wfm.working_schedule ws
         , 'updated_by', call_center.cc_get_lookup(u.id, u.name)
         , 'start', aws.start_min
         , 'end', aws.end_min
-        , 'pauses', p.pauses))
+        , 'pauses', p.pauses)
     FROM wfm.agent_working_schedule aws
              INNER JOIN directory.wbt_user c ON aws.created_by = c.id
              LEFT JOIN directory.wbt_user u ON aws.updated_by = u.id
@@ -125,7 +138,8 @@ FROM wfm.working_schedule ws
             , 'updated_at', updated_at
             , 'updated_by', updated_by
             , 'start', start_min
-            , 'end', end_min)) pauses
+            , 'end', end_min
+            , 'cause', cause)) pauses
         FROM wfm.agent_working_schedule_pause_v
         WHERE agent_working_schedule_id = aws.id
         ) p ON true
@@ -164,6 +178,10 @@ FROM wfm.working_schedule ws
 DROP VIEW wfm.agent_working_schedule_holidays_v;
 
 DROP VIEW wfm.agent_working_schedule_v;
+
+DROP VIEW wfm.agent_working_schedule_pause_v;
+
+DROP TABLE wfm.agent_working_schedule_pause;
 
 DROP TABLE wfm.agent_working_schedule;
 -- +goose StatementEnd

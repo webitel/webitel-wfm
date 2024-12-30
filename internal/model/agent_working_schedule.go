@@ -6,7 +6,7 @@ import (
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
-type AgentSchedulePause struct {
+type AgentScheduleShiftPause struct {
 	DomainRecord
 
 	Start int64       `json:"start" db:"start"`
@@ -14,8 +14,8 @@ type AgentSchedulePause struct {
 	Cause *LookupItem `json:"cause" db:"cause,json"`
 }
 
-func (a *AgentSchedulePause) MarshalProto() *pb.AgentSchedulePause {
-	return &pb.AgentSchedulePause{
+func (a *AgentScheduleShiftPause) MarshalProto() *pb.AgentScheduleShiftPause {
+	return &pb.AgentScheduleShiftPause{
 		Id:        a.Id,
 		DomainId:  a.DomainId,
 		CreatedAt: a.CreatedAt.Time.UnixMilli(),
@@ -28,18 +28,38 @@ func (a *AgentSchedulePause) MarshalProto() *pb.AgentSchedulePause {
 	}
 }
 
+type AgentScheduleShiftSkill struct {
+	Skill    LookupItem `json:"skill" db:"skill,json"`
+	Capacity int64      `json:"capacity" db:"capacity"`
+	Enabled  bool       `json:"enabled" db:"enabled"`
+}
+
+func (a *AgentScheduleShiftSkill) MarshalProto() *pb.AgentScheduleShiftSkill {
+	return &pb.AgentScheduleShiftSkill{
+		Skill:    a.Skill.MarshalProto(),
+		Capacity: a.Capacity,
+		Enabled:  a.Enabled,
+	}
+}
+
 type AgentScheduleShift struct {
 	DomainRecord
 
-	Start  int64                 `json:"start" db:"start"`
-	End    int64                 `json:"end" db:"end"`
-	Pauses []*AgentSchedulePause `json:"pauses" db:"pauses"`
+	Start  int64                      `json:"start" db:"start"`
+	End    int64                      `json:"end" db:"end"`
+	Pauses []*AgentScheduleShiftPause `json:"pauses" db:"pauses"`
+	Skills []*AgentScheduleShiftSkill `json:"skills" db:"skills"`
 }
 
 func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
-	pauses := make([]*pb.AgentSchedulePause, 0, len(a.Pauses))
+	pauses := make([]*pb.AgentScheduleShiftPause, 0, len(a.Pauses))
 	for _, pause := range a.Pauses {
 		pauses = append(pauses, pause.MarshalProto())
+	}
+
+	skills := make([]*pb.AgentScheduleShiftSkill, 0, len(a.Skills))
+	for _, skill := range a.Skills {
+		skills = append(skills, skill.MarshalProto())
 	}
 
 	return &pb.AgentScheduleShift{
@@ -52,6 +72,7 @@ func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
 		Start:     a.Start,
 		End:       a.End,
 		Pauses:    pauses,
+		Skills:    skills,
 	}
 }
 
@@ -69,34 +90,35 @@ func (s AgentScheduleType) String() string {
 }
 
 type AgentSchedule struct {
-	Date    pgtype.Date           `json:"date" db:"date,json"`
-	Type    *AgentScheduleType    `json:"type" db:"type"`
-	Absence *AgentAbsenceType     `json:"absence" db:"absence"`
-	Shifts  []*AgentScheduleShift `json:"shifts" db:"shifts,json"`
+	Date    pgtype.Date         `json:"date" db:"date,json"`
+	Locked  bool                `json:"locked" db:"locked,json"`
+	Absence *AgentAbsenceType   `json:"absence" db:"absence"`
+	Shift   *AgentScheduleShift `json:"shift" db:"shift,json"`
 }
 
 func (a *AgentSchedule) MarshalProto() *pb.AgentSchedule {
-	t := pb.AgentScheduleType_AGENT_SCHEDULE_TYPE_UNSPECIFIED
-	if a.Type != nil {
-		t = pb.AgentScheduleType(*a.Type)
+	schedule := &pb.AgentSchedule{
+		Date:   a.Date.Time.Unix(),
+		Locked: a.Locked,
 	}
 
-	absence := pb.AgentAbsenceType_AGENT_ABSENCE_TYPE_UNSPECIFIED
+	if schedule.Locked {
+		return schedule
+	}
+
 	if a.Absence != nil {
-		absence = pb.AgentAbsenceType(*a.Absence)
+		schedule.Type = &pb.AgentSchedule_Absence{
+			Absence: pb.AgentAbsenceType(*a.Absence),
+		}
+
+		return schedule
 	}
 
-	shifts := make([]*pb.AgentScheduleShift, 0, len(a.Shifts))
-	for _, shift := range a.Shifts {
-		shifts = append(shifts, shift.MarshalProto())
+	schedule.Type = &pb.AgentSchedule_Shift{
+		Shift: a.Shift.MarshalProto(),
 	}
 
-	return &pb.AgentSchedule{
-		Date:    a.Date.Time.Unix(),
-		Type:    t,
-		Absence: absence,
-		Shifts:  shifts,
-	}
+	return schedule
 }
 
 type AgentWorkingSchedule struct {
@@ -126,4 +148,11 @@ type AgentWorkingScheduleSearch struct {
 	SupervisorIds []int64
 	TeamIds       []int64
 	SkillIds      []int64
+}
+
+type CreateAgentsWorkingScheduleShifts struct {
+	WorkingScheduleID int64
+	Date              FilterBetween                 `json:"date" db:"date,json"`
+	Agents            []*LookupItem                 `json:"agents" db:"agents,json"`
+	Shifts            map[int64]*AgentScheduleShift `json:"shifts" db:"shifts,json"`
 }

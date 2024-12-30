@@ -11,7 +11,7 @@ import (
 
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
-	"github.com/webitel/webitel-wfm/infra/storage/cache/encoding"
+	"github.com/webitel/webitel-wfm/pkg/encoding"
 )
 
 type KeyScope[V any] interface {

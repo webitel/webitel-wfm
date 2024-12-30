@@ -18,7 +18,15 @@ func (c *CTEQuery) With(table *sqlbuilder.CTEQueryBuilder) *CTEQuery {
 	return c
 }
 
+func (c *CTEQuery) Tables() []string {
+	tables := make([]string, 0, len(c.queries))
+	for _, q := range c.queries {
+		tables = append(tables, q.TableName())
+	}
+
+	return tables
+}
+
 func (c *CTEQuery) Builder() *sqlbuilder.CTEBuilder {
-	sqlbuilder.DefaultFlavor.NewCTEQueryBuilder()
 	return sqlbuilder.With(c.queries...)
 }
