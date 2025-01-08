@@ -9,6 +9,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/service"
+	"github.com/webitel/webitel-wfm/pkg/timeutils"
 )
 
 type WorkingSchedule struct {
@@ -45,6 +46,37 @@ func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, req *pb.ReadW
 	}
 
 	return &pb.ReadWorkingScheduleResponse{Item: out.MarshalProto()}, nil
+}
+
+func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *pb.ReadWorkingScheduleForecastRequest) (*pb.ReadWorkingScheduleForecastResponse, error) {
+	s := grpccontext.FromContext(ctx)
+	date := &model.FilterBetween{}
+	if v := req.Date; v != nil {
+		date = &model.FilterBetween{
+			From: model.NewTimestamp(v.From),
+			To:   model.NewTimestamp(v.To),
+		}
+	}
+
+	items, err := w.service.ReadWorkingScheduleForecast(ctx, s.SignedInUser, req.Id, date)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[int64]*pb.WorkingScheduleForecast)
+	for _, i := range items {
+		day := timeutils.Date(i.Timestamp.Time).Unix()
+		if _, ok := out[day]; !ok {
+			out[day].Forecast = make([]*pb.WorkingScheduleForecast_Forecast, 0)
+		}
+
+		out[day].Forecast = append(out[day].Forecast, &pb.WorkingScheduleForecast_Forecast{
+			Hour:   int64(i.Timestamp.Time.Hour()),
+			Agents: *i.Agents,
+		})
+	}
+
+	return &pb.ReadWorkingScheduleForecastResponse{Items: out}, nil
 }
 
 func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.SearchWorkingScheduleRequest) (*pb.SearchWorkingScheduleResponse, error) {
@@ -92,7 +124,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 		agents = append(agents, agent.Id)
 	}
 
-	items, err := w.service.UpdateWorkingScheduleAddAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
+	items, err := w.service.UpdateWorkingScheduleAddAgents(ctx, s.SignedInUser, req.Id, agents)
 	if err != nil {
 		return nil, err
 	}
@@ -105,24 +137,14 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 	return &pb.UpdateWorkingScheduleAddAgentsResponse{Agents: out}, nil
 }
 
-func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, req *pb.UpdateWorkingScheduleRemoveAgentsRequest) (*pb.UpdateWorkingScheduleRemoveAgentsResponse, error) {
+func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, req *pb.UpdateWorkingScheduleRemoveAgentRequest) (*pb.UpdateWorkingScheduleRemoveAgentResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	agents := make([]int64, 0, len(req.GetAgents()))
-	for _, agent := range req.GetAgents() {
-		agents = append(agents, agent.Id)
-	}
-
-	items, err := w.service.UpdateWorkingScheduleRemoveAgents(ctx, s.SignedInUser, req.WorkingScheduleId, agents)
+	out, err := w.service.UpdateWorkingScheduleRemoveAgent(ctx, s.SignedInUser, req.Id, req.AgentId)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]*pb.LookupEntity, 0, len(items))
-	for _, item := range items {
-		out = append(out, item.MarshalProto())
-	}
-
-	return &pb.UpdateWorkingScheduleRemoveAgentsResponse{Agents: out}, nil
+	return &pb.UpdateWorkingScheduleRemoveAgentResponse{Id: out}, nil
 }
 
 func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {

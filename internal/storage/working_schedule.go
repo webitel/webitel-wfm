@@ -26,7 +26,7 @@ type WorkingScheduleManager interface {
 	DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
 	UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
-	UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
+	UpdateWorkingScheduleRemoveAgent(ctx context.Context, user *model.SignedInUser, id int64, agentId int64) (int64, error)
 }
 
 type WorkingSchedule struct {
@@ -251,22 +251,12 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, us
 	return out.Agents, nil
 }
 
-func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error) {
-	values := make([]any, 0, len(agentIds))
-	for _, agentId := range agentIds {
-		values = append(values, agentId)
-	}
-
+func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, user *model.SignedInUser, id int64, agentId int64) (int64, error) {
 	db := builder.Delete(workingScheduleAgentTable)
-	sql, args := db.Where(db.Equal("domain_id", user.DomainId), db.Equal("working_schedule_id", id), db.In("agent_id", values...)).Build()
+	sql, args := db.Where(db.Equal("domain_id", user.DomainId), db.Equal("working_schedule_id", id), db.Equal("agent_id", agentId)).Build()
 	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	out, err := w.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: id})
-	if err != nil {
-		return nil, err
-	}
-
-	return out.Agents, nil
+	return agentId, nil
 }

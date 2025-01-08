@@ -7,28 +7,35 @@ import (
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/storage"
 	"github.com/webitel/webitel-wfm/pkg/compare"
+	"github.com/webitel/webitel-wfm/pkg/timeutils"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 var (
 	ErrWorkingScheduleUpdateDraft = werror.InvalidArgument("working schedule can only be updated in a draft state", werror.WithID("service.working_schedule.state"))
 	ErrAgentNotAllowed            = werror.Forbidden("you haven't read access to a desired set of agents")
+	ErrEmptyForecastCalculation   = werror.InvalidArgument("attached team doesn't have configured forecast calculation procedure", werror.WithID("service.working_schedule.empty_forecast_calculation"))
 )
 
 type WorkingScheduleManager interface {
 	CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
 	ReadWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingSchedule, error)
+
+	ReadWorkingScheduleForecast(ctx context.Context, user *model.SignedInUser, id int64, date *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
+
 	SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, bool, error)
 	UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
 	DeleteWorkingSchedule(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
 	UpdateWorkingScheduleAddAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
-	UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error)
+	UpdateWorkingScheduleRemoveAgent(ctx context.Context, user *model.SignedInUser, id int64, agentId int64) (int64, error)
 }
 
 type WorkingSchedule struct {
 	storage storage.WorkingScheduleManager
-	engine  *engine.Client
+
+	engine   *engine.Client
+	forecast ForecastCalculationManager
 }
 
 func NewWorkingSchedule(storage storage.WorkingScheduleManager, engine *engine.Client) *WorkingSchedule {
@@ -65,6 +72,42 @@ func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, user *model.S
 	}
 
 	return out, nil
+}
+
+func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, user *model.SignedInUser, id int64, date *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
+	ws, err := w.storage.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: id})
+	if err != nil {
+		return nil, err
+	}
+
+	if !date.From.Valid {
+		date.From = model.NewTimestamp(ws.StartDateAt.Time.Unix())
+	}
+
+	if !date.To.Valid {
+		date.To = model.NewTimestamp(ws.EndDateAt.Time.Unix())
+	}
+
+	period := timeutils.NewPeriod(date.From.Time, date.To.Time, timeutils.IncludeAll)
+	if !timeutils.NewPeriod(ws.StartDateAt.Time, ws.EndDateAt.Time, timeutils.IncludeAll).Contains(period) {
+		return nil, ErrAgentWorkingScheduleDateFilter
+	}
+
+	team, err := w.engine.TeamService().Team(ctx, ws.Team.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if team.ForecastCalculation == nil || team.ForecastCalculation.Id == 0 {
+		return nil, werror.Wrap(ErrEmptyForecastCalculation, werror.WithValue("team", team.Name))
+	}
+
+	forecast, err := w.forecast.ExecuteForecastCalculation(ctx, user, team.ForecastCalculation.Id, team.Id, date)
+	if err != nil {
+		return nil, err
+	}
+
+	return forecast, nil
 }
 
 func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingSchedule, bool, error) {
@@ -137,20 +180,15 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, us
 	return out, nil
 }
 
-func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, user *model.SignedInUser, id int64, agentIds []int64) ([]*model.LookupItem, error) {
-	agents, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{Ids: agentIds})
+func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, user *model.SignedInUser, id int64, agentId int64) (int64, error) {
+	_, err := w.engine.AgentService().Agent(ctx, agentId)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	// Checks if signed user has read access to a desired set of agents.
-	if ok := compare.ElementsMatch(agents, agentIds); !ok {
-		return nil, werror.Wrap(ErrAgentNotAllowed, werror.WithID("service.working_schedule.check_agents"))
-	}
-
-	out, err := w.storage.UpdateWorkingScheduleRemoveAgents(ctx, user, id, agentIds)
+	out, err := w.storage.UpdateWorkingScheduleRemoveAgent(ctx, user, id, agentId)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	return out, nil

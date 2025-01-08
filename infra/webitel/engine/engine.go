@@ -53,3 +53,7 @@ func (c *Client) AgentService() *AgentService {
 func (c *Client) CalendarService() *CalendarService {
 	return newCalendarServiceClient(c)
 }
+
+func (c *Client) TeamService() *TeamService {
+	return newTeamServiceClient(c)
+}
