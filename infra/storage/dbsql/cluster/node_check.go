@@ -2,163 +2,95 @@ package cluster
 
 import (
 	"context"
-	"sort"
-	"sync"
+	"math"
 	"time"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 )
 
-// Checker is a signature for functions that check if a specific node is alive and is primary.
-// Returns true for primary and false if not.
-// If error is returned, the node is considered dead.
-// Check function can be used to perform a Query returning single boolean value that signals
-// if node is primary or not.
-type Checker func(ctx context.Context, db dbsql.Node) (bool, error)
+// NodeRole represents a role of node in SQL cluster (usually primary/standby).
+type NodeRole uint8
 
-type checkedNode struct {
-	Node    dbsql.Node
-	Latency time.Duration
+const (
+
+	// NodeRoleUnknown used to report node with an unconventional role in cluster.
+	NodeRoleUnknown NodeRole = iota
+
+	// NodeRolePrimary used to report node with a primary role in cluster.
+	NodeRolePrimary
+
+	// NodeRoleStandby used to report node with a standby role in cluster.
+	NodeRoleStandby
+)
+
+// NodeInfoProvider information about single cluster node.
+type NodeInfoProvider interface {
+
+	// Role reports a role of node in cluster.
+	// For SQL servers, it is usually either primary or standby.
+	Role() NodeRole
 }
 
-type checkedNodesList []checkedNode
+// NodeInfo contains various information about single cluster node.
+type NodeInfo struct {
 
-var _ sort.Interface = checkedNodesList{}
+	// Role contains determined node's role in cluster.
+	ClusterRole NodeRole `db:"role"`
 
-func (list checkedNodesList) Len() int {
-	return len(list)
+	// Latency stores time that has been spent to send check request.
+	// and receive response from server
+	NetworkLatency time.Duration `db:"network_latency"`
+
+	// ReplicaLag represents how far behind is data on standby
+	// in comparison to primary. As determination of real replication
+	// lag is a tricky task and value type vary from one DBMS to another
+	// (e.g., bytes count lag, time delta lag etc.) this field contains
+	// abstract value for sorting purposes only.
+	ReplicaLag int `db:"replication_lag"`
 }
 
-func (list checkedNodesList) Less(i, j int) bool {
-	return list[i].Latency < list[j].Latency
+// Role reports determined role of node in cluster.
+func (n NodeInfo) Role() NodeRole {
+	return n.ClusterRole
 }
 
-func (list checkedNodesList) Swap(i, j int) {
-	list[i], list[j] = list[j], list[i]
+// Latency reports time spend on query execution from client's point of view.
+// It can be used in LatencyNodePicker to determine node with fastest response time.
+func (n NodeInfo) Latency() time.Duration {
+	return n.NetworkLatency
 }
 
-func (list checkedNodesList) Nodes() []dbsql.Node {
-	res := make([]dbsql.Node, 0, len(list))
-	for _, item := range list {
-		res = append(res, item.Node)
-	}
-
-	return res
+// ReplicationLag reports data replication delta on standby.
+// It can be used in ReplicationNodePicker to determine node with most up-to-date data.
+func (n NodeInfo) ReplicationLag() int {
+	return n.ReplicaLag
 }
 
-type groupedCheckedNodes struct {
-	Primaries checkedNodesList
-	Standbys  checkedNodesList
-}
+// NodeChecker is a function that can perform request to SQL node and retrieve various information.
+type NodeChecker func(context.Context, dbsql.Node) (NodeInfoProvider, error)
 
-// Alive returns merged primaries and standbys sorted by latency. Primaries and standbys are expected to be
-// sorted beforehand.
-func (nodes groupedCheckedNodes) Alive() []dbsql.Node {
-	res := make([]dbsql.Node, len(nodes.Primaries)+len(nodes.Standbys))
+// PostgreSQLChecker checks state on PostgreSQL node.
+// It reports appropriate information for PostgreSQL nodes version 10 and higher.
+func PostgreSQLChecker(ctx context.Context, db dbsql.Node) (NodeInfoProvider, error) {
+	start := time.Now()
 
-	var i int
-	for len(nodes.Primaries) > 0 && len(nodes.Standbys) > 0 {
-		if nodes.Primaries[0].Latency < nodes.Standbys[0].Latency {
-			res[i] = nodes.Primaries[0].Node
-			nodes.Primaries = nodes.Primaries[1:]
-		} else {
-			res[i] = nodes.Standbys[0].Node
-			nodes.Standbys = nodes.Standbys[1:]
-		}
+	var nodeInfo NodeInfo
+	query := `SELECT ((pg_is_in_recovery())::int + 1) AS role,
+				-- primary node has no replication lag
+				COALESCE(pg_last_wal_receive_lsn() - pg_last_wal_replay_lsn(), 0) AS replication_lag`
 
-		i++
+	if err := db.Get(ctx, &nodeInfo, query); err != nil {
+		return nil, err
 	}
 
-	for j := 0; j < len(nodes.Primaries); j++ {
-		res[i] = nodes.Primaries[j].Node
-		i++
+	nodeInfo.NetworkLatency = time.Since(start)
+
+	// determine proper replication lag value
+	// by default we assume that replication is not started - hence maximum int value
+	// see: https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-RECOVERY-CONTROL
+	if nodeInfo.ReplicaLag == 0 && nodeInfo.ClusterRole == NodeRoleStandby {
+		nodeInfo.ReplicaLag = math.MaxInt
 	}
 
-	for j := 0; j < len(nodes.Standbys); j++ {
-		res[i] = nodes.Standbys[j].Node
-		i++
-	}
-
-	return res
-}
-
-type checkExecutorFunc func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error)
-
-// checkNodes takes slice of nodes, checks them in parallel and returns the alive ones.
-// Accepts customizable executor which enables time-independent tests for node sorting based on 'latency'.
-func checkNodes(ctx context.Context, nodes []dbsql.Node, executor checkExecutorFunc, tracer Tracer, errCollector *errorsCollector) AliveNodes {
-	checkedNodes := groupedCheckedNodes{
-		Primaries: make(checkedNodesList, 0, len(nodes)),
-		Standbys:  make(checkedNodesList, 0, len(nodes)),
-	}
-
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	wg.Add(len(nodes))
-	for _, item := range nodes {
-		go func(n dbsql.Node, wg *sync.WaitGroup) {
-			defer wg.Done()
-
-			primary, duration, err := executor(ctx, n)
-			if err != nil {
-				n.SetState(dbsql.Dead)
-
-				if tracer.NodeDead != nil {
-					tracer.NodeDead(n, err)
-				}
-
-				if errCollector != nil {
-					errCollector.Add(n.Addr(), err, time.Now())
-				}
-
-				return
-			}
-
-			if errCollector != nil {
-				errCollector.Remove(n.Addr())
-			}
-
-			if ok := n.CompareState(dbsql.Alive); !ok {
-				if tracer.NodeAlive != nil {
-					tracer.NodeAlive(n)
-				}
-			}
-
-			n.SetState(dbsql.Alive)
-
-			nl := checkedNode{Node: n, Latency: duration}
-
-			mu.Lock()
-			defer mu.Unlock()
-			if primary {
-				checkedNodes.Primaries = append(checkedNodes.Primaries, nl)
-			} else {
-				checkedNodes.Standbys = append(checkedNodes.Standbys, nl)
-			}
-		}(item, &wg)
-	}
-	wg.Wait()
-
-	sort.Sort(checkedNodes.Primaries)
-	sort.Sort(checkedNodes.Standbys)
-
-	return AliveNodes{
-		Alive:     checkedNodes.Alive(),
-		Primaries: checkedNodes.Primaries.Nodes(),
-		Standbys:  checkedNodes.Standbys.Nodes(),
-	}
-}
-
-// checkExecutor returns checkExecutorFunc which can execute supplied check.
-func checkExecutor(checker Checker) checkExecutorFunc {
-	return func(ctx context.Context, node dbsql.Node) (bool, time.Duration, error) {
-		ts := time.Now()
-		primary, err := checker(ctx, node)
-		d := time.Since(ts)
-		if err != nil {
-			return false, d, err
-		}
-
-		return primary, d, nil
-	}
+	return nodeInfo, nil
 }
