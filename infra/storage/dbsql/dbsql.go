@@ -3,6 +3,7 @@ package dbsql
 import (
 	"context"
 	"database/sql"
+	"net/url"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 )
@@ -60,8 +61,14 @@ type SqlNode struct {
 
 // New constructs node from Connection
 func New(addr string, db Database, scanner scanner.Scanner) *SqlNode {
+	a := "unable to parse database address"
+	u, err := url.Parse(addr)
+	if err == nil {
+		a = u.Scheme + "://" + u.User.Username() + "@" + u.Host + u.Path + "?" + u.RawQuery
+	}
+
 	return &SqlNode{
-		addr:    addr,
+		addr:    a,
 		db:      db,
 		scanner: scanner,
 	}
