@@ -225,24 +225,26 @@ func (c *Client) Register(_ context.Context, svc *registry.ServiceInstance, enab
 			for {
 				select {
 				case <-c.ctx.Done():
-					_ = c.cli.Agent().ServiceDeregister(svc.ID)
-					return
-				default:
-				}
-				select {
-				case <-c.ctx.Done():
-					_ = c.cli.Agent().ServiceDeregister(svc.ID)
+					if err := c.cli.Agent().ServiceDeregister(svc.ID); err != nil {
+						c.log.Error("deregister service after context is done", wlog.Err(err), wlog.String("ctx", c.ctx.Err().Error()))
+					}
+
 					return
 				case <-ticker.C:
 					// ensure that unregistered services will not be re-registered by mistake
 					if werror.Is(c.ctx.Err(), context.Canceled) || werror.Is(c.ctx.Err(), context.DeadlineExceeded) {
-						_ = c.cli.Agent().ServiceDeregister(svc.ID)
+						if err := c.cli.Agent().ServiceDeregister(svc.ID); err != nil {
+							c.log.Error("deregister service if service was unregistered", wlog.Err(err))
+						}
+
 						return
 					}
 
 					if err := c.cli.Agent().UpdateTTLOpts("service:"+svc.ID, "pass", "pass", new(api.QueryOptions).WithContext(c.ctx)); err != nil {
 						if werror.Is(err, context.Canceled) || werror.Is(err, context.DeadlineExceeded) {
-							_ = c.cli.Agent().ServiceDeregister(svc.ID)
+							if err := c.cli.Agent().ServiceDeregister(svc.ID); err != nil {
+								c.log.Error("deregister service after unsuccessful updating service ttl heartbeat", wlog.Err(err))
+							}
 
 							return
 						}
@@ -252,9 +254,9 @@ func (c *Client) Register(_ context.Context, svc *registry.ServiceInstance, enab
 						// when the previous report fails, try to re register the service
 						time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
 						if err := c.cli.Agent().ServiceRegister(asr); err != nil {
-							c.log.Error("re-registry service", wlog.Err(err))
+							c.log.Error("re-register service", wlog.Err(err))
 						} else {
-							c.log.Warn("re-registry of service occurred success")
+							c.log.Warn("re-register of service occurred success")
 						}
 					}
 				}
