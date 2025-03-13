@@ -17,7 +17,7 @@ const (
 	forecastCalculationView  = forecastCalculationTable + "_v"
 )
 
-var ErrForecastProcedureNotFound = werror.NotFound("", werror.WithID("storage.forecast_calculation.procedure"))
+var ErrForecastProcedureNotFound = werror.NotFound("requested forecast calculation procedure does not exists", werror.WithID("storage.forecast_calculation.procedure"))
 
 type ForecastCalculationManager interface {
 	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
