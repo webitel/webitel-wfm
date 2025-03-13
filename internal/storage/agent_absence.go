@@ -8,6 +8,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/fields"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -174,7 +175,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, user *model.Sig
 		search.SearchItem.Sort = &sort
 	}
 
-	columns := []string{dbsql.Wildcard(model.Absence{})}
+	columns := []string{fields.Wildcard(model.Absence{})}
 	if len(search.SearchItem.Fields) > 0 {
 		columns = search.SearchItem.Fields
 	}

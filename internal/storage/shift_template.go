@@ -7,6 +7,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/fields"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -77,7 +78,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, user *model.Sig
 		columns []string
 	)
 
-	columns = []string{dbsql.Wildcard(model.ShiftTemplate{})}
+	columns = []string{fields.Wildcard(model.ShiftTemplate{})}
 	if len(search.Fields) > 0 {
 		columns = search.Fields
 	}

@@ -3,10 +3,10 @@ package storage
 import (
 	"context"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/fields"
 )
 
 const (
@@ -32,7 +32,7 @@ func NewAgentWorkingConditions(db cluster.Store) *AgentWorkingConditions {
 func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64) (*model.AgentWorkingConditions, error) {
 	var item model.AgentWorkingConditions
 
-	columns := []string{dbsql.Wildcard(model.AgentWorkingConditions{})}
+	columns := []string{fields.Wildcard(model.AgentWorkingConditions{})}
 	sb := builder.Select(columns...).From(agentWorkingConditionsView)
 	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId), sb.Equal("(agent ->> 'id')::bigint", agentId)).Build()
 	if err := a.db.StandbyPreferred().Get(ctx, &item, sql, args...); err != nil {

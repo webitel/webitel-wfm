@@ -9,6 +9,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/fields"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -112,7 +113,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.Sig
 		columns []string
 	)
 
-	columns = []string{dbsql.Wildcard(model.PauseTemplate{})}
+	columns = []string{fields.Wildcard(model.PauseTemplate{})}
 	if len(search.Fields) > 0 {
 		columns = search.Fields
 	}

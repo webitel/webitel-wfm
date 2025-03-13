@@ -7,6 +7,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/fields"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -84,7 +85,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *mod
 		columns []string
 	)
 
-	columns = []string{dbsql.Wildcard(model.WorkingCondition{})}
+	columns = []string{fields.Wildcard(model.WorkingCondition{})}
 	if len(search.Fields) > 0 {
 		columns = search.Fields
 	}

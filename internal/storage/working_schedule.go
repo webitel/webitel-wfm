@@ -8,6 +8,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/fields"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -145,7 +146,7 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, user *model
 		columns []string
 	)
 
-	columns = []string{dbsql.Wildcard(model.WorkingSchedule{})}
+	columns = []string{fields.Wildcard(model.WorkingSchedule{})}
 	if len(search.Fields) > 0 {
 		columns = search.Fields
 	}

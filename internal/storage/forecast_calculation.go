@@ -9,6 +9,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/pkg/fields"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -97,7 +98,7 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, use
 		columns []string
 	)
 
-	columns = []string{dbsql.Wildcard(model.ForecastCalculation{})}
+	columns = []string{fields.Wildcard(model.ForecastCalculation{})}
 	if len(search.Fields) > 0 {
 		columns = search.Fields
 	}

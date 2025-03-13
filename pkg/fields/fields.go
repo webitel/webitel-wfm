@@ -1,4 +1,4 @@
-package dbsql
+package fields
 
 import (
 	"container/list"
