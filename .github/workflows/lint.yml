@@ -28,6 +28,6 @@ jobs:
         run: go generate
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6.2.0
+        uses: golangci/golangci-lint-action@v6.5.1
         with:
           version: v1.64.7
