@@ -32,11 +32,9 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 			}
 
 			vals := werror.Values(err)
-			if vals != nil {
-				for k, v := range vals {
-					if key, ok := k.(string); ok {
-						e.Info[key] = v
-					}
+			for k, v := range vals {
+				if key, ok := k.(string); ok {
+					e.Info[key] = v
 				}
 			}
 
@@ -44,7 +42,7 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 			if err != nil {
 				panic(werror.New("can't marshal json error", werror.WithCause(err)))
 			}
-			
+
 			return h, status.Error(codes.Code(code), string(data))
 		}
 
