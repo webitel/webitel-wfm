@@ -179,6 +179,7 @@ type resources struct {
 	ps         *pubsub.Manager
 }
 
+//nolint:unused
 func (r *resources) registerShutdownAndHealthHooks(tracker *shutdown.Tracker, checker *health.CheckRegistry) error {
 	elem := reflect.ValueOf(r).Elem()
 	elemType := elem.Type()

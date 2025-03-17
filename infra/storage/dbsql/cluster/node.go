@@ -31,7 +31,7 @@ const (
 
 	// maxNodeCriterion is for testing purposes only
 	// all new criteria must be added above this constant.
-	maxNodeCriterion
+	maxNodeCriterion //nolint:unused
 )
 
 // CheckedNodes holds references to all available cluster nodes.

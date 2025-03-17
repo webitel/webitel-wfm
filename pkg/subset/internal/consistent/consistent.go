@@ -53,7 +53,7 @@ type Consistent[M Member] struct {
 	sortedHashes     uints
 	NumberOfReplicas int
 	count            int64
-	scratch          [64]byte
+	scratch          [64]byte //nolint:unused
 	UseFnv           bool
 	sync.RWMutex
 }
