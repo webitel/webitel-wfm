@@ -43,14 +43,14 @@ func Format(s fmt.State, verb rune, err error) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			io.WriteString(s, Details(err))
+			io.WriteString(s, Details(err)) //nolint:errcheck
 
 			return
 		}
 
 		fallthrough
 	case 's':
-		io.WriteString(s, msgWithCauses(err))
+		io.WriteString(s, msgWithCauses(err)) //nolint:errcheck
 	case 'q':
 		fmt.Fprintf(s, "%q", err.Error())
 	}

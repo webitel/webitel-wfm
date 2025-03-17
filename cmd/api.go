@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"net"
 	"reflect"
 	"strconv"
@@ -37,6 +36,7 @@ import (
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/pkg/endpoint"
+	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
@@ -278,7 +278,7 @@ func (a *app) run(ctx context.Context) error {
 	for _, check := range checks {
 		if check.Err != nil {
 			a.log.Error("healthcheck was unsuccessful", wlog.String("check", check.Name), wlog.Err(check.Err))
-			errors.Join(err, check.Err)
+			err = werror.Wrap(err, werror.WithValue(check.Name, check.Err))
 		}
 	}
 
