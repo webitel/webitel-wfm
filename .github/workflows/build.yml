@@ -7,6 +7,14 @@ on:
   pull_request:
 
 jobs:
+  analyze:
+    name: Analyze
+    uses: webitel/webitel-wfm/.github/workflows/codeql-analysis.yml@main
+
+  lint:
+    name: Lint
+    uses: webitel/webitel-wfm/.github/workflows/lint.yml@main
+
   test:
     name: Test
     uses: webitel/webitel-wfm/.github/workflows/test.yml@main

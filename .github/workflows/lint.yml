@@ -4,10 +4,6 @@ on:
   workflow_call:
 
 jobs:
-  analyze:
-    name: Analyze
-    uses: webitel/webitel-wfm/.github/workflows/codeql-analysis.yml@main
-
   lint:
     name: Linting
     runs-on: ubuntu-latest

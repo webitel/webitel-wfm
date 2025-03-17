@@ -4,10 +4,6 @@ on:
   workflow_call:
 
 jobs:
-  lint:
-    name: Lint
-    uses: webitel/webitel-wfm/.github/workflows/lint.yml@main
-
   test:
     name: Run tests
     runs-on: ubuntu-latest
@@ -31,4 +27,8 @@ jobs:
       - name: Generating code
         run: go generate
 
+      - name: Run all tests
+        run: go test -v ./... | tee test.log; exit ${PIPESTATUS[0]}
 
+      - name: Pretty print tests running time
+        run: grep --color=never -e '--- PASS:' -e '--- FAIL:' test.log | sed 's/[:()]//g' | awk '{print $2,$3,$4}' | sort -t' ' -nk3 -r | awk '{sum += $3; print $1,$2,$3,sum"s"}'
