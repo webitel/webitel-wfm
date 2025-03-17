@@ -17,13 +17,13 @@ func TestRandomNodePicker(t *testing.T) {
 	t.Run("pick_node", func(t *testing.T) {
 		nodes := []CheckedNode{
 			{
-				Node: dbsql.New("shimba", db, sc),
+				Node: dbsql.New("db://user:pass@shimba", db, sc),
 			},
 			{
-				Node: dbsql.New("boomba", db, sc),
+				Node: dbsql.New("db://user:pass@boomba", db, sc),
 			},
 			{
-				Node: dbsql.New("looken", db, sc),
+				Node: dbsql.New("db://user:pass@looken", db, sc),
 			},
 		}
 
@@ -33,7 +33,7 @@ func TestRandomNodePicker(t *testing.T) {
 			pickedNodes[np.PickNode(nodes).Node.Addr()] = struct{}{}
 		}
 
-		expectedNodes := map[string]struct{}{"boomba": {}, "looken": {}, "shimba": {}}
+		expectedNodes := map[string]struct{}{"db://user@boomba": {}, "db://user@looken": {}, "db://user@shimba": {}}
 		assert.Equal(t, expectedNodes, pickedNodes)
 	})
 

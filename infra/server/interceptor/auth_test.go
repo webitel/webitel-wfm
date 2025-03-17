@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	authmock "github.com/webitel/webitel-wfm/gen/go/mocks/infra/webitel/auth"
-	"github.com/webitel/webitel-wfm/internal/tests"
+	"github.com/webitel/webitel-wfm/pkg"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -46,7 +46,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 			},
 		},
 		"empty authorization token": {
-			token:   tests.ValueToPTR(""),
+			token:   pkg.ToPTR(""),
 			session: &auth_manager.Session{},
 			expected: expectation{
 				err:   ErrInvalidToken,
@@ -55,7 +55,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 			},
 		},
 		"empty session": {
-			token:   tests.ValueToPTR("super-auth-header"),
+			token:   pkg.ToPTR("super-auth-header"),
 			session: nil,
 			expected: expectation{
 				err:   ErrInvalidSession,
@@ -64,7 +64,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 			},
 		},
 		"session is invalid": {
-			token: tests.ValueToPTR("super-auth-header"),
+			token: pkg.ToPTR("super-auth-header"),
 			session: &auth_manager.Session{
 				DomainId: 0,
 				UserId:   0,
@@ -78,7 +78,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 			},
 		},
 		"authorization token is expired": {
-			token: tests.ValueToPTR("super-auth-header"),
+			token: pkg.ToPTR("super-auth-header"),
 			session: &auth_manager.Session{
 				DomainId: 1,
 				UserId:   3,
@@ -92,7 +92,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 			},
 		},
 		"license required": {
-			token: tests.ValueToPTR("super-auth-header"),
+			token: pkg.ToPTR("super-auth-header"),
 			session: &auth_manager.Session{
 				DomainId: 1,
 				UserId:   3,

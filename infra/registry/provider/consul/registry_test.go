@@ -30,6 +30,10 @@ func tcpServer(lis net.Listener) {
 }
 
 func TestRegistry_Register(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	opts := []Option{
 		WithHealthCheck(false),
 	}
@@ -151,6 +155,10 @@ func TestRegistry_Register(t *testing.T) {
 }
 
 func TestRegistry_GetService(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -288,7 +296,7 @@ func TestRegistry_GetService(t *testing.T) {
 			if (err != nil) != test.wantErr {
 				t.Errorf("GetService() error = %v, wantErr %v", err, test.wantErr)
 				t.Errorf("GetService() got = %v", service)
-				
+
 				return
 			}
 
@@ -300,6 +308,10 @@ func TestRegistry_GetService(t *testing.T) {
 }
 
 func TestRegistry_Watch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)
 	instance1 := &registry.ServiceInstance{
@@ -438,6 +450,10 @@ func TestRegistry_Watch(t *testing.T) {
 }
 
 func TestRegistry_IdleAndWatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)
 	r, err := New(logger(t), "127.0.0.1:8500", []Option{WithHealthCheck(false)}...)
@@ -553,6 +569,10 @@ func TestRegistry_IdleAndWatch(t *testing.T) {
 }
 
 func TestRegistry_IdleAndWatch2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)
 	instance1 := &registry.ServiceInstance{
@@ -664,6 +684,10 @@ func TestRegistry_IdleAndWatch2(t *testing.T) {
 }
 
 func TestRegistry_ExitOldResolverAndReWatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)
 	instance1 := &registry.ServiceInstance{

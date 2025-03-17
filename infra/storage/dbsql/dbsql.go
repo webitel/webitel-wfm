@@ -61,14 +61,20 @@ type SqlNode struct {
 
 // New constructs node from Connection
 func New(addr string, db Database, scanner scanner.Scanner) *SqlNode {
-	a := "unable to parse database address"
 	u, err := url.Parse(addr)
-	if err == nil {
-		a = u.Scheme + "://" + u.User.Username() + "@" + u.Host + u.Path + "?" + u.RawQuery
+	if err != nil {
+		addr = "unable to parse database address" + err.Error()
+	} else {
+		if u.Scheme != "" {
+			addr = u.Scheme + "://" + u.User.Username() + "@" + u.Host + u.Path
+			if u.RawQuery != "" {
+				addr = addr + "?" + u.RawQuery
+			}
+		}
 	}
 
 	return &SqlNode{
-		addr:    a,
+		addr:    addr,
 		db:      db,
 		scanner: scanner,
 	}
