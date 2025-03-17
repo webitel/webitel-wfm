@@ -1,7 +1,10 @@
 name: Code QL
 
 on:
-  workflow_call:
+  push:
+    branches:
+      - main
+  pull_request:
 
 permissions:
   security-events: write
