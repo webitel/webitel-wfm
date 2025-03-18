@@ -21,14 +21,12 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/bufbuild/protovalidate-go v0.8.2
 	github.com/georgysavva/scany/v2 v2.1.3
-	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
 	github.com/hashicorp/consul/api v1.30.0
 	github.com/huandu/go-sqlbuilder v1.33.1
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.7.1
-	github.com/pashagolub/pgxmock/v4 v4.3.0
 	github.com/pressly/goose/v3 v3.24.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/stretchr/testify v1.10.0
@@ -84,6 +82,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-chi/chi/v5 v5.2.1 // indirect
+	github.com/go-jet/jet/v2 v2.13.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect

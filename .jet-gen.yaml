@@ -1,0 +1,26 @@
+path: gen/go/db
+database:
+  name: webitel
+  port: 5432
+  user: opensips
+
+schemas:
+  wfm:
+  call_center:
+    tables:
+      include:
+        - cc_pause_cause
+        - cc_agent
+        - cc_team
+        - cc_skill
+
+  flow:
+    tables:
+      include:
+        - calendar
+
+  directory:
+    tables:
+      include:
+        - wbt_domain
+        - wbt_user
