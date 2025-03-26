@@ -17,10 +17,10 @@ import (
 
 type PauseTemplateManager interface {
 	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
-	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error)
+	ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error)
 	SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, bool, error)
 	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
-	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+	DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error)
 }
 type PauseTemplate struct {
 	storage storage.PauseTemplateManager
@@ -41,8 +41,8 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	return id, nil
 }
 
-func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error) {
-	out, err := p.storage.ReadPauseTemplate(ctx, user, id, fields)
+func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error) {
+	out, err := p.storage.ReadPauseTemplate(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +69,8 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	return nil
 }
 
-func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	out, err := p.storage.DeletePauseTemplate(ctx, user, id)
+func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error) {
+	out, err := p.storage.DeletePauseTemplate(ctx, read)
 	if err != nil {
 		return 0, err
 	}

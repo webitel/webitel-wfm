@@ -50,6 +50,8 @@ func (r *Read) ID() int64 {
 	return r.id
 }
 
-func (r *Read) WithId(id int64) {
+func (r *Read) WithID(id int64) *Read {
 	r.id = id
+
+	return r
 }

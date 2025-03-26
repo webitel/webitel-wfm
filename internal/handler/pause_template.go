@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
@@ -30,13 +29,17 @@ func NewPauseTemplate(sr grpc.ServiceRegistrar, service service.PauseTemplateMan
 }
 
 func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreatePauseTemplateRequest) (*pb.CreatePauseTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	id, err := h.service.CreatePauseTemplate(ctx, s.SignedInUser, unmarshalPauseTemplateProto(req.GetItem()))
+	read, err := options.NewRead(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := h.service.ReadPauseTemplate(ctx, s.SignedInUser, id, nil)
+	id, err := h.service.CreatePauseTemplate(ctx, read.User(), unmarshalPauseTemplateProto(req.GetItem()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.service.ReadPauseTemplate(ctx, read.WithID(id))
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +48,12 @@ func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreateP
 }
 
 func (h *PauseTemplate) ReadPauseTemplate(ctx context.Context, req *pb.ReadPauseTemplateRequest) (*pb.ReadPauseTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := h.service.ReadPauseTemplate(ctx, s.SignedInUser, req.GetId(), req.GetFields())
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()), options.WithFields(req.GetFields()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.service.ReadPauseTemplate(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +83,16 @@ func (h *PauseTemplate) SearchPauseTemplate(ctx context.Context, req *pb.SearchP
 }
 
 func (h *PauseTemplate) UpdatePauseTemplate(ctx context.Context, req *pb.UpdatePauseTemplateRequest) (*pb.UpdatePauseTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	if err := h.service.UpdatePauseTemplate(ctx, s.SignedInUser, unmarshalPauseTemplateProto(req.GetItem())); err != nil {
+	read, err := options.NewRead(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	out, err := h.service.ReadPauseTemplate(ctx, s.SignedInUser, req.Item.Id, nil)
+	if err := h.service.UpdatePauseTemplate(ctx, read.User(), unmarshalPauseTemplateProto(req.GetItem())); err != nil {
+		return nil, err
+	}
+
+	out, err := h.service.ReadPauseTemplate(ctx, read.WithID(req.Item.Id))
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +101,12 @@ func (h *PauseTemplate) UpdatePauseTemplate(ctx context.Context, req *pb.UpdateP
 }
 
 func (h *PauseTemplate) DeletePauseTemplate(ctx context.Context, req *pb.DeletePauseTemplateRequest) (*pb.DeletePauseTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	id, err := h.service.DeletePauseTemplate(ctx, s.SignedInUser, req.Id)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := h.service.DeletePauseTemplate(ctx, read)
 	if err != nil {
 		return nil, err
 	}

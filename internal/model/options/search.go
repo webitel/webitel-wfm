@@ -124,3 +124,10 @@ func (s *Search) WithPagination(size int32, page int32) {
 	s.size = int(size)
 	s.page = int(page)
 }
+
+func (s *Search) PopulateFromRead(r *Read) *Search {
+	s.fields = r.fields
+	s.derived = r.derived
+
+	return s
+}

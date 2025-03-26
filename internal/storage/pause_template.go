@@ -25,10 +25,10 @@ const (
 
 type PauseTemplateManager interface {
 	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
-	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error)
+	ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error)
 	SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, error)
 	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
-	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+	DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error)
 }
 type PauseTemplate struct {
 	db cluster.Store
@@ -91,13 +91,13 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	return id, nil
 }
 
-func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error) {
-	search, err := options.NewSearch(ctx, options.WithID(id), options.WithFields(fields))
+func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error) {
+	search, err := options.NewSearch(ctx, options.WithID(read.ID()))
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := p.SearchPauseTemplate(ctx, search)
+	items, err := p.SearchPauseTemplate(ctx, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}
@@ -328,11 +328,11 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	return nil
 }
 
-func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
+func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error) {
 	db := b.Delete(b.PauseTemplateTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", user.DomainId),
-		db.Equal("id", id),
+		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("id", read.ID()),
 	}
 
 	sql, args := db.Where(clauses...).Build()
@@ -340,5 +340,5 @@ func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, user *model.Sig
 		return 0, err
 	}
 
-	return id, nil
+	return read.ID(), nil
 }
