@@ -6,8 +6,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
 
@@ -28,13 +28,12 @@ func NewShiftTemplate(sr grpc.ServiceRegistrar, service service.ShiftTemplateMan
 }
 
 func (h *ShiftTemplate) CreateShiftTemplate(ctx context.Context, req *pb.CreateShiftTemplateRequest) (*pb.CreateShiftTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	id, err := h.service.CreateShiftTemplate(ctx, s.SignedInUser, unmarshalShiftTemplateProto(req.GetItem()))
+	read, err := options.NewRead(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := h.service.ReadShiftTemplate(ctx, s.SignedInUser, id, nil)
+	out, err := h.service.CreateShiftTemplate(ctx, read, unmarshalShiftTemplateProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +42,12 @@ func (h *ShiftTemplate) CreateShiftTemplate(ctx context.Context, req *pb.CreateS
 }
 
 func (h *ShiftTemplate) ReadShiftTemplate(ctx context.Context, req *pb.ReadShiftTemplateRequest) (*pb.ReadShiftTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := h.service.ReadShiftTemplate(ctx, s.SignedInUser, req.Id, req.Fields)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()), options.WithFields(req.GetFields()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.service.ReadShiftTemplate(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -53,16 +56,19 @@ func (h *ShiftTemplate) ReadShiftTemplate(ctx context.Context, req *pb.ReadShift
 }
 
 func (h *ShiftTemplate) SearchShiftTemplate(ctx context.Context, req *pb.SearchShiftTemplateRequest) (*pb.SearchShiftTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.SearchItem{
-		Page:   req.GetPage(),
-		Size:   req.GetSize(),
-		Search: req.Q,
-		Sort:   req.Sort,
-		Fields: req.Fields,
+	opts := []options.Option{
+		options.WithPagination(req.GetPage(), req.GetSize()),
+		options.WithSearch(req.GetQ()),
+		options.WithFields(req.GetFields()),
+		options.WithOrder(req.GetSort()),
 	}
 
-	items, next, err := h.service.SearchShiftTemplate(ctx, s.SignedInUser, search)
+	search, err := options.NewSearch(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	items, next, err := h.service.SearchShiftTemplate(ctx, search)
 	if err != nil {
 		return nil, err
 	}
@@ -71,12 +77,12 @@ func (h *ShiftTemplate) SearchShiftTemplate(ctx context.Context, req *pb.SearchS
 }
 
 func (h *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, req *pb.UpdateShiftTemplateRequest) (*pb.UpdateShiftTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	if err := h.service.UpdateShiftTemplate(ctx, s.SignedInUser, unmarshalShiftTemplateProto(req.GetItem())); err != nil {
+	read, err := options.NewRead(ctx, options.WithID(req.Item.Id))
+	if err != nil {
 		return nil, err
 	}
 
-	out, err := h.service.ReadShiftTemplate(ctx, s.SignedInUser, req.Item.Id, nil)
+	out, err := h.service.UpdateShiftTemplate(ctx, read, unmarshalShiftTemplateProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +91,12 @@ func (h *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, req *pb.UpdateS
 }
 
 func (h *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, req *pb.DeleteShiftTemplateRequest) (*pb.DeleteShiftTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	id, err := h.service.DeleteShiftTemplate(ctx, s.SignedInUser, req.Id)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := h.service.DeleteShiftTemplate(ctx, read)
 	if err != nil {
 		return nil, err
 	}

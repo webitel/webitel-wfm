@@ -11,6 +11,7 @@ var (
 var (
 	PauseTemplateTable      = Table{name: "wfm.pause_template", alias: "pt"}
 	PauseTemplateCauseTable = Table{name: "wfm.pause_template_cause", alias: "ptc"}
+	ShiftTemplateTable      = Table{name: "wfm.shift_template", alias: "st"}
 )
 
 type Table struct {
