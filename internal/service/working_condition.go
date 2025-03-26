@@ -4,15 +4,16 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
 type WorkingConditionManager interface {
-	CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error)
-	ReadWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingCondition, error)
-	SearchWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingCondition, bool, error)
-	UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error
-	DeleteWorkingCondition(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+	CreateWorkingCondition(ctx context.Context, read *options.Read, in *model.WorkingCondition) (*model.WorkingCondition, error)
+	ReadWorkingCondition(ctx context.Context, read *options.Read) (*model.WorkingCondition, error)
+	SearchWorkingCondition(ctx context.Context, search *options.Search) ([]*model.WorkingCondition, bool, error)
+	UpdateWorkingCondition(ctx context.Context, read *options.Read, in *model.WorkingCondition) (*model.WorkingCondition, error)
+	DeleteWorkingCondition(ctx context.Context, read *options.Read) (int64, error)
 }
 type WorkingCondition struct {
 	storage storage.WorkingConditionManager
@@ -24,17 +25,17 @@ func NewWorkingCondition(storage storage.WorkingConditionManager) *WorkingCondit
 	}
 }
 
-func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error) {
-	id, err := w.storage.CreateWorkingCondition(ctx, user, in)
+func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, read *options.Read, in *model.WorkingCondition) (*model.WorkingCondition, error) {
+	id, err := w.storage.CreateWorkingCondition(ctx, read.User(), in)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return id, nil
+	return w.ReadWorkingCondition(ctx, read.WithID(id))
 }
 
-func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.WorkingCondition, error) {
-	item, err := w.storage.ReadWorkingCondition(ctx, user, search)
+func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, read *options.Read) (*model.WorkingCondition, error) {
+	item, err := w.storage.ReadWorkingCondition(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -42,27 +43,27 @@ func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, user *model
 	return item, nil
 }
 
-func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.WorkingCondition, bool, error) {
-	out, err := w.storage.SearchWorkingCondition(ctx, user, search)
+func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *options.Search) ([]*model.WorkingCondition, bool, error) {
+	out, err := w.storage.SearchWorkingCondition(ctx, search)
 	if err != nil {
 		return nil, false, err
 	}
 
-	next, out := model.ListResult(search.Limit(), out)
+	next, out := model.ListResult(int32(search.Size()), out)
 
 	return out, next, nil
 }
 
-func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error {
-	if err := w.storage.UpdateWorkingCondition(ctx, user, in); err != nil {
-		return err
+func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, read *options.Read, in *model.WorkingCondition) (*model.WorkingCondition, error) {
+	if err := w.storage.UpdateWorkingCondition(ctx, read.User(), in); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return w.ReadWorkingCondition(ctx, read)
 }
 
-func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	out, err := w.storage.DeleteWorkingCondition(ctx, user, id)
+func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, read *options.Read) (int64, error) {
+	out, err := w.storage.DeleteWorkingCondition(ctx, read)
 	if err != nil {
 		return 0, err
 	}

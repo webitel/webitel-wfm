@@ -56,7 +56,7 @@ func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Rea
 		return nil, err
 	}
 
-	items, err := s.SearchShiftTemplate(ctx, search)
+	items, err := s.SearchShiftTemplate(ctx, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}

@@ -6,8 +6,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
 
@@ -28,13 +28,12 @@ func NewWorkingCondition(sr grpc.ServiceRegistrar, service service.WorkingCondit
 }
 
 func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, req *pb.CreateWorkingConditionRequest) (*pb.CreateWorkingConditionResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	id, err := w.service.CreateWorkingCondition(ctx, s.SignedInUser, unmarshalWorkingConditionProto(req.GetItem()))
+	read, err := options.NewRead(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := w.service.ReadWorkingCondition(ctx, s.SignedInUser, &model.SearchItem{Id: id})
+	out, err := w.service.CreateWorkingCondition(ctx, read, unmarshalWorkingConditionProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -43,13 +42,12 @@ func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, req *pb.C
 }
 
 func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, req *pb.ReadWorkingConditionRequest) (*pb.ReadWorkingConditionResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.SearchItem{
-		Id:     req.Id,
-		Fields: req.Fields,
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()), options.WithFields(req.GetFields()))
+	if err != nil {
+		return nil, err
 	}
 
-	out, err := w.service.ReadWorkingCondition(ctx, s.SignedInUser, search)
+	out, err := w.service.ReadWorkingCondition(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -58,16 +56,19 @@ func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, req *pb.Rea
 }
 
 func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, req *pb.SearchWorkingConditionRequest) (*pb.SearchWorkingConditionResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.SearchItem{
-		Page:   req.GetPage(),
-		Size:   req.GetSize(),
-		Search: req.Q,
-		Sort:   req.Sort,
-		Fields: req.Fields,
+	opts := []options.Option{
+		options.WithPagination(req.GetPage(), req.GetSize()),
+		options.WithSearch(req.GetQ()),
+		options.WithFields(req.GetFields()),
+		options.WithOrder(req.GetSort()),
 	}
 
-	items, next, err := w.service.SearchWorkingCondition(ctx, s.SignedInUser, search)
+	search, err := options.NewSearch(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	items, next, err := w.service.SearchWorkingCondition(ctx, search)
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +77,12 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, req *pb.S
 }
 
 func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, req *pb.UpdateWorkingConditionRequest) (*pb.UpdateWorkingConditionResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	if err := w.service.UpdateWorkingCondition(ctx, s.SignedInUser, unmarshalWorkingConditionProto(req.GetItem())); err != nil {
+	read, err := options.NewRead(ctx, options.WithID(req.Item.Id))
+	if err != nil {
 		return nil, err
 	}
 
-	out, err := w.service.ReadWorkingCondition(ctx, s.SignedInUser, &model.SearchItem{Id: req.Item.Id})
+	out, err := w.service.UpdateWorkingCondition(ctx, read, unmarshalWorkingConditionProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +91,12 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, req *pb.U
 }
 
 func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, req *pb.DeleteWorkingConditionRequest) (*pb.DeleteWorkingConditionResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	id, err := w.service.DeleteWorkingCondition(ctx, s.SignedInUser, req.Id)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := w.service.DeleteWorkingCondition(ctx, read)
 	if err != nil {
 		return nil, err
 	}
