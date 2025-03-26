@@ -40,10 +40,7 @@ go.work
 # wire generated files
 **/wire_gen.go
 
-gen/go/api
-gen/go/mocks
-gen/openapiv2
-gen/openapiv3
+gen/
 
 scripts
 dist

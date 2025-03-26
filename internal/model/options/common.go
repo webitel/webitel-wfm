@@ -1,19 +1,17 @@
 package options
 
-import "slices"
+import (
+	"slices"
 
-type OrderDirection int
-
-const (
-	OrderDirectionASC OrderDirection = iota
-	OrderDirectionDESC
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 )
 
 type (
-	orderBy       map[string]OrderDirection
+	orderBy       map[string]builder.OrderDirection
 	OrderByOption interface {
 		OrderBy() orderBy
-		WithOrderBy(field string, order OrderDirection)
+		OrderByField(name string) (string, builder.OrderDirection, bool)
+		WithOrderBy(field string, order builder.OrderDirection)
 	}
 )
 
@@ -23,9 +21,17 @@ func (o *orderBy) OrderBy() orderBy {
 	return *o
 }
 
-func (o *orderBy) WithOrderBy(field string, order OrderDirection) {
+func (o *orderBy) OrderByField(name string) (string, builder.OrderDirection, bool) {
+	if v, ok := (*o)[name]; ok {
+		return name, v, ok
+	}
+
+	return "", 0, false
+}
+
+func (o *orderBy) WithOrderBy(field string, order builder.OrderDirection) {
 	if o == nil || *o == nil {
-		*o = make(map[string]OrderDirection) // Initialize the map if it's nil
+		*o = make(map[string]builder.OrderDirection) // Initialize the map if it's nil
 	}
 
 	(*o)[field] = order
@@ -68,7 +74,7 @@ var _ DerivedOptions = (*derived)(nil)
 
 func (d *derived) Derived() derived {
 	if d == nil || *d == nil {
-		return nil // Prevent nil map access
+		return make(derived) // Prevent nil map access
 	}
 
 	return *d
@@ -76,10 +82,14 @@ func (d *derived) Derived() derived {
 
 func (d *derived) DerivedByName(name string) *Derived {
 	if d == nil || *d == nil {
-		return nil // Prevent nil map access
+		return &Derived{} // Prevent nil map access
 	}
 
-	return (*d)[name]
+	if v, ok := (*d)[name]; ok {
+		return v
+	}
+
+	return &Derived{}
 }
 
 func (d *derived) WithDerived(name string, derived *Derived) {

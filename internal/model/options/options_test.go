@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 )
 
 func TestWithID(t *testing.T) {
@@ -272,7 +274,7 @@ func TestWithOrder(t *testing.T) {
 			orderBy: []string{"+name"},
 			expected: expected{
 				orderBy: orderBy{
-					"name": OrderDirectionASC,
+					"name": builder.OrderDirectionASC,
 				},
 			},
 		},
@@ -280,9 +282,9 @@ func TestWithOrder(t *testing.T) {
 			orderBy: []string{"-name", "+created_by", "created_at"},
 			expected: expected{
 				orderBy: orderBy{
-					"name":       OrderDirectionDESC,
-					"created_by": OrderDirectionASC,
-					"created_at": OrderDirectionASC,
+					"name":       builder.OrderDirectionDESC,
+					"created_by": builder.OrderDirectionASC,
+					"created_at": builder.OrderDirectionASC,
 				},
 			},
 		},
@@ -290,12 +292,12 @@ func TestWithOrder(t *testing.T) {
 			orderBy: []string{"id", "name.id"},
 			expected: expected{
 				orderBy: orderBy{
-					"id": OrderDirectionASC,
+					"id": builder.OrderDirectionASC,
 				},
 				derived: map[string]*Derived{
 					"name": {
 						orderBy: orderBy{
-							"id": OrderDirectionASC,
+							"id": builder.OrderDirectionASC,
 						},
 					},
 				},
@@ -305,20 +307,20 @@ func TestWithOrder(t *testing.T) {
 			orderBy: []string{"-id", "name.id", "+name.common", "-created_by.manager.id"},
 			expected: expected{
 				orderBy: orderBy{
-					"id": OrderDirectionDESC,
+					"id": builder.OrderDirectionDESC,
 				},
 				derived: map[string]*Derived{
 					"name": {
 						orderBy: orderBy{
-							"id":     OrderDirectionASC,
-							"common": OrderDirectionASC,
+							"id":     builder.OrderDirectionASC,
+							"common": builder.OrderDirectionASC,
 						},
 					},
 					"created_by": {
 						derived: map[string]*Derived{
 							"manager": {
 								orderBy: orderBy{
-									"id": OrderDirectionDESC,
+									"id": builder.OrderDirectionDESC,
 								},
 							},
 						},

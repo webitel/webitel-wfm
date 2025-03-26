@@ -26,8 +26,8 @@ type Search struct {
 
 	ids   []int64
 	query string
-	page  int64
-	size  int64
+	page  int
+	size  int
 
 	// TODO: parse CEL expressions
 	filter map[string]any
@@ -40,9 +40,9 @@ func NewSearch(ctx context.Context, options ...Option) (*Search, error) {
 	}
 
 	search := &Search{
-		fields:  make([]string, 0),
-		orderBy: make(map[string]OrderDirection),
-		derived: make(map[string]*Derived),
+		fields:  make(fields, 0),
+		orderBy: make(orderBy),
+		derived: make(derived),
 		user:    s.SignedInUser,
 		ids:     make([]int64, 0),
 	}
@@ -64,7 +64,11 @@ func (s *Search) IDs() []int64 {
 	return s.ids
 }
 
-func (s *Search) Size() int64 {
+func (s *Search) Query() string {
+	return s.query
+}
+
+func (s *Search) Size() int {
 	if s == nil {
 		return DefaultSearchSize
 	}
@@ -82,7 +86,7 @@ func (s *Search) Size() int64 {
 	return s.size
 }
 
-func (s *Search) Page() int64 {
+func (s *Search) Page() int {
 	if s != nil {
 		if s.Size() > 0 {
 			if s.page > 0 {
@@ -94,6 +98,10 @@ func (s *Search) Page() int64 {
 	}
 
 	return 0
+}
+
+func (s *Search) Offset() int {
+	return s.Size() * (s.Page() - 1)
 }
 
 func (s *Search) WithId(id int64) {
@@ -113,6 +121,6 @@ func (s *Search) WithSearch(term string) {
 }
 
 func (s *Search) WithPagination(size int32, page int32) {
-	s.size = int64(size)
-	s.page = int64(page)
+	s.size = int(size)
+	s.page = int(page)
 }

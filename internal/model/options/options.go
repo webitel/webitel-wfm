@@ -3,6 +3,7 @@ package options
 import (
 	"strings"
 
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
@@ -137,7 +138,7 @@ func processField(options any, fieldParts []string) error {
 }
 
 // processOrderByField is a recursive function that processes each part of the field
-func processOrderByField(options any, fieldParts []string, direction OrderDirection) error {
+func processOrderByField(options any, fieldParts []string, direction builder.OrderDirection) error {
 	v, ok := options.(OrderByOption)
 	if !ok {
 		return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "order_by"))
@@ -175,14 +176,14 @@ func processOrderByField(options any, fieldParts []string, direction OrderDirect
 	return nil
 }
 
-func order(s string) (field string, sort OrderDirection) {
+func order(s string) (field string, sort builder.OrderDirection) {
 	if s[0] == '+' || s[0] == 32 {
-		return s[1:], OrderDirectionASC
+		return s[1:], builder.OrderDirectionASC
 	}
 
 	if s[0] == '-' {
-		return s[1:], OrderDirectionDESC
+		return s[1:], builder.OrderDirectionDESC
 	}
 
-	return s, OrderDirectionASC
+	return s, builder.OrderDirectionASC
 }

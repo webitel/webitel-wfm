@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
@@ -17,7 +18,7 @@ import (
 type PauseTemplateManager interface {
 	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
 	ReadPauseTemplate(ctx context.Context, user *model.SignedInUser, id int64, fields []string) (*model.PauseTemplate, error)
-	SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, bool, error)
+	SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, bool, error)
 	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
 	DeletePauseTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 }
@@ -49,13 +50,13 @@ func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, user *model.Signe
 	return out, nil
 }
 
-func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.PauseTemplate, bool, error) {
-	out, err := p.storage.SearchPauseTemplate(ctx, user, search)
+func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, bool, error) {
+	out, err := p.storage.SearchPauseTemplate(ctx, search)
 	if err != nil {
 		return nil, false, err
 	}
 
-	next, out := model.ListResult(search.Limit(), out)
+	next, out := model.ListResult(int32(search.Size()), out)
 
 	return out, next, nil
 }

@@ -9,6 +9,7 @@ import (
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
 
@@ -54,16 +55,19 @@ func (h *PauseTemplate) ReadPauseTemplate(ctx context.Context, req *pb.ReadPause
 }
 
 func (h *PauseTemplate) SearchPauseTemplate(ctx context.Context, req *pb.SearchPauseTemplateRequest) (*pb.SearchPauseTemplateResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.SearchItem{
-		Page:   req.GetPage(),
-		Size:   req.GetSize(),
-		Search: req.Q,
-		Sort:   req.Sort,
-		Fields: req.Fields,
+	opts := []options.Option{
+		options.WithPagination(req.GetPage(), req.GetSize()),
+		options.WithSearch(req.GetQ()),
+		options.WithFields(req.GetFields()),
+		options.WithOrder(req.GetSort()),
 	}
 
-	items, next, err := h.service.SearchPauseTemplate(ctx, s.SignedInUser, search)
+	search, err := options.NewSearch(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	items, next, err := h.service.SearchPauseTemplate(ctx, search)
 	if err != nil {
 		return nil, err
 	}
