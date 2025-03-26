@@ -16,10 +16,10 @@ import (
 // }
 
 type PauseTemplateManager interface {
-	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
+	CreatePauseTemplate(ctx context.Context, read *options.Read, in *model.PauseTemplate) (*model.PauseTemplate, error)
 	ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error)
 	SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, bool, error)
-	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
+	UpdatePauseTemplate(ctx context.Context, read *options.Read, in *model.PauseTemplate) (*model.PauseTemplate, error)
 	DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error)
 }
 type PauseTemplate struct {
@@ -32,13 +32,13 @@ func NewPauseTemplate(storage storage.PauseTemplateManager) *PauseTemplate {
 	}
 }
 
-func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error) {
-	id, err := p.storage.CreatePauseTemplate(ctx, user, in)
+func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, read *options.Read, in *model.PauseTemplate) (*model.PauseTemplate, error) {
+	id, err := p.storage.CreatePauseTemplate(ctx, read.User(), in)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return id, nil
+	return p.ReadPauseTemplate(ctx, read.WithID(id))
 }
 
 func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error) {
@@ -61,12 +61,12 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 	return out, next, nil
 }
 
-func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error {
-	if err := p.storage.UpdatePauseTemplate(ctx, user, in); err != nil {
-		return err
+func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, read *options.Read, in *model.PauseTemplate) (*model.PauseTemplate, error) {
+	if err := p.storage.UpdatePauseTemplate(ctx, read.User(), in); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return p.ReadPauseTemplate(ctx, read)
 }
 
 func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error) {

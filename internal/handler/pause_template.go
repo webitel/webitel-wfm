@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 
 	"google.golang.org/grpc"
 
@@ -34,12 +33,7 @@ func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreateP
 		return nil, err
 	}
 
-	id, err := h.service.CreatePauseTemplate(ctx, read.User(), unmarshalPauseTemplateProto(req.GetItem()))
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := h.service.ReadPauseTemplate(ctx, read.WithID(id))
+	out, err := h.service.CreatePauseTemplate(ctx, read, unmarshalPauseTemplateProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -83,16 +77,12 @@ func (h *PauseTemplate) SearchPauseTemplate(ctx context.Context, req *pb.SearchP
 }
 
 func (h *PauseTemplate) UpdatePauseTemplate(ctx context.Context, req *pb.UpdatePauseTemplateRequest) (*pb.UpdatePauseTemplateResponse, error) {
-	read, err := options.NewRead(ctx)
+	read, err := options.NewRead(ctx, options.WithID(req.Item.Id))
 	if err != nil {
 		return nil, err
 	}
 
-	if err := h.service.UpdatePauseTemplate(ctx, read.User(), unmarshalPauseTemplateProto(req.GetItem())); err != nil {
-		return nil, err
-	}
-
-	out, err := h.service.ReadPauseTemplate(ctx, read.WithID(req.Item.Id))
+	out, err := h.service.UpdatePauseTemplate(ctx, read, unmarshalPauseTemplateProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +135,6 @@ func unmarshalPauseTemplateCauseProto(cause *pb.PauseTemplateCause) model.PauseT
 	if cause.Cause != nil {
 		out.Cause = &model.LookupItem{Id: cause.Cause.Id}
 	}
-
-	fmt.Println(out, cause)
 
 	return out
 }
