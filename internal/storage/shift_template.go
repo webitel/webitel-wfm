@@ -187,11 +187,11 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.Sig
 	return nil
 }
 
-func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
+func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, read *options.Read) (int64, error) {
 	db := b.Delete(b.ShiftTemplateTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", user.DomainId),
-		db.Equal("id", id),
+		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("id", read.ID()),
 	}
 
 	sql, args := db.Where(clauses...).Build()
@@ -199,5 +199,5 @@ func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, user *model.Sig
 		return 0, err
 	}
 
-	return id, nil
+	return read.ID(), nil
 }
