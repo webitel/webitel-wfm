@@ -2,7 +2,9 @@ package options
 
 import (
 	"context"
+	"database/sql/driver"
 	"slices"
+	"strings"
 
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -17,6 +19,29 @@ var (
 	_ DerivedOptions = (*Search)(nil)
 )
 
+type Substring string
+
+func (s Substring) Value() (driver.Value, error) {
+	if len(s) == 0 {
+		return "", nil
+	}
+
+	// TODO: escape(%)
+	v := string(s)
+	const escape = "\\" // https://postgrespro.ru/docs/postgresql/12/functions-matching#FUNCTIONS-LIKE
+
+	// escape control '_' (single char entry)
+	v = strings.ReplaceAll(v, "_", escape+"_")
+
+	// propagate '?' char for PostgreSQL purpose
+	v = strings.ReplaceAll(v, "?", "_")
+
+	// escape control '%' (any char(s) or none)
+	v = strings.ReplaceAll(v, "%", escape+"%")
+
+	return v, nil
+}
+
 type Search struct {
 	fields
 	orderBy
@@ -25,7 +50,7 @@ type Search struct {
 	user *model.SignedInUser
 
 	ids   []int64
-	query string
+	query Substring
 	page  int
 	size  int
 
@@ -64,7 +89,7 @@ func (s *Search) IDs() []int64 {
 	return s.ids
 }
 
-func (s *Search) Query() string {
+func (s *Search) Query() Substring {
 	return s.query
 }
 
@@ -117,7 +142,7 @@ func (s *Search) WithIds(ids []int64) {
 }
 
 func (s *Search) WithSearch(term string) {
-	s.query = term
+	s.query = Substring(term)
 }
 
 func (s *Search) WithPagination(size int32, page int32) {
