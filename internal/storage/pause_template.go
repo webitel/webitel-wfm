@@ -114,22 +114,25 @@ func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Rea
 }
 
 func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, error) {
+	const (
+		linkCreatedBy = 1 << iota
+		linkUpdatedBy
+	)
+
 	var (
 		pauseTemplate = b.PauseTemplateTable
 		createdBy     = b.UserTable.WithAlias("crt")
 		updatedBy     = b.UserTable.WithAlias("upd")
-	)
+		base          = b.Select().From(pauseTemplate.String())
 
-	joins := b.NewJoinRegistry()
-	base := b.Select().From(pauseTemplate.String())
-	for _, field := range search.Fields() {
-		switch field {
-		case "id", "domain_id", "created_at", "updated_at", "name", "description":
-			base.SelectMore(pauseTemplate.Ident(field))
+		join          = 0
+		joinCreatedBy = func() {
+			if join&linkCreatedBy != 0 {
+				return
+			}
 
-		case "created_by":
-			joins.Register(createdBy)
-			base.SelectMore(b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)).JoinWithOption(
+			join |= linkCreatedBy
+			base.JoinWithOption(
 				b.LeftJoin(createdBy,
 					b.JoinExpression{
 						Left:  pauseTemplate.Ident("created_by"),
@@ -138,10 +141,15 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 					},
 				),
 			)
+		}
 
-		case "updated_by":
-			joins.Register(updatedBy)
-			base.SelectMore(b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)).JoinWithOption(
+		joinUpdatedBy = func() {
+			if join&linkUpdatedBy != 0 {
+				return
+			}
+
+			join |= linkUpdatedBy
+			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
 					b.JoinExpression{
 						Left:  pauseTemplate.Ident("updated_by"),
@@ -150,60 +158,81 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 					},
 				),
 			)
+		}
+	)
+
+	for _, field := range search.Fields() {
+		switch field {
+		case "id", "domain_id", "created_at", "updated_at", "name", "description":
+			field = pauseTemplate.Ident(field)
+
+		case "created_by":
+			joinCreatedBy()
+			field = b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)
+
+		case "updated_by":
+			joinUpdatedBy()
+			field = b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)
 
 		case "causes":
-			causesDerived := search.DerivedByName(field)
-			causesDerivedFields := causesDerived.Fields()
-			if len(causesDerivedFields) == 0 {
-				for _, v := range []string{"id", "duration", "cause"} {
-					causesDerivedFields.WithField(v)
-				}
-
-				causesDerived.WithDerived("cause", causesDerived.DerivedByName("cause"))
-			}
-
-			var pauseTemplateCause = b.PauseTemplateCauseTable
-			causes := b.Select().From(pauseTemplateCause.String())
-			causes.Where(fmt.Sprintf("%s = %s", pauseTemplate.Ident("id"), pauseTemplateCause.Ident("pause_template_id")))
-
-			for _, causesDerivedField := range causesDerivedFields {
-				switch causesDerivedField {
-				case "id", "duration":
-					causes.SelectMore(pauseTemplateCause.Ident(causesDerivedField))
-					if _, d, ok := causesDerived.OrderByField(causesDerivedField); ok {
-						causes.OrderBy(b.OrderBy(pauseTemplateCause.Ident(causesDerivedField), d))
+			{
+				causesDerived := search.DerivedByName(field)
+				causesDerivedFields := causesDerived.Fields()
+				if len(causesDerivedFields) == 0 {
+					for _, v := range []string{"id", "duration", "cause"} {
+						causesDerivedFields.WithField(v)
 					}
 
-				case "cause":
-					var pauseCause = b.PauseCauseTable
-					causeDerived := causesDerived.DerivedByName(causesDerivedField)
-					causeDerivedFields := causeDerived.Fields()
-					if len(causeDerivedFields) == 0 {
-						for _, v := range []string{"id", "name"} {
-							causeDerivedFields.WithField(v)
+					causesDerived.WithDerived("cause", causesDerived.DerivedByName("cause"))
+				}
+
+				var (
+					pauseTemplateCause = b.PauseTemplateCauseTable
+					causes             = b.Select().From(pauseTemplateCause.String())
+				)
+
+				causes.Where(fmt.Sprintf("%s = %s", pauseTemplate.Ident("id"), pauseTemplateCause.Ident("pause_template_id")))
+				for _, causesDerivedField := range causesDerivedFields {
+					switch causesDerivedField {
+					case "id", "duration":
+						causes.SelectMore(pauseTemplateCause.Ident(causesDerivedField))
+						if _, d, ok := causesDerived.OrderByField(causesDerivedField); ok {
+							causes.OrderBy(b.OrderBy(pauseTemplateCause.Ident(causesDerivedField), d))
+						}
+
+					case "cause":
+						var pauseCause = b.PauseCauseTable
+						causeDerived := causesDerived.DerivedByName(causesDerivedField)
+						causeDerivedFields := causeDerived.Fields()
+						if len(causeDerivedFields) == 0 {
+							for _, v := range []string{"id", "name"} {
+								causeDerivedFields.WithField(v)
+							}
+						}
+
+						causes.SelectMore(b.Alias(b.JSONBuildObject(pauseCause, causeDerivedFields...), causesDerivedField)).JoinWithOption(
+							b.LeftJoin(pauseCause,
+								b.JoinExpression{
+									Left:  pauseCause.Ident("id"),
+									Op:    "=",
+									Right: pauseTemplateCause.Ident("pause_cause_id"),
+								},
+							),
+						)
+
+						if _, d, ok := causesDerived.OrderByField(causesDerivedField); ok {
+							causes.OrderBy(b.OrderBy(pauseCause.Ident("name"), d))
 						}
 					}
-
-					causes.SelectMore(b.Alias(b.JSONBuildObject(pauseCause, causeDerivedFields...), causesDerivedField)).JoinWithOption(
-						b.LeftJoin(pauseCause,
-							b.JoinExpression{
-								Left:  pauseCause.Ident("id"),
-								Op:    "=",
-								Right: pauseTemplateCause.Ident("pause_cause_id"),
-							},
-						),
-					)
-
-					if _, d, ok := causesDerived.OrderByField(causesDerivedField); ok {
-						causes.OrderBy(b.OrderBy(pauseCause.Ident("name"), d))
-					}
 				}
-			}
 
-			causesJSON := b.Select("json_agg(row_to_json(causes))")
-			causesJSON.From(causesJSON.BuilderAs(causes, "causes"))
-			base.SelectMore(base.BuilderAs(causesJSON, "causes"))
+				causesJSON := b.Select("json_agg(row_to_json(causes))")
+				causesJSON.From(causesJSON.BuilderAs(causes, "causes"))
+				field = base.BuilderAs(causesJSON, "causes")
+			}
 		}
+
+		base.SelectMore(field)
 	}
 
 	base.Where(base.EQ(pauseTemplate.Ident("domain_id"), search.User().DomainId))
@@ -218,35 +247,15 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 	for field, direction := range search.OrderBy() {
 		switch field {
 		case "id", "name", "description", "created_at", "updated_at":
-			base.OrderBy(b.OrderBy(pauseTemplate.Ident(field), direction))
+			field = b.OrderBy(pauseTemplate.Ident(field), direction)
 
 		case "created_by":
-			if !joins.Has(createdBy) {
-				joins.Register(createdBy)
-				base.JoinWithOption(b.LeftJoin(createdBy,
-					b.JoinExpression{
-						Left:  pauseTemplate.Ident("created_by"),
-						Op:    "=",
-						Right: createdBy.Ident("id"),
-					},
-				))
-			}
-
-			base.OrderBy(b.OrderBy(createdBy.Ident("name"), direction))
+			joinCreatedBy()
+			field = b.OrderBy(createdBy.Ident("name"), direction)
 
 		case "updated_by":
-			if !joins.Has(updatedBy) {
-				joins.Register(updatedBy)
-				base.JoinWithOption(b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  pauseTemplate.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
-				))
-			}
-
-			base.OrderBy(b.OrderBy(updatedBy.Ident("name"), direction))
+			joinUpdatedBy()
+			field = b.OrderBy(updatedBy.Ident("name"), direction)
 		}
 	}
 
