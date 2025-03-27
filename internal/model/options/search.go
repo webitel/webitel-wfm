@@ -21,13 +21,38 @@ var (
 
 type Substring string
 
+func (s Substring) SubstringMask(term string, any, one rune) Substring {
+	if any == 0 {
+		any = '*'
+	}
+
+	if one == 0 {
+		one = '?'
+	}
+
+	sv := strings.Split(term, string(any))
+
+	// omit any empty sequences: [1:len()-2]
+	for i := len(sv) - 2; i > 0; i-- {
+		if len(sv[i]) == 0 {
+			sv = append(sv[:i], sv[i+1:]...)
+		}
+	}
+
+	return Substring(strings.Join(sv, ""))
+}
+
+func (s Substring) Substring() Substring {
+	return s.SubstringMask(string(s), '*', '?')
+}
+
 func (s Substring) Value() (driver.Value, error) {
 	if len(s) == 0 {
 		return "", nil
 	}
 
 	// TODO: escape(%)
-	v := string(s)
+	v := string(s.Substring())
 	const escape = "\\" // https://postgrespro.ru/docs/postgresql/12/functions-matching#FUNCTIONS-LIKE
 
 	// escape control '_' (single char entry)
@@ -39,7 +64,7 @@ func (s Substring) Value() (driver.Value, error) {
 	// escape control '%' (any char(s) or none)
 	v = strings.ReplaceAll(v, "%", escape+"%")
 
-	return v, nil
+	return "%" + v + "%", nil
 }
 
 type Search struct {

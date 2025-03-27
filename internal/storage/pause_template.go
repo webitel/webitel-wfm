@@ -237,7 +237,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 
 	base.Where(base.EQ(pauseTemplate.Ident("domain_id"), search.User().DomainId))
 	if search.Query() != "" {
-		base.Where(base.Like(pauseTemplate.Ident("name"), search.Query()))
+		base.Where(base.ILike(pauseTemplate.Ident("name"), search.Query()))
 	}
 
 	if ids := search.IDs(); len(ids) > 0 {
