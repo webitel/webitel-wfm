@@ -5,5 +5,6 @@ type Derived struct {
 	derived
 	orderBy
 
+	//nolint:unused
 	filter map[string]any
 }

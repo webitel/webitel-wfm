@@ -27,6 +27,7 @@ func (s Substring) SubstringMask(term string, any, one rune) Substring {
 	}
 
 	if one == 0 {
+		//nolint:ineffassign
 		one = '?'
 	}
 
@@ -80,6 +81,7 @@ type Search struct {
 	size  int
 
 	// TODO: parse CEL expressions
+	//nolint:unused
 	filter map[string]any
 }
 
