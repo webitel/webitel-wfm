@@ -10,7 +10,7 @@ before:
     - go mod tidy
 
 snapshot:
-  version_template: 'SNAPSHOT-{{ .Commit }}'
+  version_template: '{{ .Branch }}-{{ .Commit }}'
 
 report_sizes: true
 
