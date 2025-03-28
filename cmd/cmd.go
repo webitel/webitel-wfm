@@ -39,7 +39,7 @@ func Run() error {
 	def := &cli.App{
 		Name:      "webitel-wfm",
 		Usage:     "Effective planning of human resources in the Webitel",
-		Version:   fmt.Sprintf("%s, %s@%s at %s, %d", version, branch, commit, commitDate, buildTimestamp),
+		Version:   fmt.Sprintf("%s, %s@%s at %s, %s", version, branch, commit, commitDate, buildTimestamp),
 		Compiled:  time.Now(),
 		Copyright: "Webitel, 2024",
 		Action: func(c *cli.Context) error {
