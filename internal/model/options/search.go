@@ -154,15 +154,15 @@ func (s *Search) Offset() int {
 	return s.Size() * (s.Page() - 1)
 }
 
-func (s *Search) WithId(id int64) {
+func (s *Search) WithID(id int64) {
 	if !slices.Contains(s.ids, id) {
 		s.ids = append(s.ids, id)
 	}
 }
 
-func (s *Search) WithIds(ids []int64) {
+func (s *Search) WithIDs(ids []int64) {
 	for _, id := range ids {
-		s.WithId(id)
+		s.WithID(id)
 	}
 }
 

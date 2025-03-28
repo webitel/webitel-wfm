@@ -13,14 +13,16 @@ type Option func(options any) error
 
 func WithID(id int64) Option {
 	return func(options any) error {
-		v, ok := options.(interface{ WithId(int64) })
+		v, ok := options.(interface{ WithID(int64) *Read })
 		if !ok {
 			if err := WithIDs(id)(options); err != nil {
 				return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithCause(err), werror.WithValue("option", "id"))
 			}
+
+			return nil
 		}
 
-		v.WithId(id)
+		v.WithID(id)
 
 		return nil
 	}
@@ -28,12 +30,12 @@ func WithID(id int64) Option {
 
 func WithIDs(id ...int64) Option {
 	return func(options any) error {
-		v, ok := options.(interface{ WithIds([]int64) })
+		v, ok := options.(interface{ WithIDs([]int64) })
 		if !ok {
 			return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "ids"))
 		}
 
-		v.WithIds(id)
+		v.WithIDs(id)
 
 		return nil
 	}
