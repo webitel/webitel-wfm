@@ -53,7 +53,7 @@ func (s Substring) Value() (driver.Value, error) {
 
 	// TODO: escape(%)
 	v := string(s.Substring())
-	const escape = "\\" // https://postgrespro.ru/docs/postgresql/12/functions-matching#FUNCTIONS-LIKE
+	const escape = "\\"
 
 	// escape control '_' (single char entry)
 	v = strings.ReplaceAll(v, "_", escape+"_")
