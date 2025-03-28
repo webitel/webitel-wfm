@@ -66,7 +66,7 @@ changelog:
       order: 9999
 
 archives:
-  - name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}'
+  - name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Arch }}'
     builds_info:
       group: root
       owner: root
@@ -75,6 +75,7 @@ archives:
 
 nfpms:
   - id: webitel-wfm
+    file_name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Arch }}'
     vendor: Webitel Ltd.
     homepage: https://webitel.com
     maintainer: Webitel <cloud@webitel.com>
