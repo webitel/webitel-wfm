@@ -3,6 +3,7 @@ package interceptor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"google.golang.org/grpc"
@@ -13,10 +14,10 @@ import (
 )
 
 type rpcError struct {
-	ID     string         `json:"id"`
-	Detail string         `json:"detail"`
-	Status string         `json:"status"`
-	Info   map[string]any `json:"info,omitempty"`
+	ID     string `json:"id"`
+	Detail string `json:"detail"`
+	Code   int32  `json:"code"`
+	Status string `json:"status"`
 }
 
 func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
@@ -27,14 +28,14 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 			e := rpcError{
 				ID:     werror.ID(err),
 				Detail: err.Error(),
+				Code:   int32(code),
 				Status: http.StatusText(code),
-				Info:   make(map[string]any),
 			}
 
 			vals := werror.Values(err)
 			for k, v := range vals {
 				if key, ok := k.(string); ok {
-					e.Info[key] = v
+					e.Detail += "; " + key + " = " + fmt.Sprintf("%v", v)
 				}
 			}
 
