@@ -2,13 +2,6 @@
 version: 2
 
 project_name: webitel-wfm
-
-before:
-  hooks:
-    - go install tool
-    - go generate
-    - go mod tidy
-
 snapshot:
   version_template: '{{ .Branch }}-{{ .Commit }}'
 
