@@ -111,8 +111,9 @@ nfpms:
     #        type: origin
 
     contents:
-      - src: deploy/systemd/webitel-wfm.service
-        dst: /etc/system/systemd/webitel-wfm.service
+      - src: deploy/systemd/{{ .ProjectName }}.service
+        dst: /etc/system/systemd/{{ .ProjectName }}.service
+        type: "config|noreplace"
 
 milestones:
   - close: true
