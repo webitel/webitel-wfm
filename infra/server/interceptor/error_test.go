@@ -25,7 +25,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, `rpc error: code = Code(400) desc = {"id":"server.interceptor.error.testing","detail":"testing","status":"Bad Request"}`)
+		assert.EqualError(t, err, `rpc error: code = Code(400) desc = {"id":"server.interceptor.error.testing","detail":"testing","code":400,"status":"Bad Request"}`)
 	})
 
 	t.Run("not nil err received", func(t *testing.T) {
@@ -34,7 +34,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, `rpc error: code = Code(500) desc = {"id":"","detail":"testing","status":"Internal Server Error"}`)
+		assert.EqualError(t, err, `rpc error: code = Code(500) desc = {"id":"","detail":"testing","code":500,"status":"Internal Server Error"}`)
 	})
 
 	t.Run("nil err received", func(t *testing.T) {
