@@ -262,6 +262,8 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 			joinUpdatedBy()
 			field = b.OrderBy(updatedBy.Ident("name"), direction)
 		}
+
+		base.OrderBy(field)
 	}
 
 	var items []*model.PauseTemplate
