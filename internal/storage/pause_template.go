@@ -161,6 +161,11 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 		}
 	)
 
+	// Default fields
+	for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by"} {
+		search.WithField(field)
+	}
+
 	for _, field := range search.Fields() {
 		switch field {
 		case "id", "domain_id", "created_at", "updated_at", "name", "description":
