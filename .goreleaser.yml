@@ -29,6 +29,8 @@ builds:
       - -X github.com/webitel/webitel-wfm/cmd.version={{ .Version }}
       - -X github.com/webitel/webitel-wfm/cmd.commit={{ .Commit }}
       - -X github.com/webitel/webitel-wfm/cmd.commitDate={{ .CommitDate }}
+      - -X github.com/webitel/webitel-wfm/cmd.branch={{ .Branch }}
+      - -X github.com/webitel/webitel-wfm/cmd.buildTimestamp={{ .Timestamp }}
 
 universal_binaries:
   - replace: false

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -54,7 +53,7 @@ var serviceInstance = &registry.ServiceInstance{
 		"commit":         commit,
 		"commitDate":     commitDate,
 		"branch":         branch,
-		"buildTimestamp": strconv.FormatInt(buildTimestamp, 10),
+		"buildTimestamp": buildTimestamp,
 	},
 }
 

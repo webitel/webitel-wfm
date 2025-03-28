@@ -22,7 +22,7 @@ var (
 	commitDate = time.Now().String()
 
 	branch         = "branch"
-	buildTimestamp = time.Now().UnixMilli()
+	buildTimestamp = ""
 )
 
 // Run the default command
