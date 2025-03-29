@@ -73,22 +73,25 @@ func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Rea
 }
 
 func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options.Search) ([]*model.ShiftTemplate, error) {
+	const (
+		linkCreatedBy = 1 << iota
+		linkUpdatedBy
+	)
+
 	var (
 		shiftTemplate = b.ShiftTemplateTable
 		createdBy     = b.UserTable.WithAlias("crt")
 		updatedBy     = b.UserTable.WithAlias("upd")
-	)
+		base          = b.Select().From(shiftTemplate.String())
 
-	joins := b.NewJoinRegistry()
-	base := b.Select().From(shiftTemplate.String())
-	for _, field := range search.Fields() {
-		switch field {
-		case "id", "domain_id", "created_at", "updated_at", "name", "description", "times":
-			base.SelectMore(shiftTemplate.Ident(field))
+		join          = 0
+		joinCreatedBy = func() {
+			if join&linkCreatedBy != 0 {
+				return
+			}
 
-		case "created_by":
-			joins.Register(createdBy)
-			base.SelectMore(b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)).JoinWithOption(
+			join |= linkCreatedBy
+			base.JoinWithOption(
 				b.LeftJoin(createdBy,
 					b.JoinExpression{
 						Left:  shiftTemplate.Ident("created_by"),
@@ -97,10 +100,15 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 					},
 				),
 			)
+		}
 
-		case "updated_by":
-			joins.Register(updatedBy)
-			base.SelectMore(b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)).JoinWithOption(
+		joinUpdatedBy = func() {
+			if join&linkUpdatedBy != 0 {
+				return
+			}
+
+			join |= linkUpdatedBy
+			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
 					b.JoinExpression{
 						Left:  shiftTemplate.Ident("updated_by"),
@@ -110,49 +118,61 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 				),
 			)
 		}
-	}
+	)
 
-	base.Where(base.EQ(shiftTemplate.Ident("domain_id"), search.User().DomainId))
-	if search.Query() != "" {
-		base.Where(base.Like(shiftTemplate.Ident("name"), search.Query()))
-	}
+	// Fields to retrieve.
+	{
+		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by"} {
+			search.WithField(field)
+		}
 
-	if ids := search.IDs(); len(ids) > 0 {
-		base.Where(base.In(shiftTemplate.Ident("id"), b.ConvertArgs(ids)...))
-	}
+		for _, field := range search.Fields() {
+			switch field {
+			case "id", "domain_id", "created_at", "updated_at", "name", "description", "times":
+				field = shiftTemplate.Ident(field)
 
-	for field, direction := range search.OrderBy() {
-		switch field {
-		case "id", "name", "description", "created_at", "updated_at":
-			base.OrderBy(b.OrderBy(shiftTemplate.Ident(field), direction))
+			case "created_by":
+				joinCreatedBy()
+				field = b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)
 
-		case "created_by":
-			if !joins.Has(createdBy) {
-				joins.Register(createdBy)
-				base.JoinWithOption(b.LeftJoin(createdBy,
-					b.JoinExpression{
-						Left:  shiftTemplate.Ident("created_by"),
-						Op:    "=",
-						Right: createdBy.Ident("id"),
-					},
-				))
+			case "updated_by":
+				joinUpdatedBy()
+				field = b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)
 			}
 
-			base.OrderBy(b.OrderBy(createdBy.Ident("name"), direction))
+			base.SelectMore(field)
+		}
+	}
 
-		case "updated_by":
-			if !joins.Has(updatedBy) {
-				joins.Register(updatedBy)
-				base.JoinWithOption(b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  shiftTemplate.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
-				))
+	// Add WHERE clauses.
+	{
+		base.Where(base.EQ(shiftTemplate.Ident("domain_id"), search.User().DomainId))
+		if search.Query() != "" {
+			base.Where(base.ILike(shiftTemplate.Ident("name"), search.Query()))
+		}
+
+		if ids := search.IDs(); len(ids) > 0 {
+			base.Where(base.In(shiftTemplate.Ident("id"), b.ConvertArgs(ids)...))
+		}
+	}
+
+	// Construct ORDER BY fields.
+	{
+		for field, direction := range search.OrderBy() {
+			switch field {
+			case "id", "name", "description", "created_at", "updated_at":
+				field = b.OrderBy(shiftTemplate.Ident(field), direction)
+
+			case "created_by":
+				joinCreatedBy()
+				field = b.OrderBy(createdBy.Ident("name"), direction)
+
+			case "updated_by":
+				joinUpdatedBy()
+				field = b.OrderBy(updatedBy.Ident("name"), direction)
 			}
 
-			base.OrderBy(b.OrderBy(updatedBy.Ident("name"), direction))
+			base.OrderBy(field)
 		}
 	}
 
