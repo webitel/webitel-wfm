@@ -67,6 +67,8 @@ changelog:
 
 archives:
   - name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Arch }}'
+    formats: [ "zip" ]
+    strip_binary_directory: true
     builds_info:
       group: root
       owner: root
