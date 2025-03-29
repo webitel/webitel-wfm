@@ -80,25 +80,29 @@ func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, read *optio
 }
 
 func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *options.Search) ([]*model.WorkingCondition, error) {
+	const (
+		linkCreatedBy = 1 << iota
+		linkUpdatedBy
+		linkPauseTemplate
+		linkShiftTemplate
+	)
+
 	var (
 		workingCondition = b.WorkingConditionTable
 		createdBy        = b.UserTable.WithAlias("crt")
 		updatedBy        = b.UserTable.WithAlias("upd")
 		pauseTemplate    = b.PauseTemplateTable
-		shiftTemplates   = b.ShiftTemplateTable
-	)
+		shiftTemplate    = b.ShiftTemplateTable
+		base             = b.Select().From(workingCondition.String())
 
-	joins := b.NewJoinRegistry()
-	base := b.Select().From(workingCondition.String())
-	for _, field := range search.Fields() {
-		switch field {
-		case "id", "domain_id", "created_at", "updated_at", "name", "description", "workday_hours", "workdays_per_month",
-			"vacation", "sick_leaves", "days_off", "pause_duration":
-			base.SelectMore(workingCondition.Ident(field))
+		join          = 0
+		joinCreatedBy = func() {
+			if join&linkCreatedBy != 0 {
+				return
+			}
 
-		case "created_by":
-			joins.Register(createdBy)
-			base.SelectMore(b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)).JoinWithOption(
+			join |= linkCreatedBy
+			base.JoinWithOption(
 				b.LeftJoin(createdBy,
 					b.JoinExpression{
 						Left:  workingCondition.Ident("created_by"),
@@ -107,10 +111,15 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 					},
 				),
 			)
+		}
 
-		case "updated_by":
-			joins.Register(updatedBy)
-			base.SelectMore(b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)).JoinWithOption(
+		joinUpdatedBy = func() {
+			if join&linkUpdatedBy != 0 {
+				return
+			}
+
+			join |= linkUpdatedBy
+			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
 					b.JoinExpression{
 						Left:  workingCondition.Ident("updated_by"),
@@ -119,102 +128,110 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 					},
 				),
 			)
+		}
 
-		case "pause_template":
-			joins.Register(pauseTemplate)
-			base.SelectMore(b.Alias(b.JSONBuildObject(pauseTemplate, "id", "name"), field)).JoinWithOption(
+		joinPauseTemplate = func() {
+			if join&linkPauseTemplate != 0 {
+				return
+			}
+
+			join |= linkPauseTemplate
+			base.JoinWithOption(
 				b.LeftJoin(pauseTemplate,
 					b.JoinExpression{
-						Left:  pauseTemplate.Ident("pause_template_id"),
+						Left:  workingCondition.Ident("pause_template_id"),
 						Op:    "=",
-						Right: workingCondition.Ident("id"),
-					},
-				),
-			)
-
-		case "shift_template":
-			joins.Register(shiftTemplates)
-			base.SelectMore(b.Alias(b.JSONBuildObject(shiftTemplates, "id", "name"), field)).JoinWithOption(
-				b.LeftJoin(shiftTemplates,
-					b.JoinExpression{
-						Left:  workingCondition.Ident("shift_template_id"),
-						Op:    "=",
-						Right: shiftTemplates.Ident("id"),
+						Right: pauseTemplate.Ident("id"),
 					},
 				),
 			)
 		}
-	}
 
-	base.Where(base.EQ(pauseTemplate.Ident("domain_id"), search.User().DomainId))
-	if search.Query() != "" {
-		base.Where(base.Like(pauseTemplate.Ident("name"), search.Query()))
-	}
-
-	if ids := search.IDs(); len(ids) > 0 {
-		base.Where(base.In(pauseTemplate.Ident("id"), b.ConvertArgs(ids)...))
-	}
-
-	for field, direction := range search.OrderBy() {
-		switch field {
-		case "id", "name", "description", "created_at", "updated_at":
-			base.OrderBy(b.OrderBy(pauseTemplate.Ident(field), direction))
-
-		case "created_by":
-			if !joins.Has(createdBy) {
-				joins.Register(createdBy)
-				base.JoinWithOption(b.LeftJoin(createdBy,
-					b.JoinExpression{
-						Left:  pauseTemplate.Ident("created_by"),
-						Op:    "=",
-						Right: createdBy.Ident("id"),
-					},
-				))
+		joinShiftTemplate = func() {
+			if join&linkShiftTemplate != 0 {
+				return
 			}
 
-			base.OrderBy(b.OrderBy(createdBy.Ident("name"), direction))
-
-		case "updated_by":
-			if !joins.Has(updatedBy) {
-				joins.Register(updatedBy)
-				base.JoinWithOption(b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  pauseTemplate.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
-				))
-			}
-
-			base.OrderBy(b.OrderBy(updatedBy.Ident("name"), direction))
-
-		case "pause_template":
-			if !joins.Has(pauseTemplate) {
-				joins.Register(pauseTemplate)
-				base.JoinWithOption(b.LeftJoin(pauseTemplate,
-					b.JoinExpression{
-						Left:  pauseTemplate.Ident("pause_template_id"),
-						Op:    "=",
-						Right: workingCondition.Ident("id"),
-					},
-				))
-			}
-
-			base.OrderBy(b.OrderBy(pauseTemplate.Ident("name"), direction))
-
-		case "shift_template":
-			if !joins.Has(shiftTemplates) {
-				joins.Register(shiftTemplates)
-				base.JoinWithOption(b.LeftJoin(shiftTemplates,
+			join |= linkShiftTemplate
+			base.JoinWithOption(
+				b.LeftJoin(shiftTemplate,
 					b.JoinExpression{
 						Left:  workingCondition.Ident("shift_template_id"),
 						Op:    "=",
-						Right: shiftTemplates.Ident("id"),
+						Right: shiftTemplate.Ident("id"),
 					},
-				))
+				),
+			)
+		}
+	)
+
+	{
+		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by"} {
+			search.WithField(field)
+		}
+
+		for _, field := range search.Fields() {
+			switch field {
+			case "id", "domain_id", "created_at", "updated_at", "name", "description", "workday_hours", "workdays_per_month",
+				"vacation", "sick_leaves", "days_off", "pause_duration":
+				field = workingCondition.Ident(field)
+
+			case "created_by":
+				joinCreatedBy()
+				field = b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)
+
+			case "updated_by":
+				joinUpdatedBy()
+				field = b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)
+
+			case "pause_template":
+				joinPauseTemplate()
+				field = b.Alias(b.JSONBuildObject(pauseTemplate, "id", "name"), field)
+
+			case "shift_template":
+				joinShiftTemplate()
+				field = b.Alias(b.JSONBuildObject(shiftTemplate, "id", "name"), field)
 			}
 
-			base.OrderBy(b.OrderBy(shiftTemplates.Ident("name"), direction))
+			base.SelectMore(field)
+		}
+	}
+
+	{
+		base.Where(base.EQ(workingCondition.Ident("domain_id"), search.User().DomainId))
+		if search.Query() != "" {
+			base.Where(base.ILike(workingCondition.Ident("name"), search.Query()))
+		}
+
+		if ids := search.IDs(); len(ids) > 0 {
+			base.Where(base.In(workingCondition.Ident("id"), b.ConvertArgs(ids)...))
+		}
+	}
+
+	{
+		for field, direction := range search.OrderBy() {
+			switch field {
+			case "id", "name", "description", "created_at", "updated_at":
+				field = b.OrderBy(workingCondition.Ident(field), direction)
+
+			case "created_by":
+				joinCreatedBy()
+				field = b.OrderBy(createdBy.Ident("name"), direction)
+
+			case "updated_by":
+				joinUpdatedBy()
+				field = b.OrderBy(updatedBy.Ident("name"), direction)
+
+			case "pause_template":
+				joinPauseTemplate()
+				field = b.OrderBy(pauseTemplate.Ident("name"), direction)
+
+			case "shift_template":
+				joinShiftTemplate()
+				field = b.OrderBy(shiftTemplate.Ident("name"), direction)
+			}
+
+			base.OrderBy(field)
 		}
 	}
 
