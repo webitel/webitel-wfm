@@ -110,10 +110,13 @@ func checkNodes(ctx context.Context, nodes []dbsql.Node, checkFn NodeChecker, co
 				Info: info,
 			}
 
-			if tracer.NodeAlive != nil {
-				tracer.NodeAlive(cn)
+			if !node.CompareState(dbsql.Alive) {
+				if tracer.NodeAlive != nil {
+					tracer.NodeAlive(cn)
+				}
 			}
 
+			node.SetState(dbsql.Alive)
 			mu.Lock()
 			defer mu.Unlock()
 			checked = append(checked, cn)

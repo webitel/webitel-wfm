@@ -35,7 +35,10 @@ func DefaultTracer(log *wlog.Logger) Tracer {
 			}
 		},
 		NodeAlive: func(node CheckedNode) {
-			log.Debug("node is alive", wlog.String("node", node.Node.Addr()), wlog.Any("node.info", node.Info))
+			log.Debug("node is alive", wlog.String("node", node.Node.Addr()),
+				wlog.String("node.info.role", node.Info.Role().String()),
+				wlog.Int("node.info.replication_lag", node.Info.ReplicationLag()),
+				wlog.String("node.info.latency", node.Info.Latency().String()))
 		},
 	}
 }

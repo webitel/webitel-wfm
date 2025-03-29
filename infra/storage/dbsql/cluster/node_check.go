@@ -11,6 +11,10 @@ import (
 // NodeRole represents a role of node in SQL cluster (usually primary/standby).
 type NodeRole uint8
 
+func (n NodeRole) String() string {
+	return []string{"unknown", "primary", "standby"}[n]
+}
+
 const (
 
 	// NodeRoleUnknown used to report node with an unconventional role in cluster.
@@ -29,6 +33,14 @@ type NodeInfoProvider interface {
 	// Role reports a role of node in cluster.
 	// For SQL servers, it is usually either primary or standby.
 	Role() NodeRole
+
+	// Latency reports time spend on query execution from client's point of view.
+	// It can be used in LatencyNodePicker to determine node with fastest response time.
+	Latency() time.Duration
+
+	// ReplicationLag reports data replication delta on standby.
+	// It can be used in ReplicationNodePicker to determine node with most up-to-date data.
+	ReplicationLag() int
 }
 
 // NodeInfo contains various information about single cluster node.
