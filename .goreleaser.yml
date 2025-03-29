@@ -88,7 +88,6 @@ nfpms:
 
     umask: 0o002
     bindir: /usr/local/bin
-    release: "{{ .Version }}"
     section: default
     priority: extra
     meta: false
@@ -96,20 +95,6 @@ nfpms:
       lintian_overrides:
         - statically-linked-binary
         - changelog-file-missing-in-native-package
-
-      # The package is signed if a key_file is set
-    #      signature:
-    #        # PGP secret key file path (can also be ASCII-armored).
-    #        # GoReleaser will try to get the password from the following environment variables,
-    #        # in the following order of preference:
-    #        #   $NFPM_[ID]_[FORMAT]_PASSPHRASE
-    #        #   $NFPM_[ID]_PASSPHRASE
-    #        #   $NFPM_PASSPHRASE
-    #        key_file: "{{ .Env.GPG_KEY_PATH }}"
-    #
-    #        # The type describes the signers role, possible values are "origin",
-    #        # "maint" and "archive".
-    #        type: origin
 
     contents:
       - src: deploy/systemd/{{ .ProjectName }}.service
