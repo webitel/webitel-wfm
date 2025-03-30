@@ -6,8 +6,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
 
@@ -28,8 +28,12 @@ func NewAgentWorkingConditions(sr grpc.ServiceRegistrar, service service.AgentWo
 }
 
 func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, req *pb.ReadAgentWorkingConditionsRequest) (*pb.ReadAgentWorkingConditionsResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := a.service.ReadAgentWorkingConditions(ctx, s.SignedInUser, req.GetAgentId())
+	read, err := options.NewRead(ctx, options.WithID(req.GetAgentId()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := a.service.ReadAgentWorkingConditions(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -38,12 +42,12 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 }
 
 func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, req *pb.UpdateAgentWorkingConditionsRequest) (*pb.UpdateAgentWorkingConditionsResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	if err := a.service.UpdateAgentWorkingConditions(ctx, s.SignedInUser, req.GetAgentId(), unmarshalAgentWorkingConditionsProto(req.GetItem())); err != nil {
+	read, err := options.NewRead(ctx, options.WithID(req.GetAgentId()))
+	if err != nil {
 		return nil, err
 	}
 
-	out, err := a.service.ReadAgentWorkingConditions(ctx, s.SignedInUser, req.GetAgentId())
+	out, err := a.service.UpdateAgentWorkingConditions(ctx, read, unmarshalAgentWorkingConditionsProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}

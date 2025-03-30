@@ -6,13 +6,15 @@ var (
 
 var (
 	PauseCauseTable = Table{name: "call_center.cc_pause_cause", alias: "cpc"}
+	AgentTable      = Table{name: "call_center.cc_agent", alias: "ca"}
 )
 
 var (
-	PauseTemplateTable      = Table{name: "wfm.pause_template", alias: "pt"}
-	PauseTemplateCauseTable = Table{name: "wfm.pause_template_cause", alias: "ptc"}
-	ShiftTemplateTable      = Table{name: "wfm.shift_template", alias: "st"}
-	WorkingConditionTable   = Table{name: "wfm.working_condition", alias: "wc"}
+	PauseTemplateTable         = Table{name: "wfm.pause_template", alias: "pt"}
+	PauseTemplateCauseTable    = Table{name: "wfm.pause_template_cause", alias: "ptc"}
+	ShiftTemplateTable         = Table{name: "wfm.shift_template", alias: "st"}
+	WorkingConditionTable      = Table{name: "wfm.working_condition", alias: "wc"}
+	AgentWorkingConditionTable = Table{name: "wfm.agent_working_condition", alias: "awc"}
 )
 
 type Table struct {

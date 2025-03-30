@@ -5,12 +5,13 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
 type AgentWorkingConditionsManager interface {
-	ReadAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64) (*model.AgentWorkingConditions, error)
-	UpdateAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64, in *model.AgentWorkingConditions) error
+	ReadAgentWorkingConditions(ctx context.Context, read *options.Read) (*model.AgentWorkingConditions, error)
+	UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error)
 }
 type AgentWorkingConditions struct {
 	storage storage.AgentWorkingConditionsManager
@@ -24,13 +25,13 @@ func NewAgentWorkingConditions(storage storage.AgentWorkingConditionsManager, en
 	}
 }
 
-func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64) (*model.AgentWorkingConditions, error) {
-	_, err := a.engine.AgentService().Agent(ctx, agentId)
+func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, read *options.Read) (*model.AgentWorkingConditions, error) {
+	_, err := a.engine.AgentService().Agent(ctx, read.ID())
 	if err != nil {
 		return nil, err
 	}
 
-	item, err := a.storage.ReadAgentWorkingConditions(ctx, user, agentId)
+	item, err := a.storage.ReadAgentWorkingConditions(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -38,15 +39,20 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 	return item, nil
 }
 
-func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, user *model.SignedInUser, agentId int64, in *model.AgentWorkingConditions) error {
-	_, err := a.engine.AgentService().Agent(ctx, agentId)
+func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error) {
+	_, err := a.engine.AgentService().Agent(ctx, read.ID())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := a.storage.UpdateAgentWorkingConditions(ctx, user, agentId, in); err != nil {
-		return err
+	if err := a.storage.UpdateAgentWorkingConditions(ctx, read, in); err != nil {
+		return nil, err
 	}
 
-	return nil
+	out, err := a.ReadAgentWorkingConditions(ctx, read)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }

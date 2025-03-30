@@ -24,27 +24,10 @@ CREATE TRIGGER tg_populate_updated_at_column
     ON wfm.agent_working_conditions
     FOR EACH ROW
 EXECUTE PROCEDURE wfm.tg_populate_updated_at_column();
-
-CREATE VIEW wfm.agent_working_conditions_v AS
-SELECT t.id                                                            AS id
-     , t.domain_id                                                     AS domain_id
-     , t.updated_at                                                    AS updated_at
-     , call_center.cc_get_lookup(u.id, coalesce(u.name, u.username))   AS updated_by
-     , call_center.cc_get_lookup(a.id, coalesce(au.name, au.username)) AS agent
-     , call_center.cc_get_lookup(wc.id, wc.name)                       AS working_condition
-     , call_center.cc_get_lookup(svc.id, svc.name)                     AS pause_template
-FROM wfm.agent_working_conditions t
-         LEFT JOIN directory.wbt_user u ON t.updated_by = u.id
-         LEFT JOIN call_center.cc_agent a ON t.agent_id = a.id
-         LEFT JOIN directory.wbt_user au ON a.user_id = au.id
-         LEFT JOIN wfm.pause_template svc on t.pause_template_id = svc.id
-         LEFT JOIN wfm.working_condition wc on t.working_condition_id = wc.id;
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP VIEW wfm.agent_working_conditions_v;
-
 DROP TRIGGER tg_populate_updated_at_column On wfm.agent_working_conditions;
 
 DROP TABLE wfm.agent_working_conditions;
