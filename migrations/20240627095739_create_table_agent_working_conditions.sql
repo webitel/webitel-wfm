@@ -45,7 +45,7 @@ FROM wfm.agent_working_conditions t
 -- +goose StatementBegin
 DROP VIEW wfm.agent_working_conditions_v;
 
-DROP TRIGGER populate_updated_at_column On wfm.agent_working_conditions;
+DROP TRIGGER tg_populate_updated_at_column On wfm.agent_working_conditions;
 
 DROP TABLE wfm.agent_working_conditions;
 -- +goose StatementEnd

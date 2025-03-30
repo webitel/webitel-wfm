@@ -44,35 +44,10 @@ CREATE TRIGGER tg_populate_updated_at_column
     ON wfm.working_condition
     FOR EACH ROW
 EXECUTE PROCEDURE wfm.tg_populate_updated_at_column();
-
-CREATE VIEW wfm.working_condition_v AS
-SELECT t.id                                        AS id
-     , t.domain_id                                 AS domain_id
-     , t.created_at                                AS created_at
-     , call_center.cc_get_lookup(c.id, c.name)     AS created_by
-     , t.updated_at                                AS updated_at
-     , call_center.cc_get_lookup(u.id, u.name)     AS updated_by
-     , t.name                                      AS name
-     , t.description                               AS description
-     , t.workday_hours                             AS workday_hours
-     , t.workdays_per_month                        AS workdays_per_month
-     , t.vacation                                  AS vacation
-     , t.sick_leaves                               AS sick_leaves
-     , t.days_off                                  AS days_off
-     , t.pause_duration                            AS pause_duration
-     , call_center.cc_get_lookup(st.id, st.name)   AS shift_template
-     , call_center.cc_get_lookup(svc.id, svc.name) AS pause_template
-FROM wfm.working_condition t
-         LEFT JOIN directory.wbt_user c ON t.created_by = c.id
-         LEFT JOIN directory.wbt_user u ON t.updated_by = u.id
-         LEFT JOIN wfm.shift_template st ON t.shift_template_id = st.id
-         LEFT JOIN wfm.pause_template svc ON t.pause_template_id = svc.id;
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP VIEW wfm.working_condition_v;
-
 DROP TRIGGER tg_populate_updated_at_column ON wfm.working_condition;
 
 DROP TABLE wfm.working_condition;
