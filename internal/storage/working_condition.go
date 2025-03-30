@@ -178,19 +178,19 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 
 			case "created_by":
 				joinCreatedBy()
-				field = b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(createdBy)), field)
 
 			case "updated_by":
 				joinUpdatedBy()
-				field = b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
 
 			case "pause_template":
 				joinPauseTemplate()
-				field = b.Alias(b.JSONBuildObject(pauseTemplate, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.Lookup(pauseTemplate, "id", "name")), field)
 
 			case "shift_template":
 				joinShiftTemplate()
-				field = b.Alias(b.JSONBuildObject(shiftTemplate, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.Lookup(shiftTemplate, "id", "name")), field)
 			}
 
 			base.SelectMore(field)

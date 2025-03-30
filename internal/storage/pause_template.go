@@ -14,12 +14,6 @@ import (
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
-const (
-	// TODO: remove
-	pauseTemplateTable = "wfm.pause_template"
-	pauseTemplateView  = pauseTemplateTable + "_v"
-)
-
 // TODO: add cache invalidation
 // TODO: dont delete all keys within prefix (add something as id range 1-10 stored in cache key)
 
@@ -173,11 +167,11 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 
 		case "created_by":
 			joinCreatedBy()
-			field = b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)
+			field = b.Alias(b.JSONBuildObject(b.UserLookup(createdBy)), field)
 
 		case "updated_by":
 			joinUpdatedBy()
-			field = b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)
+			field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
 
 		case "causes":
 			{
@@ -215,7 +209,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 							}
 						}
 
-						causes.SelectMore(b.Alias(b.JSONBuildObject(pauseCause, causeDerivedFields...), causesDerivedField)).JoinWithOption(
+						causes.SelectMore(b.Alias(b.JSONBuildObject(b.Lookup(pauseCause, causeDerivedFields...)), causesDerivedField)).JoinWithOption(
 							b.LeftJoin(pauseCause,
 								b.JoinExpression{
 									Left:  pauseCause.Ident("id"),

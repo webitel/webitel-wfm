@@ -6,8 +6,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
-	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
 
@@ -27,9 +27,13 @@ func NewAgentAbsence(sr grpc.ServiceRegistrar, service service.AgentAbsenceManag
 	return s
 }
 
-func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, in *pb.CreateAgentAbsenceRequest) (*pb.CreateAgentAbsenceResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := a.service.CreateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
+func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, req *pb.CreateAgentAbsenceRequest) (*pb.CreateAgentAbsenceResponse, error) {
+	read, err := options.NewRead(ctx, options.WithDerivedID("agent", req.GetAgentId()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := a.service.CreateAgentAbsence(ctx, read, unmarshalAbsenceProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -37,9 +41,49 @@ func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, in *pb.CreateAgen
 	return &pb.CreateAgentAbsenceResponse{Item: out.MarshalProto()}, nil
 }
 
-func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, in *pb.UpdateAgentAbsenceRequest) (*pb.UpdateAgentAbsenceResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := a.service.UpdateAgentAbsence(ctx, s.SignedInUser, unmarshalAgentAbsenceProto(in.Item))
+func (a *AgentAbsence) ReadAgentAbsence(ctx context.Context, req *pb.ReadAgentAbsenceRequest) (*pb.ReadAgentAbsenceResponse, error) {
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()), options.WithDerivedID("agent", req.GetAgentId()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := a.service.ReadAgentAbsence(ctx, read)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ReadAgentAbsenceResponse{Item: out.MarshalProto()}, nil
+}
+
+func (a *AgentAbsence) SearchAgentAbsence(ctx context.Context, req *pb.SearchAgentAbsenceRequest) (*pb.SearchAgentAbsenceResponse, error) {
+	opts := []options.Option{
+		options.WithDerivedID("agent", req.GetAgentId()),
+		options.WithPagination(req.GetPage(), req.GetSize()),
+		options.WithFields(req.GetFields()),
+		options.WithOrder(req.GetSort()),
+		// TODO: Add filters.
+	}
+
+	search, err := options.NewSearch(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := a.service.SearchAgentAbsence(ctx, search)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SearchAgentAbsenceResponse{Items: marshalAbsenceBulkProto(out)}, nil
+}
+
+func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, req *pb.UpdateAgentAbsenceRequest) (*pb.UpdateAgentAbsenceResponse, error) {
+	read, err := options.NewRead(ctx, options.WithID(req.GetItem().GetId()), options.WithDerivedID("agent", req.GetAgentId()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := a.service.UpdateAgentAbsence(ctx, read, unmarshalAbsenceProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -47,59 +91,48 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, in *pb.UpdateAgen
 	return &pb.UpdateAgentAbsenceResponse{Item: out.MarshalProto()}, nil
 }
 
-func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, in *pb.DeleteAgentAbsenceRequest) (*pb.DeleteAgentAbsenceResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	if err := a.service.DeleteAgentAbsence(ctx, s.SignedInUser, in.AgentId, in.Id); err != nil {
-		return nil, err
-	}
-
-	return &pb.DeleteAgentAbsenceResponse{Id: in.Id}, nil
-}
-
-func (a *AgentAbsence) ReadAgentAbsences(ctx context.Context, in *pb.ReadAgentAbsencesRequest) (*pb.ReadAgentAbsencesResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.AgentAbsenceSearch{
-		AgentIds:     []int64{in.AgentId},
-		AbsentAtFrom: model.NewTimestamp(in.AbsentAtFrom),
-		AbsentAtTo:   model.NewTimestamp(in.AbsentAtTo),
-	}
-
-	out, err := a.service.ReadAgentAbsences(ctx, s.SignedInUser, search)
+func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, req *pb.DeleteAgentAbsenceRequest) (*pb.DeleteAgentAbsenceResponse, error) {
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()), options.WithDerivedID("agent", req.GetAgentId()))
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.ReadAgentAbsencesResponse{Item: out.MarshalProto()}, nil
+	if err := a.service.DeleteAgentAbsence(ctx, read); err != nil {
+		return nil, err
+	}
+
+	return &pb.DeleteAgentAbsenceResponse{Id: req.Id}, nil
 }
 
-func (a *AgentAbsence) CreateAgentsAbsencesBulk(ctx context.Context, in *pb.CreateAgentsAbsencesBulkRequest) (*pb.CreateAgentsAbsencesBulkResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := a.service.CreateAgentsAbsencesBulk(ctx, s.SignedInUser, in.AgentIds, unmarshalAgentsAbsencesBulk(in.Items))
+func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, req *pb.CreateAgentsAbsencesRequest) (*pb.CreateAgentsAbsencesResponse, error) {
+	search, err := options.NewSearch(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.CreateAgentsAbsencesBulkResponse{Items: marshalAgentsAbsences(out)}, nil
-}
-
-func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, in *pb.SearchAgentsAbsencesRequest) (*pb.SearchAgentsAbsencesResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.AgentAbsenceSearch{
-		SearchItem: model.SearchItem{
-			Search: in.Q,
-			Page:   in.GetPage(),
-			Size:   in.GetSize(),
-			Sort:   in.Sort,
-			Fields: in.Fields,
-		},
-		AbsentAtFrom:  model.NewTimestamp(in.AbsentAtFrom),
-		AbsentAtTo:    model.NewTimestamp(in.AbsentAtTo),
-		SupervisorIds: in.SupervisorId,
-		TeamIds:       in.TeamId,
-		SkillIds:      in.SkillId,
+	out, err := a.service.CreateAgentsAbsences(ctx, search, unmarshalAgentsAbsencesBulk(req.GetAgentIds(), req.GetItems()))
+	if err != nil {
+		return nil, err
 	}
 
-	out, next, err := a.service.SearchAgentsAbsences(ctx, s.SignedInUser, search)
+	return &pb.CreateAgentsAbsencesResponse{Items: marshalAgentsAbsences(out)}, nil
+}
+
+func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, req *pb.SearchAgentsAbsencesRequest) (*pb.SearchAgentsAbsencesResponse, error) {
+	opts := []options.Option{
+		options.WithPagination(req.GetPage(), req.GetSize()),
+		options.WithSearch(req.GetQ()),
+		options.WithFields(req.GetFields()),
+		options.WithOrder(req.GetSort()),
+		// TODO: Add filters.
+	}
+
+	search, err := options.NewSearch(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	out, next, err := a.service.SearchAgentsAbsences(ctx, search)
 	if err != nil {
 		return nil, err
 	}
@@ -107,31 +140,39 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, in *pb.SearchAg
 	return &pb.SearchAgentsAbsencesResponse{Items: marshalAgentsAbsences(out), Next: next}, nil
 }
 
-func unmarshalAgentAbsenceProto(in *pb.AgentAbsence) *model.AgentAbsence {
-	return &model.AgentAbsence{
-		Agent: model.LookupItem{
-			Id: in.Agent.Id,
+func unmarshalAbsenceProto(in *pb.Absence) *model.Absence {
+	return &model.Absence{
+		DomainRecord: model.DomainRecord{
+			Id: in.Id,
 		},
-		Absence: model.Absence{
-			DomainRecord: model.DomainRecord{
-				Id: in.Absence.Id,
-			},
-			AbsentAt:    model.NewDate(in.Absence.AbsentAt),
-			AbsenceType: model.AgentAbsenceType(in.Absence.TypeId),
-		},
+		AbsentAt:    model.NewDate(in.AbsentAt),
+		AbsenceType: model.AgentAbsenceType(in.TypeId),
 	}
 }
 
-func unmarshalAgentsAbsencesBulk(in []*pb.CreateAgentsAbsencesBulkRequestAbsentType) []*model.AgentAbsenceBulk {
-	out := make([]*model.AgentAbsenceBulk, 0, len(in))
-	for _, it := range in {
-		item := &model.AgentAbsenceBulk{
-			AbsenceType:  model.AgentAbsenceType(it.TypeId),
-			AbsentAtFrom: it.AbsentAtFrom,
-			AbsentAtTo:   it.AbsentAtTo,
-		}
+func unmarshalAgentsAbsencesBulk(agentIDs []int64, in []*pb.CreateAgentsAbsencesRequestAbsentType) []*model.AgentAbsences {
+	absences := make([]*model.Absence, 0, len(in))
+	for _, absence := range in {
+		start := model.NewDate(absence.DateFrom)
+		end := model.NewDate(absence.DateTo)
+		for d := start; !d.Time.After(end.Time); d.Time = d.Time.AddDate(0, 0, 1) {
+			item := &model.Absence{
+				AbsentAt:    d,
+				AbsenceType: model.AgentAbsenceType(absence.TypeId),
+			}
 
-		out = append(out, item)
+			absences = append(absences, item)
+		}
+	}
+
+	out := make([]*model.AgentAbsences, 0, len(agentIDs))
+	for _, id := range agentIDs {
+		out = append(out, &model.AgentAbsences{
+			Agent: model.LookupItem{
+				Id: id,
+			},
+			Absence: absences,
+		})
 	}
 
 	return out
@@ -141,6 +182,15 @@ func marshalAgentsAbsences(in []*model.AgentAbsences) []*pb.AgentAbsences {
 	out := make([]*pb.AgentAbsences, 0, len(in))
 	for _, it := range in {
 		out = append(out, it.MarshalProto())
+	}
+
+	return out
+}
+
+func marshalAbsenceBulkProto(in []*model.Absence) []*pb.Absence {
+	out := make([]*pb.Absence, 0, len(in))
+	for _, t := range in {
+		out = append(out, t.MarshalProto())
 	}
 
 	return out

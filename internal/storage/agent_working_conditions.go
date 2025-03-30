@@ -133,19 +133,19 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 
 			case "updated_by":
 				joinUpdatedBy()
-				field = b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
 
 			case "agent":
 				joinAgent()
-				field = b.Alias(b.JSONBuildObject(agentUser, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(agentUser)), field)
 
 			case "working_condition":
 				joinWorkingCondition()
-				field = b.Alias(b.JSONBuildObject(workingCondition, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.Lookup(workingCondition, "id", "name")), field)
 
 			case "pause_template":
 				joinPauseTemplate()
-				field = b.Alias(b.JSONBuildObject(pauseTemplate, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.Lookup(pauseTemplate, "id", "name")), field)
 			}
 
 			base.SelectMore(field)

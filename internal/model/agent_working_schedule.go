@@ -108,7 +108,7 @@ func (a *AgentSchedule) MarshalProto() *pb.AgentSchedule {
 
 	if a.Absence != nil {
 		schedule.Type = &pb.AgentSchedule_Absence{
-			Absence: pb.AgentAbsenceType(*a.Absence),
+			Absence: pb.AbsenceType(*a.Absence),
 		}
 
 		return schedule

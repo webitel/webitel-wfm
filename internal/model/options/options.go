@@ -28,6 +28,12 @@ func WithID(id int64) Option {
 	}
 }
 
+func WithDerivedID(name string, id int64) Option {
+	return func(options any) error {
+		return nil
+	}
+}
+
 func WithIDs(id ...int64) Option {
 	return func(options any) error {
 		v, ok := options.(interface{ WithIDs([]int64) })

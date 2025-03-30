@@ -133,11 +133,11 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 
 			case "created_by":
 				joinCreatedBy()
-				field = b.Alias(b.JSONBuildObject(createdBy, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(createdBy)), field)
 
 			case "updated_by":
 				joinUpdatedBy()
-				field = b.Alias(b.JSONBuildObject(updatedBy, "id", "name"), field)
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
 			}
 
 			base.SelectMore(field)
