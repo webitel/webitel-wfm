@@ -209,7 +209,12 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 	}
 
 	{
-		for field, direction := range search.OrderBy() {
+		orderBy := search.OrderBy()
+		if len(orderBy) == 0 {
+			orderBy.WithOrderBy("created_at", b.OrderDirectionASC)
+		}
+
+		for field, direction := range orderBy {
 			switch field {
 			case "id", "name", "description", "created_at", "updated_at":
 				field = b.OrderBy(workingCondition.Ident(field), direction)
