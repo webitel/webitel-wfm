@@ -1,11 +1,8 @@
-name: Run Go linters
-
 on:
   workflow_call:
 
 jobs:
   lint:
-    name: Linting
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -18,14 +15,17 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Download dependencies
-        run: go mod download
+      - name: Download generated code (Go)
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-code-go
+          path: gen/go
 
-      - name: Install Go tools
-        run: go install tool
-
-      - name: Generating code
-        run: go generate
+      - name: Download generated code (wire)
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-code-wire
+          path: cmd/
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6.5.2

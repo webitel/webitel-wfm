@@ -1,11 +1,8 @@
-name: Test
-
 on:
   workflow_call:
 
 jobs:
   test:
-    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -13,22 +10,25 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Setup Go
+      - name: Setup Go (version from go.mod)
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Download dependencies
-        run: go mod download
+      - name: Download generated code (Go)
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-code-go
+          path: gen/go
 
-      - name: Install Go tools
-        run: go install tool
-
-      - name: Generating code
-        run: go generate
+      - name: Download generated code (wire)
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-code-wire
+          path: cmd/
 
       - name: Run all tests
-        run: go test -short -v ./... | tee test.log; exit ${PIPESTATUS[0]}
+        run: go test -short -v ./... > test.log; exit ${PIPESTATUS[0]}
 
       - name: Pretty print tests running time
         run: grep --color=never -e '--- PASS:' -e '--- FAIL:' test.log | sed 's/[:()]//g' | awk '{print $2,$3,$4}' | sort -t' ' -nk3 -r | awk '{sum += $3; print $1,$2,$3,sum"s"}'

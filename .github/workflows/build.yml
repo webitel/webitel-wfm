@@ -1,26 +1,31 @@
-name: Build
-
 on:
   push:
     branches:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'release/')}} # TODO: change to match our release version pattern
+
 jobs:
+  prepare:
+    uses: ./.github/workflows/prepare.yml
+
   analyze:
-    name: Analyze
-    uses: webitel/webitel-wfm/.github/workflows/codeql-analysis.yml@main
+    needs: [ prepare ]
+    uses: ./.github/workflows/codeql-analysis.yml
 
   lint:
-    name: Lint
-    uses: webitel/webitel-wfm/.github/workflows/lint.yml@main
+    needs: [ prepare ]
+    uses: ./.github/workflows/lint.yml
 
   test:
-    name: Test
-    uses: webitel/webitel-wfm/.github/workflows/test.yml@main
+    needs: [ prepare ]
+    uses: ./.github/workflows/test.yml
 
   build:
-    name: Snapshot
+    needs: [ prepare ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -28,25 +33,36 @@ jobs:
         with:
           fetch-depth: 0 # required for the changelog to work correctly.
 
-      - name: Setup Go
+      - name: Setup Go (version from go.mod)
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Download dependencies
-        run: go mod download
+      - name: Download generated code (Go)
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-code-go
+          path: gen/go
 
-      - name: Install Go tools
-        run: go install tool
+      - name: Download generated code (wire)
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-code-wire
+          path: cmd/
 
-      - name: Generating code
-        run: go generate
-
-      - name: Build snapshot
+      - name: Build
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: v2.3.2
-          args: release --snapshot
+          version: v2.8.1
+          args: release --clean --skip publish --skip validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: v99.99-${{ github.run_id }} # TODO: dev package versioning
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-packages
+          compression-level: 9
+          path: dist/webitel-wfm-*.*

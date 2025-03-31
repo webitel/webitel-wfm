@@ -1,5 +1,3 @@
-name: Release
-
 on:
   push:
     # run only against tags
@@ -10,37 +8,9 @@ permissions:
   contents: write
 
 jobs:
-  test:
-    uses: webitel/webitel-wfm/.github/workflows/test.yml@main
+  build:
+    uses: ./.github/workflows/build.yml
 
   release:
     name: Release
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Install Go tools
-        run: go install tool
-
-      - name: Generating code
-        run: go generate
-
-      - name: Release
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: v2.3.2
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
