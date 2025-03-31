@@ -81,6 +81,7 @@ func (t *Tracker) WatchForShutdownSignals() {
 	gracefulSignal := make(chan os.Signal, 1)
 	signal.Notify(gracefulSignal, syscall.SIGTERM, syscall.SIGINT)
 
+	t.log.Info("watch for shutdown signals (SIGTERM, SIGINT)")
 	go func() {
 		signalReceived := <-gracefulSignal
 		t.Shutdown(signalReceived, nil)

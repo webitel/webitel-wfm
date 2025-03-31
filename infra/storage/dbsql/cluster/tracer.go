@@ -31,11 +31,11 @@ func DefaultTracer(log *wlog.Logger) Tracer {
 		NodeDead: func(err error) {
 			var cerr NodeCheckError
 			if werror.As(err, &cerr) {
-				log.Error("node is dead", wlog.Any("node", cerr.node), wlog.Err(cerr.err))
+				log.Error("database node is dead", wlog.Any("node", cerr.node), wlog.Err(cerr.err))
 			}
 		},
 		NodeAlive: func(node CheckedNode) {
-			log.Debug("node is alive", wlog.String("node", node.Node.Addr()),
+			log.Info("database node is alive", wlog.String("node", node.Node.Addr()),
 				wlog.String("node.info.role", node.Info.Role().String()),
 				wlog.Int("node.info.replication_lag", node.Info.ReplicationLag()),
 				wlog.String("node.info.latency", node.Info.Latency().String()))

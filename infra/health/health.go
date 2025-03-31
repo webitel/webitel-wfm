@@ -41,8 +41,6 @@ func (c *CheckRegistry) Register(check Check) {
 // This is a convinced wrapper over [CheckRegistry.Register], see that function
 // for more details and expected behavior.
 func (c *CheckRegistry) RegisterFunc(name string, check func(ctx context.Context) error) {
-	// c.m.Lock()
-	// defer c.m.Unlock()
 	c.Register(&checkFunc{name, check})
 }
 
@@ -74,7 +72,12 @@ func (c *CheckRegistry) RunAll(ctx context.Context) []CheckResult {
 				}
 			}()
 
-			results <- check.HealthCheck(ctx)
+			result := check.HealthCheck(ctx)
+			for _, v := range result {
+				c.log.Info("health check result", wlog.Any("result", v))
+			}
+
+			results <- result
 		}()
 	}
 

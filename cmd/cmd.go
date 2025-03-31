@@ -35,6 +35,7 @@ func Run() error {
 	})
 
 	wlog.InitGlobalLogger(log.With(wlog.String("source", "global")))
+	log.Info(fmt.Sprintf("start webitel-wfm@v%s, %s@%s build at %s, %s", version, branch, commit, commitDate, buildTimestamp))
 
 	def := &cli.App{
 		Name:      "webitel-wfm",

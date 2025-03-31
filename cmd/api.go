@@ -233,6 +233,7 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 
 	// Initialize all application resources (database, cache, servers, etc...)
 	// using generated code by github.com/google/wire.
+	log.Info("initialize application resources")
 	res, err := initResources(ctx, cfg, log, check, tracker)
 	if err != nil {
 		return nil, err
@@ -247,6 +248,7 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 
 	// Initialize database cluster with checks for executing forecast
 	// calculation queries.
+	log.Info("initialize database for forecast calculation")
 	fs, err := forecastStorage(ctx, cfg, log, check, tracker)
 	if err != nil {
 		return nil, err
@@ -273,6 +275,7 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 func (a *app) run(ctx context.Context) error {
 	// Verify registered health checks.
 	var err error
+	a.log.Info("run healthchecks before starting resources")
 	checks := a.health.RunAll(ctx)
 	for _, check := range checks {
 		if check.Err != nil {
@@ -287,14 +290,17 @@ func (a *app) run(ctx context.Context) error {
 
 	// Start server requests listening, serve all application resources.
 	a.eg.Go(func() error {
+		a.log.Info("connecting to Webitel Auth manager")
 		return a.resources.authcli.Start()
 	})
 
 	a.eg.Go(func() error {
+		a.log.Info("starting pub/sub connection loop")
 		return a.resources.ps.Start()
 	})
 
 	a.eg.Go(func() error {
+		a.log.Info("listening gRPC requests", wlog.String("listen", a.cfg.Service.Address))
 		l, err := net.Listen("tcp", a.cfg.Service.Address)
 		if err != nil {
 			return err
@@ -314,7 +320,12 @@ func (a *app) run(ctx context.Context) error {
 			},
 		}
 
-		return a.resources.registry.Register(ctx, serviceInstance)
+		a.log.Info("registering service in discovery", wlog.Any("service", serviceInstance))
+		if err := a.resources.registry.Register(ctx, serviceInstance); err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	if err := a.eg.Wait(); err != nil {
