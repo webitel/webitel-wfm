@@ -153,7 +153,7 @@ func (s *Search) Page() int {
 }
 
 func (s *Search) Offset() int {
-	return s.Size() * (s.Page() - 1)
+	return (s.Size() - 1) * (s.Page() - 1)
 }
 
 func (s *Search) WithID(id int64) {
@@ -172,9 +172,9 @@ func (s *Search) WithSearch(term string) {
 	s.query = Substring(term)
 }
 
-func (s *Search) WithPagination(size int32, page int32) {
-	s.size = int(size)
+func (s *Search) WithPagination(page int32, size int32) {
 	s.page = int(page)
+	s.size = int(size) + 1
 }
 
 func (s *Search) PopulateFromRead(r *Read) *Search {
