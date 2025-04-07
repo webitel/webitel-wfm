@@ -6,28 +6,24 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
+	b "github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
-	"github.com/webitel/webitel-wfm/pkg/fields"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/pkg/werror"
-)
-
-const (
-	forecastCalculationTable = "wfm.forecast_calculation"
-	forecastCalculationView  = forecastCalculationTable + "_v"
 )
 
 var ErrForecastProcedureNotFound = werror.NotFound("requested forecast calculation procedure does not exists", werror.WithID("storage.forecast_calculation.procedure"))
 
 type ForecastCalculationManager interface {
-	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
-	ReadForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.ForecastCalculation, error)
-	SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, error)
-	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
-	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
+	CreateForecastCalculation(ctx context.Context, read *options.Read, in *model.ForecastCalculation) (int64, error)
+	ReadForecastCalculation(ctx context.Context, read *options.Read) (*model.ForecastCalculation, error)
+	SearchForecastCalculation(ctx context.Context, search *options.Search) ([]*model.ForecastCalculation, error)
+	UpdateForecastCalculation(ctx context.Context, read *options.Read, in *model.ForecastCalculation) error
+	DeleteForecastCalculation(ctx context.Context, read *options.Read) (int64, error)
 
-	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
+	ExecuteForecastCalculation(ctx context.Context, read *options.Read) ([]*model.ForecastCalculationResult, error)
+	CheckForecastCalculationProcedure(ctx context.Context, proc string) error
 }
 
 type ForecastCalculation struct {
@@ -39,22 +35,17 @@ type ForecastCalculation struct {
 func NewForecastCalculation(db cluster.Store, manager cache.Manager, forecastDB cluster.ForecastStore) *ForecastCalculation {
 	return &ForecastCalculation{
 		db:         db,
-		cache:      cache.NewScope[model.ForecastCalculation](manager, forecastCalculationTable),
+		cache:      cache.NewScope[model.ForecastCalculation](manager, b.ForecastCalculationTable.Name()),
 		forecastDB: forecastDB,
 	}
 }
 
-func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error) {
-	if err := f.checkProcedure(ctx, in.Procedure); err != nil {
-		return nil, err
-	}
-
-	var id int64
+func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, read *options.Read, in *model.ForecastCalculation) (int64, error) {
 	columns := []map[string]any{
 		{
-			"domain_id":   user.DomainId,
-			"created_by":  user.Id,
-			"updated_by":  user.Id,
+			"domain_id":   read.User().DomainId,
+			"created_by":  read.User().Id,
+			"updated_by":  read.User().Id,
 			"name":        in.Name,
 			"description": in.Description,
 			"procedure":   in.Procedure,
@@ -62,21 +53,22 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 		},
 	}
 
-	sql, args := builder.Insert(forecastCalculationTable, columns).SQL("RETURNING id").Build()
+	var id int64
+	sql, args := b.Insert(b.ForecastCalculationTable.Name(), columns).SQL("RETURNING id").Build()
 	if err := f.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	out, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: id})
+	return id, nil
+}
+
+func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, read *options.Read) (*model.ForecastCalculation, error) {
+	search, err := options.NewSearch(ctx, options.WithID(read.ID()))
 	if err != nil {
 		return nil, err
 	}
 
-	return out, nil
-}
-
-func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.ForecastCalculation, error) {
-	items, err := f.SearchForecastCalculation(ctx, user, search)
+	items, err := f.SearchForecastCalculation(ctx, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}
@@ -92,25 +84,115 @@ func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, user 
 	return items[0], nil
 }
 
-func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, error) {
-	var (
-		items   []*model.ForecastCalculation
-		columns []string
+func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, search *options.Search) ([]*model.ForecastCalculation, error) {
+	const (
+		linkCreatedBy = 1 << iota
+		linkUpdatedBy
 	)
 
-	columns = []string{fields.Wildcard(model.ForecastCalculation{})}
-	if len(search.Fields) > 0 {
-		columns = search.Fields
+	var (
+		forecastCalculation = b.ForecastCalculationTable
+		createdBy           = b.UserTable.WithAlias("crt")
+		updatedBy           = b.UserTable.WithAlias("upd")
+		base                = b.Select().From(forecastCalculation.String())
+
+		join          = 0
+		joinCreatedBy = func() {
+			if join&linkCreatedBy != 0 {
+				return
+			}
+
+			join |= linkCreatedBy
+			base.JoinWithOption(
+				b.LeftJoin(createdBy,
+					b.JoinExpression{
+						Left:  forecastCalculation.Ident("created_by"),
+						Op:    "=",
+						Right: createdBy.Ident("id"),
+					},
+				),
+			)
+		}
+
+		joinUpdatedBy = func() {
+			if join&linkUpdatedBy != 0 {
+				return
+			}
+
+			join |= linkUpdatedBy
+			base.JoinWithOption(
+				b.LeftJoin(updatedBy,
+					b.JoinExpression{
+						Left:  forecastCalculation.Ident("updated_by"),
+						Op:    "=",
+						Right: updatedBy.Ident("id"),
+					},
+				),
+			)
+		}
+	)
+
+	{
+		// Default fields
+		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by"} {
+			search.WithField(field)
+		}
+
+		for _, field := range search.Fields() {
+			switch field {
+			case "id", "domain_id", "created_at", "updated_at", "name", "description", "procedure", "args":
+				field = forecastCalculation.Ident(field)
+
+			case "created_by":
+				joinCreatedBy()
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(createdBy)), field)
+
+			case "updated_by":
+				joinUpdatedBy()
+				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
+			}
+
+			base.SelectMore(field)
+		}
 	}
 
-	sb := builder.Select(columns...).From(forecastCalculationView)
-	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
-		AddWhereClause(&search.Where("name").WhereClause).
-		OrderBy(search.OrderBy(forecastCalculationView)).
-		Limit(int(search.Limit())).
-		Offset(int(search.Offset())).
-		Build()
+	{
+		base.Where(base.EQ(forecastCalculation.Ident("domain_id"), search.User().DomainId))
+		if search.Query() != "" {
+			base.Where(base.ILike(forecastCalculation.Ident("name"), search.Query()))
+		}
 
+		if ids := search.IDs(); len(ids) > 0 {
+			base.Where(base.In(forecastCalculation.Ident("id"), b.ConvertArgs(ids)...))
+		}
+	}
+
+	{
+		orderBy := search.OrderBy()
+		if len(orderBy) == 0 {
+			orderBy.WithOrderBy("created_at", b.OrderDirectionASC)
+		}
+
+		for field, direction := range orderBy {
+			switch field {
+			case "id", "name", "description", "created_at", "updated_at":
+				field = b.OrderBy(forecastCalculation.Ident(field), direction)
+
+			case "created_by":
+				joinCreatedBy()
+				field = b.OrderBy(createdBy.Ident("name"), direction)
+
+			case "updated_by":
+				joinUpdatedBy()
+				field = b.OrderBy(updatedBy.Ident("name"), direction)
+			}
+
+			base.OrderBy(field)
+		}
+	}
+
+	var items []*model.ForecastCalculation
+	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
 	if err := f.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
@@ -118,43 +200,34 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, use
 	return items, nil
 }
 
-func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error) {
-	if err := f.checkProcedure(ctx, in.Procedure); err != nil {
-		return nil, err
-	}
-
+func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, read *options.Read, in *model.ForecastCalculation) error {
 	columns := map[string]any{
-		"updated_by":  user.Id,
+		"updated_by":  read.User().Id,
 		"name":        in.Name,
 		"description": in.Description,
 		"procedure":   in.Procedure,
 		"args":        in.Args,
 	}
 
-	ub := builder.Update(forecastCalculationTable, columns)
+	ub := b.Update(b.ForecastCalculationTable.Name(), columns)
 	clauses := []string{
-		ub.Equal("domain_id", user.DomainId),
+		ub.Equal("domain_id", read.User().DomainId),
 		ub.Equal("id", in.Id),
 	}
 
 	sql, args := ub.Where(clauses...).Build()
 	if err := f.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return nil, err
+		return err
 	}
 
-	out, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: in.Id})
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
+	return nil
 }
 
-func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
-	db := builder.Delete(forecastCalculationTable)
+func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, read *options.Read) (int64, error) {
+	db := b.Delete(b.ForecastCalculationTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", user.DomainId),
-		db.Equal("id", id),
+		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("id", read.ID()),
 	}
 
 	sql, args := db.Where(clauses...).Build()
@@ -162,21 +235,12 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 		return 0, err
 	}
 
-	return id, nil
+	return read.ID(), nil
 }
 
-func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
-	item, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: id})
-	if err != nil {
-		return nil, err
-	}
-
-	if err := f.checkProcedure(ctx, item.Procedure); err != nil {
-		return nil, err
-	}
-
-	par, args := interpolateArguments(item.Args, teamId, forecast)
-	sql := "SELECT * FROM " + item.Procedure + "(" + par + ")"
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, read *options.Read, calculation *model.ForecastCalculation) ([]*model.ForecastCalculationResult, error) {
+	par, args := interpolateArguments(calculation.Args, 0, nil) // TODO: pass as derived filters in options.Read
+	sql := "SELECT * FROM " + calculation.Procedure + "(" + par + ")"
 
 	var out []*model.ForecastCalculationResult
 	if err := f.forecastDB.Alive().Select(ctx, &out, sql, args...); err != nil {
@@ -186,7 +250,7 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, us
 	return out, nil
 }
 
-func (f *ForecastCalculation) checkProcedure(ctx context.Context, proc string) error {
+func (f *ForecastCalculation) CheckForecastCalculationProcedure(ctx context.Context, proc string) error {
 	var exists *string
 	if err := f.db.Primary().Get(ctx, &exists, "SELECT to_regproc($1)", proc); err != nil {
 		return err
