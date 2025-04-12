@@ -93,23 +93,29 @@ definitions:
           - grep --color=never -e '--- PASS:' -e '--- FAIL:' test.log | sed 's/[:()]//g' | awk '{print $2,$3,$4}' | sort -t' ' -nk3 -r | awk '{sum += $3; print $1,$2,$3,sum"s"}'
 
     - step: &deploy-development-step
-        name: Deploy to development environment
+        name: Development environment
         deployment: development
         script:
           - echo "Deployed!"
 
     - step: &deploy-testing-step
-        name: Deploy to testing environment
+        name: Testing environment
+        trigger: manual
+        deployment: testing
         script:
           - echo "Deployed!"
 
     - step: &deploy-staging-step
-        name: Deploy to staging environment
+        name: Staging environment
+        trigger: manual
+        deployment: staging
         script:
           - echo "Deployed!"
 
     - step: &publish-deb-step
         name: Publish .deb package
+        trigger: manual
+        deployment: repository
         image: ruby:3.3.8-alpine
         variables:
           AWS_ACCESS_KEY_ID: $DEB_AWS_ACCESS_KEY_ID
@@ -157,20 +163,8 @@ pipelines:
             - step: *test-unit-step
 
       - step: *deploy-development-step
-
-      - stage:
-          name: Deploy
-          trigger: manual
-          deployment: testing
-          steps:
-            - step: *deploy-testing-step
-
-      - stage:
-          name: Publish
-          trigger: manual
-          deployment: repository
-          steps:
-            - step: *publish-deb-step
+      - step: *deploy-testing-step
+      - step: *publish-deb-step
 
     # Release branches goes to staging environments.
     v*.*:
@@ -186,16 +180,5 @@ pipelines:
             - step: *test-linting-step
             - step: *test-unit-step
 
-      - stage:
-          name: Deploy
-          trigger: manual
-          deployment: staging
-          steps:
-            - step: *deploy-staging-step
-
-      - stage:
-          name: Publish
-          trigger: manual
-          deployment: repository
-          steps:
-            - step: *publish-deb-step
+      - step: *deploy-staging-step
+      - step: *publish-deb-step
