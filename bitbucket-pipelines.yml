@@ -33,7 +33,7 @@ definitions:
 
   steps:
     - step: &prepare-version-step
-        name: Version
+        name: Extract version
         image: alpine:latest
         script:
           - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
@@ -41,13 +41,13 @@ definitions:
         output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
 
     - step: &prepare-dependencies-step
-        name: Dependencies
+        name: Download dependencies
         caches: [ go-mod ]
         script:
           - go mod download
 
     - step: &prepare-code-step
-        name: Code
+        name: Generate code
         caches: [ go-mod, go-tools-build ]
         script:
           - apk add --no-cache git # Needed for buf to clone protos.
@@ -58,14 +58,16 @@ definitions:
             - cmd/wire_gen.go
 
     - step: &test-compile-step
-        name: Compile
+        name: Compile application
         size: 2x
         image: goreleaser/goreleaser:v2.8.2
         caches: [ go-mod, go-app-build ]
-        variables:
-          GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
+        # Variables under the key are not interpolated (no expansion of $VAR_NAME).
+        # They are treated literally, not dynamically resolved.
+        # variables:
+        # GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
         script:
-          - echo "$GORELEASER_CURRENT_TAG $WEBITEL_VERSION"
+          - export GORELEASER_CURRENT_TAG=$WEBITEL_VERSION
           - goreleaser release --clean --skip publish --skip validate
         artifacts:
           download: true
@@ -73,7 +75,7 @@ definitions:
             - dist/webitel-wfm-*.*
 
     - step: &test-linting-step
-        name: Linting
+        name: Lint code
         size: 2x
         image: golangci/golangci-lint:v1.64.8-alpine
         caches: [ go-mod, golangci-lint ]
@@ -90,20 +92,20 @@ definitions:
           - grep --color=never -e '--- PASS:' -e '--- FAIL:' test.log | sed 's/[:()]//g' | awk '{print $2,$3,$4}' | sort -t' ' -nk3 -r | awk '{sum += $3; print $1,$2,$3,sum"s"}'
 
     - step: &deploy-development-step
-        name: Development environment
+        name: Deploy (development)
         deployment: development
         script:
           - echo "Deployed!"
 
     - step: &deploy-testing-step
-        name: Testing environment
+        name: Deploy (testing)
         trigger: manual
         deployment: testing
         script:
           - echo "Deployed!"
 
     - step: &deploy-staging-step
-        name: Staging environment
+        name: Deploy (staging)
         trigger: manual
         deployment: staging
         script:
