@@ -122,12 +122,11 @@ definitions:
         script:
           - gem install deb-s3
           - >
-            deb-s3 upload "webitel-wfm-*.deb" --visibility nil --arch amd64 \
+            deb-s3 upload "dist/webitel-wfm-*.deb" --visibility nil --arch amd64 \
               --bucket "$AWS_BUCKET_NAME" \
               --s3-region "$AWS_DEFAULT_REGION" \
               --component "$WEBITEL_DEB_COMPONENT" \
-              --codename "$DEB_CODENAME" 
-
+              --codename "$DEB_CODENAME"
 
 pipelines:
   default:
