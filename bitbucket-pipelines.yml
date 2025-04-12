@@ -54,7 +54,7 @@ definitions:
           - go generate ./...
         artifacts:
           paths:
-            - gen/go
+            - gen/go/**
             - cmd/wire_gen.go
 
     - step: &test-compile-step
