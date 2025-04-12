@@ -65,6 +65,7 @@ definitions:
         variables:
           GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
         script:
+          - echo "$GORELEASER_CURRENT_TAG $WEBITEL_VERSION"
           - goreleaser release --clean --skip publish --skip validate
         artifacts:
           download: true
