@@ -8,12 +8,10 @@ image: golang:1.24.2-alpine
 
 definitions:
   variables:
-    GOPATH: $BITBUCKET_CLONE_DIR/.go
-    GOCACHE: $GOPATH/cache
+
     GOLANGCI_LINT_CACHE: $BITBUCKET_CLONE_DIR/.golangci-lint
 
-    WEBITEL_VERSION: $BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT
-    WEBITEL_DEB_COMPONENT: $WEBITEL_VERSION-releases
+
 
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
@@ -82,6 +80,8 @@ definitions:
         size: 2x
         image: golangci/golangci-lint:v1.64.8-alpine
         caches: [ go-mod, golangci-lint ]
+        variables:
+          GOLANGCI_LINT_CACHE: $BITBUCKET_CLONE_DIR/.golangci-lint
         script:
           - golangci-lint run
 
@@ -176,7 +176,12 @@ pipelines:
 
       - parallel:
           steps:
-            - step: *test-compile-step
+            - step:
+                <<: *test-compile-step
+                variables:
+                  WEBITEL_VERSION: $BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT
+                  WEBITEL_DEB_COMPONENT: $WEBITEL_VERSION-releases
+
             - step: *test-linting-step
             - step: *test-unit-step
 
