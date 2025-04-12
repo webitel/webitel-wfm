@@ -1,10 +1,6 @@
 package main
 
-import (
-	_ "github.com/google/wire"
-
-	"github.com/webitel/webitel-wfm/cmd"
-)
+import "github.com/webitel/webitel-wfm/cmd"
 
 //go:generate go tool buf generate --template buf.gen.yaml
 //go:generate go tool mockery
