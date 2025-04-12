@@ -52,13 +52,13 @@ definitions:
         name: Dependencies
         caches: [ go-mod ]
         script:
-          - apk add --no-cache git # Needed for buf to clone protos.
           - go mod download
 
     - step: &prepare-code-step
         name: Code
         caches: [ go-mod, go-tools-build ]
         script:
+          - apk add --no-cache git # Needed for buf to clone protos.
           - go generate ./...
         artifacts:
           paths:
