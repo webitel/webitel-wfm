@@ -117,6 +117,7 @@ definitions:
         deployment: repository
         image: ruby:3.3.8-alpine
         script:
+          - apk add --no-cache binutils
           - gem install deb-s3
           - >
             deb-s3 upload "dist/webitel-wfm-*.deb" --visibility nil --arch amd64 \
