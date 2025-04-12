@@ -6,8 +6,8 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
+	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
-	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
 
@@ -28,12 +28,8 @@ func NewForecastCalculation(sr grpc.ServiceRegistrar, service service.ForecastCa
 }
 
 func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, req *pb.CreateForecastCalculationRequest) (*pb.CreateForecastCalculationResponse, error) {
-	read, err := options.NewRead(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := f.service.CreateForecastCalculation(ctx, read, unmarshalForecastCalculationProto(req.GetItem()))
+	s := grpccontext.FromContext(ctx)
+	out, err := f.service.CreateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -42,12 +38,8 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, req
 }
 
 func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, req *pb.ReadForecastCalculationRequest) (*pb.ReadForecastCalculationResponse, error) {
-	read, err := options.NewRead(ctx, options.WithID(req.GetId()), options.WithFields(req.GetFields()))
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := f.service.ReadForecastCalculation(ctx, read)
+	s := grpccontext.FromContext(ctx)
+	out, err := f.service.ReadForecastCalculation(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
 	if err != nil {
 		return nil, err
 	}
@@ -56,19 +48,16 @@ func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, req *
 }
 
 func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, req *pb.SearchForecastCalculationRequest) (*pb.SearchForecastCalculationResponse, error) {
-	opts := []options.Option{
-		options.WithPagination(req.GetPage(), req.GetSize()),
-		options.WithSearch(req.GetQ()),
-		options.WithFields(req.GetFields()),
-		options.WithOrder(req.GetSort()),
+	s := grpccontext.FromContext(ctx)
+	search := &model.SearchItem{
+		Page:   req.GetPage(),
+		Size:   req.GetSize(),
+		Search: req.Q,
+		Sort:   req.Sort,
+		Fields: req.Fields,
 	}
 
-	search, err := options.NewSearch(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	items, next, err := f.service.SearchForecastCalculation(ctx, search)
+	items, next, err := f.service.SearchForecastCalculation(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +66,8 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, req
 }
 
 func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, req *pb.UpdateForecastCalculationRequest) (*pb.UpdateForecastCalculationResponse, error) {
-	read, err := options.NewRead(ctx, options.WithID(req.Item.Id))
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := f.service.UpdateForecastCalculation(ctx, read, unmarshalForecastCalculationProto(req.GetItem()))
+	s := grpccontext.FromContext(ctx)
+	out, err := f.service.UpdateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -91,12 +76,8 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, req
 }
 
 func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req *pb.DeleteForecastCalculationRequest) (*pb.DeleteForecastCalculationResponse, error) {
-	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
-	if err != nil {
-		return nil, err
-	}
-
-	id, err := f.service.DeleteForecastCalculation(ctx, read)
+	s := grpccontext.FromContext(ctx)
+	id, err := f.service.DeleteForecastCalculation(ctx, s.SignedInUser, req.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -105,12 +86,13 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req
 }
 
 func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, req *pb.ExecuteForecastCalculationRequest) (*pb.ExecuteForecastCalculationResponse, error) {
-	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
-	if err != nil {
-		return nil, err
+	s := grpccontext.FromContext(ctx)
+	forecast := &model.FilterBetween{
+		From: model.NewTimestamp(req.ForecastData.From),
+		To:   model.NewTimestamp(req.ForecastData.To),
 	}
 
-	out, err := f.service.ExecuteForecastCalculation(ctx, read)
+	out, err := f.service.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id, req.TeamId, forecast)
 	if err != nil {
 		return nil, err
 	}

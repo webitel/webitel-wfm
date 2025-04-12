@@ -16,7 +16,6 @@ var (
 	WorkingConditionTable      = Table{name: "wfm.working_condition", alias: "wc"}
 	AgentWorkingConditionTable = Table{name: "wfm.agent_working_condition", alias: "awc"}
 	AgentAbsenceTable          = Table{name: "wfm.agent_absence", alias: "aa"}
-	ForecastCalculationTable   = Table{name: "wfm.forecast_calculation", alias: "fc"}
 )
 
 type Table struct {
