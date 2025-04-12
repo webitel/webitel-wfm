@@ -1,0 +1,193 @@
+export: true
+
+options:
+  max-time: 30
+  docker: false
+
+image: golang:1.24.2-alpine
+
+definitions:
+  variables:
+    GOPATH: $BITBUCKET_CLONE_DIR/.go
+    GOCACHE: $GOPATH/cache
+    GOLANGCI_LINT_CACHE: $BITBUCKET_CLONE_DIR/.golangci-lint
+
+    WEBITEL_VERSION: $BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT
+    WEBITEL_DEB_COMPONENT: $WEBITEL_VERSION-releases
+
+  caches:
+    # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
+    go-mod:
+      path: $GOPATH/pkg/mod
+      key:
+        files: [ go.mod ]
+
+    # Reuse in future go install / go tool runs.
+    go-tools-build:
+      path: $GOCACHE
+      key:
+        files: [ go.mod ]
+
+    # Reuse in future application builds.
+    go-app-build:
+      path: $GOCACHE
+      key:
+        files: [ go.mod ]
+
+    golangci-lint:
+      path: $GOLANGCI_LINT_CACHE
+      key:
+        files: [ go.mod ]
+
+  steps:
+    - step: &prepare-version-step
+        name: Version
+        script:
+          - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$CI_PIPELINE_IID+sha.$CI_COMMIT_SHORT_SHA" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+          - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+        artifacts:
+          download: false
+
+    - step: &prepare-dependencies-step
+        name: Dependencies
+        caches: [ go-mod ]
+        script:
+          - apk add --no-cache git # Needed for buf to clone protos.
+          - go mod download
+        artifacts:
+          download: false
+
+    - step: &prepare-code-step
+        name: Code
+        caches: [ go-mod, go-tools-build ]
+        script:
+          - go generate ./...
+        artifacts:
+          download: false
+          paths:
+            - gen/go
+            - cmd/wire_gen.go
+
+    - step: &test-compile-step
+        name: Compile
+        size: 2x
+        image: goreleaser/goreleaser:v2.8.2
+        caches: [ go-mod, go-app-build ]
+        script:
+          - goreleaser release --clean --skip publish --skip validate
+        artifacts:
+          download: true
+          paths:
+            - dist/webitel-wfm-*.*
+
+    - step: &test-linting-step
+        name: Linting
+        size: 2x
+        image: golangci/golangci-lint:v1.64.8-alpine
+        caches: [ go-mod, golangci-lint ]
+        script:
+          - golangci-lint run
+
+    - step: &test-unit-step
+        name: Unit testing
+        caches: [ go-mod, go-app-build ]
+        script:
+          - go test -short -v ./... > test.log
+          - grep --color=never -e '--- PASS:' -e '--- FAIL:' test.log | sed 's/[:()]//g' | awk '{print $2,$3,$4}' | sort -t' ' -nk3 -r | awk '{sum += $3; print $1,$2,$3,sum"s"}'
+
+    - step: &deploy-development-step
+        name: Deploy to development environment
+        deployment: development
+        script:
+          - echo "Deployed!"
+
+    - step: &deploy-testing-step
+        name: Deploy to testing environment
+        deployment: testing
+        trigger: manual
+        script:
+          - echo "Deployed!"
+
+    - step: &deploy-staging-step
+        name: Deploy to staging environment
+        deployment: staging
+        trigger: manual
+        script:
+          - echo "Deployed!"
+
+    - step: &publish-deb-step
+        name: Publish .deb package
+        deployment: repository
+        trigger: manual
+        image: ruby:3.3.8-alpine
+        variables:
+          AWS_ACCESS_KEY_ID: $DEB_AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY: $DEB_AWS_SECRET_ACCESS_KEY
+        script:
+          - gem install deb-s3
+          - >
+            deb-s3 upload "webitel-wfm-*.deb" --visibility nil --arch amd64 \
+              --bucket "$AWS_BUCKET_NAME" \
+              --s3-region "$AWS_DEFAULT_REGION" \
+              --component "$WEBITEL_DEB_COMPONENT" \
+              --codename "$DEB_CODENAME" 
+
+
+pipelines:
+  default:
+    - stage:
+        name: Prepare
+        steps:
+          - step: *prepare-version-step
+          - step: *prepare-dependencies-step
+          - step: *prepare-code-step
+
+    - parallel:
+        steps:
+          - step: *test-compile-step
+          - step: *test-linting-step
+          - step: *test-unit-step
+
+  branches:
+    # Code from development branch deploys to development
+    # and testing environments with manual approves.
+    main:
+      - stage:
+          name: Prepare
+          steps:
+            - step: *prepare-version-step
+            - step: *prepare-dependencies-step
+            - step: *prepare-code-step
+
+      - parallel:
+          steps:
+            - step: *test-compile-step
+            - step: *test-linting-step
+            - step: *test-unit-step
+
+      - stage:
+          name: Deploy
+          steps:
+            - step: *deploy-development-step
+            - step: *deploy-testing-step
+            - step: *publish-deb-step
+
+    # Release branches goes to staging environments.
+    v*.*:
+      - stage:
+          name: Prepare
+          steps:
+            - step: *prepare-dependencies-step
+            - step: *prepare-code-step
+
+      - parallel:
+          steps:
+            - step: *test-compile-step
+            - step: *test-linting-step
+            - step: *test-unit-step
+
+      - stage:
+          name: Deploy
+          steps:
+            - step: *deploy-staging-step
+            - step: *publish-deb-step
