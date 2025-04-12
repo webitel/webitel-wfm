@@ -10,19 +10,19 @@ definitions:
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
     go-mod:
-      path: $GOMODCACHE
+      path: /go/pkg/mod
       key:
         files: [ go.sum ]
 
     # Reuse in future go install / go tool runs.
     go-tools-build:
-      path: $GOCACHE
+      path: ~/.cache/go-build
       key:
         files: [ go.sum ]
 
     # Reuse in future application builds.
     go-app-build:
-      path: $GOCACHE
+      path: ~/.cache/go-build
       key:
         files: [ go.sum ]
 
