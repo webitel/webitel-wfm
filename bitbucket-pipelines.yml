@@ -45,8 +45,6 @@ definitions:
         script:
           - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$CI_PIPELINE_IID+sha.$CI_COMMIT_SHORT_SHA" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
           - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-        artifacts:
-          download: false
 
     - step: &prepare-dependencies-step
         name: Dependencies
@@ -54,8 +52,6 @@ definitions:
         script:
           - apk add --no-cache git # Needed for buf to clone protos.
           - go mod download
-        artifacts:
-          download: false
 
     - step: &prepare-code-step
         name: Code
