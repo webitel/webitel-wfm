@@ -42,6 +42,7 @@ definitions:
   steps:
     - step: &prepare-version-step
         name: Version
+        image: alpine:latest
         script:
           - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$CI_PIPELINE_IID+sha.$CI_COMMIT_SHORT_SHA" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
           - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
@@ -98,22 +99,16 @@ definitions:
 
     - step: &deploy-testing-step
         name: Deploy to testing environment
-        deployment: testing
-        trigger: manual
         script:
           - echo "Deployed!"
 
     - step: &deploy-staging-step
         name: Deploy to staging environment
-        deployment: staging
-        trigger: manual
         script:
           - echo "Deployed!"
 
     - step: &publish-deb-step
         name: Publish .deb package
-        deployment: repository
-        trigger: manual
         image: ruby:3.3.8-alpine
         variables:
           AWS_ACCESS_KEY_ID: $DEB_AWS_ACCESS_KEY_ID
@@ -160,11 +155,20 @@ pipelines:
             - step: *test-linting-step
             - step: *test-unit-step
 
+      - step: *deploy-development-step
+
       - stage:
           name: Deploy
+          trigger: manual
+          deployment: testing
           steps:
-            - step: *deploy-development-step
             - step: *deploy-testing-step
+
+      - stage:
+          name: Publish
+          trigger: manual
+          deployment: repository
+          steps:
             - step: *publish-deb-step
 
     # Release branches goes to staging environments.
@@ -183,6 +187,14 @@ pipelines:
 
       - stage:
           name: Deploy
+          trigger: manual
+          deployment: staging
           steps:
             - step: *deploy-staging-step
+
+      - stage:
+          name: Publish
+          trigger: manual
+          deployment: repository
+          steps:
             - step: *publish-deb-step
