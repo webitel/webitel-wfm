@@ -82,7 +82,9 @@ definitions:
         variables:
           GOLANGCI_LINT_CACHE: ~/.cache/golangci-lint
         script:
-          - golangci-lint run
+          - golangci-lint run --out-format=checkstyle > checkstyle-result.xml
+        after-script:
+          - pipe: atlassian/checkstyle-report:0.5.2
 
     - step: &test-unit-step
         name: Unit testing
