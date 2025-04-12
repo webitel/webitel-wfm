@@ -59,7 +59,6 @@ definitions:
         script:
           - go generate ./...
         artifacts:
-          download: false
           paths:
             - gen/go
             - cmd/wire_gen.go
