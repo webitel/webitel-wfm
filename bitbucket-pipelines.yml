@@ -86,6 +86,7 @@ definitions:
 
     - step: &test-unit-step
         name: Unit testing
+        size: 2x
         caches: [ go-mod, go-app-build ]
         script:
           - go test -short -v ./... > test.log
