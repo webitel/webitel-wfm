@@ -7,33 +7,27 @@ options:
 image: golang:1.24.2-alpine
 
 definitions:
-  variables:
-
-    GOLANGCI_LINT_CACHE: $BITBUCKET_CLONE_DIR/.golangci-lint
-
-
-
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
     go-mod:
-      path: $GOPATH/pkg/mod
+      path: $HOME/go/pkg/mod
       key:
         files: [ go.mod ]
 
     # Reuse in future go install / go tool runs.
     go-tools-build:
-      path: $GOCACHE
+      path: $HOME/.cache/go-build
       key:
         files: [ go.mod ]
 
     # Reuse in future application builds.
     go-app-build:
-      path: $GOCACHE
+      path: $HOME/.cache/go-build
       key:
         files: [ go.mod ]
 
     golangci-lint:
-      path: $GOLANGCI_LINT_CACHE
+      path: $HOME/.cache/golangci-lint
       key:
         files: [ go.mod ]
 
@@ -68,6 +62,8 @@ definitions:
         size: 2x
         image: goreleaser/goreleaser:v2.8.2
         caches: [ go-mod, go-app-build ]
+        variables:
+          GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
         script:
           - goreleaser release --clean --skip publish --skip validate
         artifacts:
@@ -81,7 +77,7 @@ definitions:
         image: golangci/golangci-lint:v1.64.8-alpine
         caches: [ go-mod, golangci-lint ]
         variables:
-          GOLANGCI_LINT_CACHE: $BITBUCKET_CLONE_DIR/.golangci-lint
+          GOLANGCI_LINT_CACHE: $HOME/.cache/golangci-lint
         script:
           - golangci-lint run
 
@@ -171,17 +167,18 @@ pipelines:
       - stage:
           name: Prepare
           steps:
+            - step:
+                <<: *prepare-version-step
+                script:
+                  - echo "WEBITEL_VERSION=$BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+                  - echo "WEBITEL_DEB_COMPONENT=$BITBUCKET_BRANCH-releases" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+
             - step: *prepare-dependencies-step
             - step: *prepare-code-step
 
       - parallel:
           steps:
-            - step:
-                <<: *test-compile-step
-                variables:
-                  WEBITEL_VERSION: $BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT
-                  WEBITEL_DEB_COMPONENT: $WEBITEL_VERSION-releases
-
+            - step: *test-compile-step
             - step: *test-linting-step
             - step: *test-unit-step
 
