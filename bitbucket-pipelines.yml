@@ -87,10 +87,9 @@ definitions:
     - step: &test-unit-step
         name: Unit testing
         size: 2x
-        caches: [ go-mod, go-app-build ]
+        caches: [ go-mod, go-tools-build ]
         script:
-          - go test -short -v ./... > test.log
-          - grep --color=never -e '--- PASS:' -e '--- FAIL:' test.log | sed 's/[:()]//g' | awk '{print $2,$3,$4}' | sort -t' ' -nk3 -r | awk '{sum += $3; print $1,$2,$3,sum"s"}'
+          - go test -short -v 2>&1 ./... | go run github.com/jstemmer/go-junit-report/v2@v2.1.0 -set-exit-code > test-reports/junit.xml
 
     - step: &deploy-development-step
         name: Deploy (development)
