@@ -94,6 +94,11 @@ definitions:
           - mkdir -p test-reports
           - go test -short -v 2>&1 ./... | go run github.com/jstemmer/go-junit-report/v2@v2.1.0 -set-exit-code > test-reports/junit.xml
 
+    - step: &test-gitleaks-step
+        name: Secret scanner
+        script:
+          - pipe: atlassian/git-secrets-scan:3.1.0
+
     - step: &deploy-development-step
         name: Deploy (development)
         deployment: development
@@ -156,6 +161,7 @@ pipelines:
           - step: *test-compile-step
           - step: *test-linting-step
           - step: *test-unit-step
+          - step: *test-gitleaks-step
 
   branches:
     # Code from development branch deploys to development
@@ -173,6 +179,7 @@ pipelines:
             - step: *test-compile-step
             - step: *test-linting-step
             - step: *test-unit-step
+            - step: *test-gitleaks-step
 
       - step: *deploy-development-step
       - step: *deploy-testing-step
@@ -197,6 +204,7 @@ pipelines:
             - step: *test-compile-step
             - step: *test-linting-step
             - step: *test-unit-step
+            - step: *test-gitleaks-step
 
       - step: *deploy-staging-step
       - parallel:
