@@ -208,14 +208,12 @@ definitions:
 pipelines:
   default:
     - stage:
+        <<: *code-backstage-condition
         name: Prepare
         steps:
           - step: *prepare-version-step
           - step: *prepare-dependencies-step
           - step: *prepare-code-step
-        condition:
-          changesets:
-            includePaths: *code-backstage-changesets
 
     - parallel: *test-parallel
 
@@ -224,14 +222,12 @@ pipelines:
     # and testing environments with manual approves.
     main:
       - stage:
+          <<: *code-backstage-condition
           name: Prepare
           steps:
             - step: *prepare-version-step
             - step: *prepare-dependencies-step
             - step: *prepare-code-step
-          condition:
-            changesets:
-              includePaths: *code-backstage-changesets
 
       - parallel: *test-parallel
       - step: *deploy-development-step
@@ -241,6 +237,7 @@ pipelines:
     # Release branches goes to staging environments.
     v*.*:
       - stage:
+          <<: *code-backstage-condition
           name: Prepare
           steps:
             - step:
@@ -251,9 +248,6 @@ pipelines:
 
             - step: *prepare-dependencies-step
             - step: *prepare-code-step
-          condition:
-            changesets:
-              includePaths: *code-backstage-changesets
 
       - parallel: *test-parallel
       - step: *deploy-staging-step
