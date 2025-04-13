@@ -60,6 +60,7 @@ definitions:
     - step: &test-compile-step
         name: Compile application
         size: 2x
+        on-fail: { strategy: fail }
         image: goreleaser/goreleaser:v2.8.2
         caches: [ go-mod, go-app-build ]
         # Variables under the key are not interpolated (no expansion of $VAR_NAME).
@@ -77,6 +78,7 @@ definitions:
     - step: &test-linting-step
         name: Lint code
         size: 2x
+        on-fail: { strategy: ignore }
         image: golangci/golangci-lint:v1.64.8-alpine
         caches: [ go-mod, golangci-lint ]
         variables:
@@ -89,6 +91,7 @@ definitions:
     - step: &test-unit-step
         name: Unit testing
         size: 2x
+        on-fail: { strategy: ignore }
         caches: [ go-mod, go-tools-build ]
         script:
           - mkdir -p test-reports
@@ -96,6 +99,7 @@ definitions:
 
     - step: &test-gitleaks-step
         name: Secret scanner
+        on-fail: { strategy: fail }
         script:
           - pipe: atlassian/git-secrets-scan:3.1.0
 
