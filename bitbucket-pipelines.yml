@@ -4,9 +4,22 @@ options:
   max-time: 30
   docker: false
 
-image: golang:1.24.2-alpine
+image: alpine:latest
 
 definitions:
+  images:
+    - name: &golang-image
+        image: golang:1.24.2-alpine
+
+    - name: &ruby-image
+        image: ruby:3.3.8-alpine
+
+    - name: &golangci-image
+        image: golangci/golangci-lint:v1.64.8-alpine
+
+    - name: &goreleaser-image
+        image: goreleaser/goreleaser:v2.8.2
+
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
     go-mod:
@@ -58,7 +71,6 @@ definitions:
     - step: &prepare-version-step
         <<: *code-backstage-condition
         name: Extract version
-        image: alpine:latest
         script:
           - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
           - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
@@ -66,6 +78,7 @@ definitions:
 
     - step: &prepare-dependencies-step
         <<: *code-backstage-condition
+        <<: *golang-image
         name: Download dependencies
         caches: [ go-mod ]
         script:
@@ -73,6 +86,7 @@ definitions:
 
     - step: &prepare-code-step
         <<: *code-backstage-condition
+        <<: *golang-image
         name: Generate code
         caches: [ go-mod, go-tools-build ]
         script:
@@ -85,10 +99,10 @@ definitions:
 
     - step: &test-compile-step
         <<: *code-backstage-condition
+        <<: *goreleaser-image
         name: Compile application
         size: 2x
         on-fail: { strategy: fail }
-        image: goreleaser/goreleaser:v2.8.2
         caches: [ go-mod, go-app-build ]
         # Variables under the key are not interpolated (no expansion of $VAR_NAME).
         # They are treated literally, not dynamically resolved.
@@ -104,10 +118,10 @@ definitions:
 
     - step: &test-linting-step
         <<: *code-backstage-condition
+        <<: *golangci-image
         name: Lint code
         size: 2x
         on-fail: { strategy: ignore }
-        image: golangci/golangci-lint:v1.64.8-alpine
         caches: [ go-mod, golangci-lint ]
         variables:
           GOLANGCI_LINT_CACHE: ~/.cache/golangci-lint
@@ -118,6 +132,7 @@ definitions:
 
     - step: &test-unit-step
         <<: *code-backstage-condition
+        <<: *golang-image
         name: Unit testing
         size: 2x
         on-fail: { strategy: ignore }
@@ -156,10 +171,10 @@ definitions:
 
     - step: &publish-deb-step
         <<: *code-backstage-condition
+        <<: *ruby-image
         name: Publish .deb package
         trigger: manual
         deployment: acceptance
-        image: ruby:3.3.8-alpine
         script:
           - apk add --no-cache binutils
           - gem install deb-s3
