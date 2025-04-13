@@ -100,7 +100,7 @@ nfpms:
 
     contents:
       - src: deploy/systemd/{{ .ProjectName }}.service
-        dst: /etc/system/systemd/{{ .ProjectName }}.service
+        dst: /etc/systemd/system/{{ .ProjectName }}.service
         type: "config|noreplace"
 
 milestones:
