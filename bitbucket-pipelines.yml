@@ -99,25 +99,26 @@ definitions:
         script:
           - pipe: atlassian/git-secrets-scan:3.1.0
 
-    - step: &deploy-development-step
-        name: Deploy (development)
-        deployment: development
+    - step: &deploy-step
         script:
           - echo "Deployed!"
 
+    - step: &deploy-development-step
+        <<: *deploy-step
+        name: Deploy (development)
+        deployment: development
+
     - step: &deploy-testing-step
+        <<: *deploy-step
         name: Deploy (testing)
         trigger: manual
         deployment: testing
-        script:
-          - echo "Deployed!"
 
     - step: &deploy-staging-step
+        <<: *deploy-step
         name: Deploy (staging)
         trigger: manual
         deployment: staging
-        script:
-          - echo "Deployed!"
 
     - step: &publish-deb-step
         name: Publish .deb package
@@ -146,6 +147,13 @@ definitions:
               BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
               FILENAME: dist/webitel-wfm-*.deb
 
+    - parallel: &test-parallel
+        steps:
+          - step: *test-compile-step
+          - step: *test-linting-step
+          - step: *test-unit-step
+          - step: *test-gitleaks-step
+
 pipelines:
   default:
     - stage:
@@ -155,12 +163,7 @@ pipelines:
           - step: *prepare-dependencies-step
           - step: *prepare-code-step
 
-    - parallel:
-        steps:
-          - step: *test-compile-step
-          - step: *test-linting-step
-          - step: *test-unit-step
-          - step: *test-gitleaks-step
+    - parallel: *test-parallel
 
   branches:
     # Code from development branch deploys to development
@@ -173,13 +176,7 @@ pipelines:
             - step: *prepare-dependencies-step
             - step: *prepare-code-step
 
-      - parallel:
-          steps:
-            - step: *test-compile-step
-            - step: *test-linting-step
-            - step: *test-unit-step
-            - step: *test-gitleaks-step
-
+      - parallel: *test-parallel
       - step: *deploy-development-step
       - step: *deploy-testing-step
       - step: *publish-deb-step
@@ -198,13 +195,7 @@ pipelines:
             - step: *prepare-dependencies-step
             - step: *prepare-code-step
 
-      - parallel:
-          steps:
-            - step: *test-compile-step
-            - step: *test-linting-step
-            - step: *test-unit-step
-            - step: *test-gitleaks-step
-
+      - parallel: *test-parallel
       - step: *deploy-staging-step
       - parallel:
           steps:
