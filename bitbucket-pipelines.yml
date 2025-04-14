@@ -22,7 +22,7 @@ definitions:
 
   runners:
     - runs-on: &selfhosted-runner
-        - 'self.hosted'
+      - 'self.hosted'
 
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
