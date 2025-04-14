@@ -245,7 +245,7 @@ pipelines:
           script:
             - ls -la $(dirname $BITBUCKET_PIPELINES_VARIABLES_PATH)
             - touch $BITBUCKET_PIPELINES_VARIABLES_PATH
-            - echo "Test variable" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+            - echo "TEST=Test" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
             - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
             - cat $BITBUCKET_PIPELINES_VARIABLES_PATH
 
