@@ -119,6 +119,7 @@ definitions:
         # variables:
         # GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
         script:
+          - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
           - export GORELEASER_CURRENT_TAG=$WEBITEL_VERSION
           - goreleaser release --clean --skip publish --skip validate
         artifacts:
