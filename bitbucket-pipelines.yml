@@ -243,7 +243,24 @@ pipelines:
     main:
       - step:
           script:
+            - ls -la $(dirname $BITBUCKET_PIPELINES_VARIABLES_PATH)
+            - touch $BITBUCKET_PIPELINES_VARIABLES_PATH
+            - echo "Test variable" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
             - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
+            - cat $BITBUCKET_PIPELINES_VARIABLES_PATH
+
+      - step:
+          <<: *selfhosted-runner
+          script:
+            - ls -la $(dirname $BITBUCKET_PIPELINES_VARIABLES_PATH)
+            - echo "TEST=Test" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+            - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
+            - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
+            - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+            - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+            - cat $BITBUCKET_PIPELINES_VARIABLES_PATH
+            -
+          output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
 
       - stage:
           <<: *code-backstage-condition
