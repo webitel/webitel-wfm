@@ -20,6 +20,10 @@ definitions:
     - name: &goreleaser-image
         image: goreleaser/goreleaser:v2.8.2
 
+  runners:
+    - runs-on: &selfhosted-runner
+        - 'self.hosted'
+
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
     go-mod:
@@ -69,6 +73,7 @@ definitions:
 
   steps:
     - step: &prepare-version-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         name: Extract version
         script:
@@ -77,6 +82,7 @@ definitions:
         output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
 
     - step: &prepare-dependencies-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         <<: *golang-image
         name: Download dependencies
@@ -85,6 +91,7 @@ definitions:
           - go mod download
 
     - step: &prepare-code-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         <<: *golang-image
         name: Generate code
@@ -98,6 +105,7 @@ definitions:
             - cmd/wire_gen.go
 
     - step: &test-compile-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         <<: *goreleaser-image
         name: Compile application
@@ -117,6 +125,7 @@ definitions:
             - dist/webitel-wfm-*.*
 
     - step: &test-linting-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         <<: *golangci-image
         name: Lint code
@@ -131,6 +140,7 @@ definitions:
           - pipe: atlassian/checkstyle-report:0.5.2
 
     - step: &test-unit-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         <<: *golang-image
         name: Unit testing
@@ -142,34 +152,40 @@ definitions:
           - go test -short -v 2>&1 ./... | go run github.com/jstemmer/go-junit-report/v2@v2.1.0 -set-exit-code > test-reports/junit.xml
 
     - step: &test-gitleaks-step
+        <<: *selfhosted-runner
         name: Secret scanner
         on-fail: { strategy: fail }
         script:
           - pipe: atlassian/git-secrets-scan:3.1.0
 
     - step: &deploy-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         script:
           - echo "Deployed!"
 
     - step: &deploy-development-step
+        <<: *selfhosted-runner
         <<: *deploy-step
         name: Deploy (development)
         deployment: development
 
     - step: &deploy-testing-step
+        <<: *selfhosted-runner
         <<: *deploy-step
         name: Deploy (testing)
         trigger: manual
         deployment: testing
 
     - step: &deploy-staging-step
+        <<: *selfhosted-runner
         <<: *deploy-step
         name: Deploy (staging)
         trigger: manual
         deployment: staging
 
     - step: &publish-deb-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         <<: *ruby-image
         name: Publish .deb package
@@ -188,6 +204,7 @@ definitions:
               --bucket "$DEB_AWS_BUCKET_NAME"
 
     - step: &upload-deb-step
+        <<: *selfhosted-runner
         <<: *code-backstage-condition
         name: Upload to Downloads
         trigger: manual
