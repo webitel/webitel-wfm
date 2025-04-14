@@ -241,6 +241,10 @@ pipelines:
     # Code from development branch deploys to development
     # and testing environments with manual approves.
     main:
+      - step:
+          script:
+            - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
+
       - stage:
           <<: *code-backstage-condition
           name: Prepare
