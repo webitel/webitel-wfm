@@ -78,6 +78,7 @@ definitions:
         <<: *code-backstage-condition
         name: Extract version
         script:
+          - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
           - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
           - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
         output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
