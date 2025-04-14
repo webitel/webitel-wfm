@@ -21,8 +21,9 @@ definitions:
         image: goreleaser/goreleaser:v2.8.2
 
   runners:
-    - runs-on: &selfhosted-runner
-      - 'self.hosted'
+    - self-hosted: &selfhosted-runner
+        runs-on:
+          - 'self.hosted'
 
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
