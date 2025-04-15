@@ -78,7 +78,6 @@ definitions:
         <<: *code-backstage-condition
         name: Extract version
         script:
-          - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
           - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
           - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
         output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
@@ -111,7 +110,7 @@ definitions:
         <<: *code-backstage-condition
         <<: *goreleaser-image
         name: Compile application
-        size: 2x
+        size: 4x
         on-fail: { strategy: fail }
         caches: [ go-mod, go-app-build ]
         # Variables under the key are not interpolated (no expansion of $VAR_NAME).
@@ -119,7 +118,6 @@ definitions:
         # variables:
         # GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
         script:
-          - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
           - export GORELEASER_CURRENT_TAG=$WEBITEL_VERSION
           - goreleaser release --clean --skip publish --skip validate
         artifacts:
@@ -132,7 +130,7 @@ definitions:
         <<: *code-backstage-condition
         <<: *golangci-image
         name: Lint code
-        size: 2x
+        size: 4x
         on-fail: { strategy: ignore }
         caches: [ go-mod, golangci-lint ]
         variables:
@@ -147,7 +145,7 @@ definitions:
         <<: *code-backstage-condition
         <<: *golang-image
         name: Unit testing
-        size: 2x
+        size: 4x
         on-fail: { strategy: ignore }
         caches: [ go-mod, go-tools-build ]
         script:
@@ -241,27 +239,6 @@ pipelines:
     # Code from development branch deploys to development
     # and testing environments with manual approves.
     main:
-      - step:
-          script:
-            - ls -la $(dirname $BITBUCKET_PIPELINES_VARIABLES_PATH)
-            - touch $BITBUCKET_PIPELINES_VARIABLES_PATH
-            - echo "TEST=Test" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-            - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
-            - cat $BITBUCKET_PIPELINES_VARIABLES_PATH
-          output-variables: [ TEST ]
-
-      - step:
-          <<: *selfhosted-runner
-          script:
-            - ls -la $(dirname $BITBUCKET_PIPELINES_VARIABLES_PATH)
-            - echo "TEST=Test" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-            - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
-            - echo "BITBUCKET_PIPELINES_VARIABLES_PATH=$BITBUCKET_PIPELINES_VARIABLES_PATH"
-            - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-            - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-            - cat $BITBUCKET_PIPELINES_VARIABLES_PATH
-          output-variables: [ TEST, WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
-
       - stage:
           <<: *code-backstage-condition
           name: Prepare
