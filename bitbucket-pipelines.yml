@@ -93,7 +93,7 @@ definitions:
         on-fail: { strategy: fail }
         script:
           - mkdir -p test-reports
-          - gitleaks git --report-format junit --report-path "test-reports/gitleaks.xml"
+          - gitleaks git --report-format junit --report-path "test-reports/gitleaks.xml" # TODO: upload reports to Bitbucket
 
     - step: &deploy-development-step
         <<: *selfhosted-runner
@@ -101,22 +101,12 @@ definitions:
         name: Deploy (development)
         deployment: development
         script:
-          - echo "Deployed!"
-#          - pipe: atlassian/scp-deploy:1.5.2
-#            variables:
-#              SERVER: $DEV_HOST
-#              USER: $DEPLOYMENTS_USER
-#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-#              EXTRA_ARGS: -o StrictHostKeychecking=no
-#              REMOTE_PATH: ~/dist/
-#              LOCAL_PATH: dist/webitel-wfm-*.deb
-#
-#          - pipe: atlassian/ssh-run:0.8.1
-#            variables:
-#              SERVER: $DEV_HOST
-#              SSH_USER: $DEPLOYMENTS_USER
-#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-#              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
+          - >
+            scp -i ~/.ssh/$DEPLOYMENTS_USER -o StrictHostKeychecking=no \
+              -rp dist/webitel-wfm-*.deb $DEPLOYMENTS_USER@$DEV_HOST:~/dist/
+          - > 
+            ssh -i ~/.ssh/$DEPLOYMENTS_USER -o StrictHostKeychecking=no \
+              $DEPLOYMENTS_USER@$DEV_HOST "sudo dpkg -i dist/webitel-wfm-*.deb && rm -f dist/webitel-wfm-*.deb"
 
     - step: &deploy-testing-step
         <<: *selfhosted-runner
