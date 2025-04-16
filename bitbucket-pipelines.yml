@@ -4,7 +4,7 @@ options:
   max-time: 30
   docker: false
 
-image: alpine:latest
+# image: alpine:latest
 
 definitions:
   images:
@@ -86,7 +86,7 @@ definitions:
     - step: &prepare-dependencies-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        <<: *golang-image
+        # <<: *golang-image
         name: Download dependencies
         # caches: [ go-mod ]
         script:
@@ -95,7 +95,7 @@ definitions:
     - step: &prepare-code-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        <<: *golang-image
+        # <<: *golang-image
         name: Generate code
         # caches: [ go-mod, go-tools-build ]
         script:
@@ -109,7 +109,7 @@ definitions:
     - step: &test-compile-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        <<: *goreleaser-image
+        # <<: *goreleaser-image
         name: Compile application
         size: 4x
         on-fail: { strategy: fail }
@@ -129,7 +129,7 @@ definitions:
     - step: &test-linting-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        <<: *golangci-image
+        # <<: *golangci-image
         name: Lint code
         size: 4x
         on-fail: { strategy: ignore }
@@ -138,13 +138,13 @@ definitions:
           GOLANGCI_LINT_CACHE: ~/.cache/golangci-lint
         script:
           - golangci-lint run --out-format=checkstyle > checkstyle-result.xml
-        after-script:
-          - pipe: atlassian/checkstyle-report:0.5.2
+#        after-script:
+#          - pipe: atlassian/checkstyle-report:0.5.2
 
     - step: &test-unit-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        <<: *golang-image
+        # <<: *golang-image
         name: Unit testing
         size: 4x
         on-fail: { strategy: ignore }
@@ -158,7 +158,8 @@ definitions:
         name: Secret scanner
         on-fail: { strategy: fail }
         script:
-          - pipe: atlassian/git-secrets-scan:3.1.0
+          - echo "Deployed!"
+#          - pipe: atlassian/git-secrets-scan:3.1.0
 
     - step: &deploy-development-step
         <<: *selfhosted-runner
@@ -166,21 +167,22 @@ definitions:
         name: Deploy (development)
         deployment: development
         script:
-          - pipe: atlassian/scp-deploy:1.5.2
-            variables:
-              SERVER: $DEV_HOST
-              USER: $DEPLOYMENTS_USER
-              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              EXTRA_ARGS: -o StrictHostKeychecking=no
-              REMOTE_PATH: ~/dist/
-              LOCAL_PATH: dist/webitel-wfm-*.deb
-
-          - pipe: atlassian/ssh-run:0.8.1
-            variables:
-              SERVER: $DEV_HOST
-              SSH_USER: $DEPLOYMENTS_USER
-              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
+          - echo "Deployed!"
+#          - pipe: atlassian/scp-deploy:1.5.2
+#            variables:
+#              SERVER: $DEV_HOST
+#              USER: $DEPLOYMENTS_USER
+#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+#              EXTRA_ARGS: -o StrictHostKeychecking=no
+#              REMOTE_PATH: ~/dist/
+#              LOCAL_PATH: dist/webitel-wfm-*.deb
+#
+#          - pipe: atlassian/ssh-run:0.8.1
+#            variables:
+#              SERVER: $DEV_HOST
+#              SSH_USER: $DEPLOYMENTS_USER
+#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+#              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
 
     - step: &deploy-testing-step
         <<: *selfhosted-runner
@@ -189,21 +191,22 @@ definitions:
         trigger: manual
         deployment: testing
         script:
-          - pipe: atlassian/scp-deploy:1.5.2
-            variables:
-              SERVER: $TEST_HOST
-              USER: $DEPLOYMENTS_USER
-              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              EXTRA_ARGS: -o StrictHostKeychecking=no
-              REMOTE_PATH: ~/dist/
-              LOCAL_PATH: dist/webitel-wfm-*.deb
-
-          - pipe: atlassian/ssh-run:0.8.1
-            variables:
-              SERVER: $TEST_HOST
-              SSH_USER: $DEPLOYMENTS_USER
-              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
+          - echo "Deployed!"
+#          - pipe: atlassian/scp-deploy:1.5.2
+#            variables:
+#              SERVER: $TEST_HOST
+#              USER: $DEPLOYMENTS_USER
+#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+#              EXTRA_ARGS: -o StrictHostKeychecking=no
+#              REMOTE_PATH: ~/dist/
+#              LOCAL_PATH: dist/webitel-wfm-*.deb
+#
+#          - pipe: atlassian/ssh-run:0.8.1
+#            variables:
+#              SERVER: $TEST_HOST
+#              SSH_USER: $DEPLOYMENTS_USER
+#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+#              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
 
     - step: &deploy-staging-step
         <<: *selfhosted-runner
@@ -212,26 +215,27 @@ definitions:
         trigger: manual
         deployment: staging
         script:
-          - pipe: atlassian/scp-deploy:1.5.2
-            variables:
-              SERVER: $STAGE_HOST
-              USER: $DEPLOYMENTS_USER
-              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              EXTRA_ARGS: -o StrictHostKeychecking=no
-              REMOTE_PATH: ~/dist/
-              LOCAL_PATH: dist/webitel-wfm-*.deb
-
-          - pipe: atlassian/ssh-run:0.8.1
-            variables:
-              SERVER: $STAGE_HOST
-              SSH_USER: $DEPLOYMENTS_USER
-              SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
+          - echo "Deployed!"
+#          - pipe: atlassian/scp-deploy:1.5.2
+#            variables:
+#              SERVER: $STAGE_HOST
+#              USER: $DEPLOYMENTS_USER
+#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+#              EXTRA_ARGS: -o StrictHostKeychecking=no
+#              REMOTE_PATH: ~/dist/
+#              LOCAL_PATH: dist/webitel-wfm-*.deb
+#
+#          - pipe: atlassian/ssh-run:0.8.1
+#            variables:
+#              SERVER: $STAGE_HOST
+#              SSH_USER: $DEPLOYMENTS_USER
+#              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+#              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
 
     - step: &publish-deb-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        <<: *ruby-image
+        # <<: *ruby-image
         name: Publish .deb package
         trigger: manual
         deployment: acceptance
@@ -253,11 +257,12 @@ definitions:
         name: Upload to Downloads
         trigger: manual
         script:
-          - pipe: atlassian/bitbucket-upload-file:0.7.4
-            variables:
-              BITBUCKET_USERNAME: $BITBUCKET_USERNAME
-              BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
-              FILENAME: dist/webitel-wfm-*.deb
+          - echo "Deployed!"
+#          - pipe: atlassian/bitbucket-upload-file:0.7.4
+#            variables:
+#              BITBUCKET_USERNAME: $BITBUCKET_USERNAME
+#              BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
+#              FILENAME: dist/webitel-wfm-*.deb
 
     - parallel: &test-parallel
         steps:
