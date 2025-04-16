@@ -24,6 +24,7 @@ definitions:
     - self-hosted: &selfhosted-runner
         runs-on:
           - 'self.hosted'
+          - 'linux.shell'
 
   caches:
     # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
