@@ -159,31 +159,76 @@ definitions:
         script:
           - pipe: atlassian/git-secrets-scan:3.1.0
 
-    - step: &deploy-step
-        <<: *selfhosted-runner
-        <<: *code-backstage-condition
-        script:
-          - echo "Deployed!"
-
     - step: &deploy-development-step
         <<: *selfhosted-runner
-        <<: *deploy-step
+        <<: *code-backstage-condition
         name: Deploy (development)
         deployment: development
+        script:
+          - pipe: atlassian/scp-deploy:1.5.2
+            variables:
+              SERVER: $DEV_HOST
+              USER: $DEPLOYMENTS_USER
+              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+              EXTRA_ARGS: -o StrictHostKeychecking=no
+              REMOTE_PATH: ~/dist/
+              LOCAL_PATH: dist/webitel-wfm-*.deb
+
+          - pipe: atlassian/ssh-run:0.8.1
+            variables:
+              SERVER: $DEV_HOST
+              SSH_USER: $DEPLOYMENTS_USER
+              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+              EXTRA_ARGS: -o StrictHostKeychecking=no
+              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
 
     - step: &deploy-testing-step
         <<: *selfhosted-runner
-        <<: *deploy-step
+        <<: *code-backstage-condition
         name: Deploy (testing)
         trigger: manual
         deployment: testing
+        script:
+          - pipe: atlassian/scp-deploy:1.5.2
+            variables:
+              SERVER: $TEST_HOST
+              USER: $DEPLOYMENTS_USER
+              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+              EXTRA_ARGS: -o StrictHostKeychecking=no
+              REMOTE_PATH: ~/dist/
+              LOCAL_PATH: dist/webitel-wfm-*.deb
+
+          - pipe: atlassian/ssh-run:0.8.1
+            variables:
+              SERVER: $TEST_HOST
+              SSH_USER: $DEPLOYMENTS_USER
+              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+              EXTRA_ARGS: -o StrictHostKeychecking=no
+              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
 
     - step: &deploy-staging-step
         <<: *selfhosted-runner
-        <<: *deploy-step
+        <<: *code-backstage-condition
         name: Deploy (staging)
         trigger: manual
         deployment: staging
+        script:
+          - pipe: atlassian/scp-deploy:1.5.2
+            variables:
+              SERVER: $STAGE_HOST
+              USER: $DEPLOYMENTS_USER
+              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+              EXTRA_ARGS: -o StrictHostKeychecking=no
+              REMOTE_PATH: ~/dist/
+              LOCAL_PATH: dist/webitel-wfm-*.deb
+
+          - pipe: atlassian/ssh-run:0.8.1
+            variables:
+              SERVER: $STAGE_HOST
+              SSH_USER: $DEPLOYMENTS_USER
+              SSH_KEY: $DEPLOYMENTS_SSH_KEY
+              EXTRA_ARGS: -o StrictHostKeychecking=no
+              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
 
     - step: &publish-deb-step
         <<: *selfhosted-runner
