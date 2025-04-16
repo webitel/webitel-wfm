@@ -179,7 +179,7 @@ definitions:
               SERVER: $DEV_HOST
               SSH_USER: $DEPLOYMENTS_USER
               SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
+              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
 
     - step: &deploy-testing-step
         <<: *selfhosted-runner
@@ -202,7 +202,7 @@ definitions:
               SERVER: $TEST_HOST
               SSH_USER: $DEPLOYMENTS_USER
               SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
+              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
 
     - step: &deploy-staging-step
         <<: *selfhosted-runner
@@ -225,7 +225,7 @@ definitions:
               SERVER: $STAGE_HOST
               SSH_USER: $DEPLOYMENTS_USER
               SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
+              COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb; rm -f dist/webitel-wfm-*.deb
 
     - step: &publish-deb-step
         <<: *selfhosted-runner
