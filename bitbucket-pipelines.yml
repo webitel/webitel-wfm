@@ -111,7 +111,7 @@ definitions:
         <<: *code-backstage-condition
         # <<: *goreleaser-image
         name: Compile application
-        size: 4x
+        # size: 4x
         on-fail: { strategy: fail }
         # caches: [ go-mod, go-app-build ]
         # Variables under the key are not interpolated (no expansion of $VAR_NAME).
@@ -131,7 +131,7 @@ definitions:
         <<: *code-backstage-condition
         # <<: *golangci-image
         name: Lint code
-        size: 4x
+        # size: 4x
         on-fail: { strategy: ignore }
         # caches: [ go-mod, golangci-lint ]
         variables:
@@ -146,7 +146,7 @@ definitions:
         <<: *code-backstage-condition
         # <<: *golang-image
         name: Unit testing
-        size: 4x
+        # size: 4x
         on-fail: { strategy: ignore }
         # caches: [ go-mod, go-tools-build ]
         script:
