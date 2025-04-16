@@ -4,51 +4,12 @@ options:
   max-time: 30
   docker: false
 
-# image: alpine:latest
-
 definitions:
-  images:
-    - name: &golang-image
-        image: golang:1.24.2-alpine
-
-    - name: &ruby-image
-        image: ruby:3.3.8-alpine
-
-    - name: &golangci-image
-        image: golangci/golangci-lint:v1.64.8-alpine
-
-    - name: &goreleaser-image
-        image: goreleaser/goreleaser:v2.8.2
-
   runners:
     - self-hosted: &selfhosted-runner
         runs-on:
           - 'self.hosted'
           - 'linux.shell'
-
-  caches:
-    # Caches downloaded modules via go mod download, etc.. in $GOMODCACHE ($GOPATH/pkg/mod).
-    go-mod:
-      path: /go/pkg/mod
-      key:
-        files: [ go.sum ]
-
-    # Reuse in future go install / go tool runs.
-    go-tools-build:
-      path: ~/.cache/go-build
-      key:
-        files: [ go.sum ]
-
-    # Reuse in future application builds.
-    go-app-build:
-      path: ~/.cache/go-build
-      key:
-        files: [ go.sum ]
-
-    golangci-lint:
-      path: ~/.cache/golangci-lint
-      key:
-        files: [ go.sum ]
 
   changesets:
     - includePaths: &code-backstage-changesets
@@ -86,20 +47,9 @@ definitions:
     - step: &prepare-dependencies-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        # <<: *golang-image
-        name: Download dependencies
-        # caches: [ go-mod ]
+        name: Generate code
         script:
           - go mod download
-
-    - step: &prepare-code-step
-        <<: *selfhosted-runner
-        <<: *code-backstage-condition
-        # <<: *golang-image
-        name: Generate code
-        # caches: [ go-mod, go-tools-build ]
-        script:
-          # - apk add --no-cache git # Needed for buf to clone protos.
           - go generate ./...
         artifacts:
           paths:
@@ -109,15 +59,8 @@ definitions:
     - step: &test-compile-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        # <<: *goreleaser-image
         name: Compile application
-        # size: 4x
         on-fail: { strategy: fail }
-        # caches: [ go-mod, go-app-build ]
-        # Variables under the key are not interpolated (no expansion of $VAR_NAME).
-        # They are treated literally, not dynamically resolved.
-        # variables:
-        # GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
         script:
           - GORELEASER_CURRENT_TAG=$WEBITEL_VERSION goreleaser release --clean --skip publish --skip validate
         artifacts:
@@ -128,26 +71,18 @@ definitions:
     - step: &test-linting-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        # <<: *golangci-image
         name: Lint code
-        # size: 4x
         on-fail: { strategy: ignore }
-        # caches: [ go-mod, golangci-lint ]
         variables:
           GOLANGCI_LINT_CACHE: ~/.cache/golangci-lint
         script:
-          - golangci-lint run --out-format=checkstyle > checkstyle-result.xml
-#        after-script:
-#          - pipe: atlassian/checkstyle-report:0.5.2
+          - golangci-lint run # TODO: upload reports to Bitbucket; --out-format=checkstyle > checkstyle-result.xml
 
     - step: &test-unit-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        # <<: *golang-image
         name: Unit testing
-        # size: 4x
         on-fail: { strategy: ignore }
-        # caches: [ go-mod, go-tools-build ]
         script:
           - mkdir -p test-reports
           - go test -short -v 2>&1 ./... | go run github.com/jstemmer/go-junit-report/v2@v2.1.0 -set-exit-code > test-reports/junit.xml
@@ -157,8 +92,7 @@ definitions:
         name: Secret scanner
         on-fail: { strategy: fail }
         script:
-          - echo "Deployed!"
-#          - pipe: atlassian/git-secrets-scan:3.1.0
+          - gitleaks git --report-format junit --report-path "test-reports/gitleaks.xml"
 
     - step: &deploy-development-step
         <<: *selfhosted-runner
@@ -234,13 +168,10 @@ definitions:
     - step: &publish-deb-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        # <<: *ruby-image
         name: Publish .deb package
         trigger: manual
         deployment: acceptance
         script:
-          # - apk add --no-cache binutils
-          # - gem install deb-s3
           - >
             deb-s3 upload "dist/webitel-wfm-*.deb" --visibility nil --arch amd64 \
               --component "$WEBITEL_DEB_COMPONENT" \
@@ -278,7 +209,6 @@ pipelines:
         steps:
           - step: *prepare-version-step
           - step: *prepare-dependencies-step
-          - step: *prepare-code-step
 
     - parallel: *test-parallel
 
@@ -292,7 +222,6 @@ pipelines:
           steps:
             - step: *prepare-version-step
             - step: *prepare-dependencies-step
-            - step: *prepare-code-step
 
       - parallel: *test-parallel
       - step: *deploy-development-step
@@ -312,7 +241,6 @@ pipelines:
                   - echo "WEBITEL_DEB_COMPONENT=$BITBUCKET_BRANCH-releases" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
 
             - step: *prepare-dependencies-step
-            - step: *prepare-code-step
 
       - parallel: *test-parallel
       - step: *deploy-staging-step
