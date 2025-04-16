@@ -78,8 +78,8 @@ definitions:
         <<: *code-backstage-condition
         name: Extract version
         script:
-          - echo "WEBITEL_VERSION=$(date +v%y.%-m)-nightly.$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-          - echo "WEBITEL_DEB_COMPONENT=nightly" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+          - echo "WEBITEL_VERSION=$(date +v%y.%-m)-dev.$BITBUCKET_BUILD_NUMBER" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+          - echo "WEBITEL_DEB_COMPONENT=dev" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
         output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
 
     - step: &prepare-dependencies-step
@@ -179,7 +179,6 @@ definitions:
               SERVER: $DEV_HOST
               SSH_USER: $DEPLOYMENTS_USER
               SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              EXTRA_ARGS: -o StrictHostKeychecking=no
               COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
 
     - step: &deploy-testing-step
@@ -203,7 +202,6 @@ definitions:
               SERVER: $TEST_HOST
               SSH_USER: $DEPLOYMENTS_USER
               SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              EXTRA_ARGS: -o StrictHostKeychecking=no
               COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
 
     - step: &deploy-staging-step
@@ -227,7 +225,6 @@ definitions:
               SERVER: $STAGE_HOST
               SSH_USER: $DEPLOYMENTS_USER
               SSH_KEY: $DEPLOYMENTS_SSH_KEY
-              EXTRA_ARGS: -o StrictHostKeychecking=no
               COMMAND: sudo dpkg -i dist/webitel-wfm-*.deb
 
     - step: &publish-deb-step
@@ -306,7 +303,7 @@ pipelines:
             - step:
                 <<: *prepare-version-step
                 script:
-                  - echo "WEBITEL_VERSION=$BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER+sha.$BITBUCKET_COMMIT" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+                  - echo "WEBITEL_VERSION=$BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
                   - echo "WEBITEL_DEB_COMPONENT=$BITBUCKET_BRANCH-releases" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
 
             - step: *prepare-dependencies-step
