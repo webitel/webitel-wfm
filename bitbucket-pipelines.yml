@@ -99,7 +99,7 @@ definitions:
         name: Generate code
         # caches: [ go-mod, go-tools-build ]
         script:
-          - apk add --no-cache git # Needed for buf to clone protos.
+          # - apk add --no-cache git # Needed for buf to clone protos.
           - go generate ./...
         artifacts:
           paths:
@@ -119,8 +119,7 @@ definitions:
         # variables:
         # GORELEASER_CURRENT_TAG: $WEBITEL_VERSION
         script:
-          - export GORELEASER_CURRENT_TAG=$WEBITEL_VERSION
-          - goreleaser release --clean --skip publish --skip validate
+          - GORELEASER_CURRENT_TAG=$WEBITEL_VERSION goreleaser release --clean --skip publish --skip validate
         artifacts:
           download: true
           paths:
@@ -240,8 +239,8 @@ definitions:
         trigger: manual
         deployment: acceptance
         script:
-          - apk add --no-cache binutils
-          - gem install deb-s3
+          # - apk add --no-cache binutils
+          # - gem install deb-s3
           - >
             deb-s3 upload "dist/webitel-wfm-*.deb" --visibility nil --arch amd64 \
               --component "$WEBITEL_DEB_COMPONENT" \
