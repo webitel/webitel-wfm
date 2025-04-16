@@ -92,6 +92,7 @@ definitions:
         name: Secret scanner
         on-fail: { strategy: fail }
         script:
+          - mkdir -p test-reports
           - gitleaks git --report-format junit --report-path "test-reports/gitleaks.xml"
 
     - step: &deploy-development-step
