@@ -87,7 +87,7 @@ definitions:
         <<: *code-backstage-condition
         <<: *golang-image
         name: Download dependencies
-        caches: [ go-mod ]
+        # caches: [ go-mod ]
         script:
           - go mod download
 
@@ -96,7 +96,7 @@ definitions:
         <<: *code-backstage-condition
         <<: *golang-image
         name: Generate code
-        caches: [ go-mod, go-tools-build ]
+        # caches: [ go-mod, go-tools-build ]
         script:
           - apk add --no-cache git # Needed for buf to clone protos.
           - go generate ./...
@@ -112,7 +112,7 @@ definitions:
         name: Compile application
         size: 4x
         on-fail: { strategy: fail }
-        caches: [ go-mod, go-app-build ]
+        # caches: [ go-mod, go-app-build ]
         # Variables under the key are not interpolated (no expansion of $VAR_NAME).
         # They are treated literally, not dynamically resolved.
         # variables:
@@ -132,7 +132,7 @@ definitions:
         name: Lint code
         size: 4x
         on-fail: { strategy: ignore }
-        caches: [ go-mod, golangci-lint ]
+        # caches: [ go-mod, golangci-lint ]
         variables:
           GOLANGCI_LINT_CACHE: ~/.cache/golangci-lint
         script:
@@ -147,7 +147,7 @@ definitions:
         name: Unit testing
         size: 4x
         on-fail: { strategy: ignore }
-        caches: [ go-mod, go-tools-build ]
+        # caches: [ go-mod, go-tools-build ]
         script:
           - mkdir -p test-reports
           - go test -short -v 2>&1 ./... | go run github.com/jstemmer/go-junit-report/v2@v2.1.0 -set-exit-code > test-reports/junit.xml
