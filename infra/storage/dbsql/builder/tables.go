@@ -14,7 +14,7 @@ var (
 	PauseTemplateCauseTable    = Table{name: "wfm.pause_template_cause", alias: "ptc"}
 	ShiftTemplateTable         = Table{name: "wfm.shift_template", alias: "st"}
 	WorkingConditionTable      = Table{name: "wfm.working_condition", alias: "wc"}
-	AgentWorkingConditionTable = Table{name: "wfm.agent_working_condition", alias: "awc"}
+	AgentWorkingConditionTable = Table{name: "wfm.agent_working_conditions", alias: "awc"}
 	AgentAbsenceTable          = Table{name: "wfm.agent_absence", alias: "aa"}
 )
 

@@ -26,66 +26,17 @@ func NewAgentWorkingConditions(db cluster.Store) *AgentWorkingConditions {
 
 func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, read *options.Read) (*model.AgentWorkingConditions, error) {
 	const (
-		linkUpdatedBy = 1 << iota
-		linkAgent
-		linkWorkingCondition
+		linkWorkingCondition = 1 << iota
 		linkPauseTemplate
 	)
 
 	var (
 		agentWorkingCondition = b.AgentWorkingConditionTable
-		updatedBy             = b.UserTable.WithAlias("upd")
-		agent                 = b.AgentTable
-		agentUser             = b.UserTable.WithAlias("au")
 		workingCondition      = b.WorkingConditionTable
 		pauseTemplate         = b.PauseTemplateTable
 		base                  = b.Select().From(agentWorkingCondition.String())
 
-		join          = 0
-		joinUpdatedBy = func() {
-			if join&linkUpdatedBy != 0 {
-				return
-			}
-
-			join |= linkUpdatedBy
-			base.JoinWithOption(
-				b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  agentWorkingCondition.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
-				),
-			)
-		}
-
-		joinAgent = func() {
-			if join&linkAgent != 0 {
-				return
-			}
-
-			join |= linkAgent
-			base.JoinWithOption(
-				b.LeftJoin(agent,
-					b.JoinExpression{
-						Left:  agentWorkingCondition.Ident("agent_id"),
-						Op:    "=",
-						Right: agent.Ident("id"),
-					},
-				),
-			)
-
-			base.JoinWithOption(
-				b.LeftJoin(agentUser,
-					b.JoinExpression{
-						Left:  agent.Ident("user_id"),
-						Op:    "=",
-						Right: agentUser.Ident("id"),
-					},
-				),
-			)
-		}
-
+		join                 = 0
 		joinWorkingCondition = func() {
 			if join&linkWorkingCondition != 0 {
 				return
@@ -122,23 +73,12 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 	)
 
 	{
-		for _, field := range []string{"id", "updated_at", "updated_by", "agent"} {
+		for _, field := range []string{"working_condition", "pause_template"} {
 			read.WithField(field)
 		}
 
 		for _, field := range read.Fields() {
 			switch field {
-			case "id", "domain_id", "updated_at":
-				field = agentWorkingCondition.Ident(field)
-
-			case "updated_by":
-				joinUpdatedBy()
-				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
-
-			case "agent":
-				joinAgent()
-				field = b.Alias(b.JSONBuildObject(b.UserLookup(agentUser)), field)
-
 			case "working_condition":
 				joinWorkingCondition()
 				field = b.Alias(b.JSONBuildObject(b.Lookup(workingCondition, "id", "name")), field)
@@ -155,7 +95,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 	{
 		base.Where(
 			base.EQ(agentWorkingCondition.Ident("domain_id"), read.User().DomainId),
-			base.EQ(agent.Ident("id"), read.ID()),
+			base.EQ(agentWorkingCondition.Ident("agent_id"), read.ID()),
 		)
 	}
 
