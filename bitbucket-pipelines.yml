@@ -106,7 +106,7 @@ definitions:
               -rp dist/webitel-wfm-*.deb $DEPLOYMENTS_USER@$DEV_HOST:~/dist/
           - > 
             ssh -i ~/.ssh/$DEPLOYMENTS_USER -o StrictHostKeychecking=no \
-              $DEPLOYMENTS_USER@$DEV_HOST "sudo dpkg -i dist/webitel-wfm-*.deb && rm -f dist/webitel-wfm-*.deb"
+              $DEPLOYMENTS_USER@$DEV_HOST "sudo DEBIAN_FRONTEND=noninteractive dpkg --install --force-confold dist/webitel-wfm-*.deb && rm -f dist/webitel-wfm-*.deb"
 
     - step: &deploy-testing-step
         <<: *selfhosted-runner
