@@ -189,6 +189,7 @@ func (c *Client) Register(_ context.Context, svc *registry.ServiceInstance, enab
 	if enableHealthCheck {
 		for _, address := range checkAddresses {
 			asr.Checks = append(asr.Checks, &api.AgentServiceCheck{
+				Notes:                          fmt.Sprintf("TCP health check for address %s", address),
 				TCP:                            address,
 				Interval:                       fmt.Sprintf("%ds", c.healthcheckInterval),
 				DeregisterCriticalServiceAfter: fmt.Sprintf("%ds", c.deregisterCriticalServiceAfter),
@@ -202,7 +203,8 @@ func (c *Client) Register(_ context.Context, svc *registry.ServiceInstance, enab
 
 	if c.heartbeat {
 		asr.Checks = append(asr.Checks, &api.AgentServiceCheck{
-			CheckID:                        "service:" + svc.ID,
+			CheckID:                        "service:" + svc.ID + ":ttl:1",
+			Notes:                          "TTL heartbeat check",
 			TTL:                            fmt.Sprintf("%ds", c.healthcheckInterval*2),
 			DeregisterCriticalServiceAfter: fmt.Sprintf("%ds", c.deregisterCriticalServiceAfter),
 		})
@@ -214,14 +216,9 @@ func (c *Client) Register(_ context.Context, svc *registry.ServiceInstance, enab
 
 	if c.heartbeat {
 		go func() {
-			time.Sleep(time.Second)
-
-			if err := c.cli.Agent().UpdateTTL("service:"+svc.ID, "pass", "pass"); err != nil {
-				c.log.Error("update ttl heartbeat to consul", wlog.Err(err))
-			}
-
 			ticker := time.NewTicker(time.Second * time.Duration(c.healthcheckInterval))
 			defer ticker.Stop()
+
 			for {
 				select {
 				case <-c.ctx.Done():
@@ -240,7 +237,7 @@ func (c *Client) Register(_ context.Context, svc *registry.ServiceInstance, enab
 						return
 					}
 
-					if err := c.cli.Agent().UpdateTTLOpts("service:"+svc.ID, "pass", "pass", new(api.QueryOptions).WithContext(c.ctx)); err != nil {
+					if err := c.cli.Agent().UpdateTTLOpts("service:"+svc.ID+":ttl:1", "pass", "pass", new(api.QueryOptions).WithContext(c.ctx)); err != nil {
 						if werror.Is(err, context.Canceled) || werror.Is(err, context.DeadlineExceeded) {
 							if err := c.cli.Agent().ServiceDeregister(svc.ID); err != nil {
 								c.log.Error("deregister service after unsuccessful updating service ttl heartbeat", wlog.Err(err))
