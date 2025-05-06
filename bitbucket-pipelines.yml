@@ -101,12 +101,13 @@ definitions:
         name: Deploy (development)
         deployment: development
         script:
-          - >
-            scp -i ~/.ssh/$DEPLOYMENTS_USER -o StrictHostKeychecking=no \
-              -rp dist/webitel-wfm-*.deb $DEPLOYMENTS_USER@$DEV_HOST:~/dist/
           - > 
-            ssh -i ~/.ssh/$DEPLOYMENTS_USER -o StrictHostKeychecking=no \
-              $DEPLOYMENTS_USER@$DEV_HOST "sudo DEBIAN_FRONTEND=noninteractive dpkg --install --force-confold dist/webitel-wfm-*.deb && rm -f dist/webitel-wfm-*.deb"
+            helper deploy --user $DEPLOYMENTS_USER \
+              --host $DEV_HOST \
+              --key ~/.ssh/$DEPLOYMENTS_USER \
+              --package webitel-wfm-*.deb \
+              --source-dir dist \ 
+              --remote-dir ~/dist/
 
     - step: &deploy-testing-step
         <<: *selfhosted-runner
