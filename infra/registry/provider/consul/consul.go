@@ -223,7 +223,11 @@ func (c *Client) Register(_ context.Context, svc *registry.ServiceInstance, enab
 				select {
 				case <-c.ctx.Done():
 					if err := c.cli.Agent().ServiceDeregister(svc.ID); err != nil {
-						c.log.Error("deregister service after context is done", wlog.Err(err), wlog.String("ctx", c.ctx.Err().Error()))
+						// TODO: we deregister service using shutdown hook, that cancel a context and trigger channel.
+						// 	defined context is using in watch registry for gRPC resolver.
+						if !strings.Contains(err.Error(), "response code: 404") {
+							c.log.Error("deregister service after context is done", wlog.Err(err), wlog.String("ctx", c.ctx.Err().Error()))
+						}
 					}
 
 					return
