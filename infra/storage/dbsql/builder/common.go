@@ -7,6 +7,23 @@ import (
 	"strings"
 )
 
+type Expression interface {
+	String() string
+}
+
+type expression struct {
+	Left, Op, Right string
+}
+
+func (e *expression) String() string {
+	return fmt.Sprintf("%s %s %s", e.Left, e.Op, e.Right)
+}
+
+// Equal returns a SQL equality expression (e.g., "left = right").
+func Equal(left, right string) *expression {
+	return &expression{Left: left, Op: "=", Right: right}
+}
+
 type OrderDirection int
 
 func (o OrderDirection) String() string {
@@ -32,11 +49,6 @@ func OrderBy(left string, direction OrderDirection) string {
 
 func Coalesce(cols ...string) string {
 	return fmt.Sprintf("COALESCE(%s)", strings.Join(cols, ", "))
-}
-
-// Equal returns a SQL equality expression (e.g., "left = right").
-func Equal(left, right string) string {
-	return fmt.Sprintf("%s = %s", left, right)
 }
 
 type JSONBuildObjectFields map[string]any

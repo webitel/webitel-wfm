@@ -127,11 +127,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 			join |= linkCreatedBy
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
-					b.JoinExpression{
-						Left:  pauseTemplate.Ident("created_by"),
-						Op:    "=",
-						Right: createdBy.Ident("id"),
-					},
+					b.Equal(pauseTemplate.Ident("created_by"), createdBy.Ident("id")),
 				),
 			)
 		}
@@ -144,11 +140,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 			join |= linkUpdatedBy
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  pauseTemplate.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
+					b.Equal(pauseTemplate.Ident("updated_by"), updatedBy.Ident("id")),
 				),
 			)
 		}
@@ -190,7 +182,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 						causes             = b.Select().From(pauseTemplateCause.String())
 					)
 
-					causes.Where(b.Equal(pauseTemplate.Ident("id"), pauseTemplateCause.Ident("pause_template_id")))
+					causes.Where(b.Equal(pauseTemplate.Ident("id"), pauseTemplateCause.Ident("pause_template_id")).String())
 					for _, causesDerivedField := range causesDerivedFields {
 						switch causesDerivedField {
 						case "id", "duration":
@@ -211,11 +203,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 
 							causes.SelectMore(b.Alias(b.JSONBuildObject(b.Lookup(pauseCause, causeDerivedFields...)), causesDerivedField)).JoinWithOption(
 								b.LeftJoin(pauseCause,
-									b.JoinExpression{
-										Left:  pauseCause.Ident("id"),
-										Op:    "=",
-										Right: pauseTemplateCause.Ident("pause_cause_id"),
-									},
+									b.Equal(pauseCause.Ident("id"), pauseTemplateCause.Ident("pause_cause_id")),
 								),
 							)
 

@@ -153,11 +153,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, search *options
 			join |= linkCreatedBy
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
-					b.JoinExpression{
-						Left:  agentAbsence.Ident("created_by"),
-						Op:    "=",
-						Right: createdBy.Ident("id"),
-					},
+					b.Equal(agentAbsence.Ident("created_by"), createdBy.Ident("id")),
 				),
 			)
 		}
@@ -170,11 +166,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, search *options
 			join |= linkUpdatedBy
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  agentAbsence.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
+					b.Equal(agentAbsence.Ident("updated_by"), updatedBy.Ident("id")),
 				),
 			)
 		}
@@ -187,21 +179,13 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, search *options
 			join |= linkAgent
 			base.JoinWithOption(
 				b.LeftJoin(agent,
-					b.JoinExpression{
-						Left:  agentAbsence.Ident("agent_id"),
-						Op:    "=",
-						Right: agent.Ident("id"),
-					},
+					b.Equal(agentAbsence.Ident("agent_id"), agent.Ident("id")),
 				),
 			)
 
 			base.JoinWithOption(
 				b.LeftJoin(agentUser,
-					b.JoinExpression{
-						Left:  agent.Ident("user_id"),
-						Op:    "=",
-						Right: agentUser.Ident("id"),
-					},
+					b.Equal(agent.Ident("user_id"), agentUser.Ident("id")),
 				),
 			)
 		}

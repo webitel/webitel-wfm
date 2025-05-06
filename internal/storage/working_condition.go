@@ -104,11 +104,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 			join |= linkCreatedBy
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
-					b.JoinExpression{
-						Left:  workingCondition.Ident("created_by"),
-						Op:    "=",
-						Right: createdBy.Ident("id"),
-					},
+					b.Equal(workingCondition.Ident("created_by"), createdBy.Ident("id")),
 				),
 			)
 		}
@@ -121,11 +117,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 			join |= linkUpdatedBy
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  workingCondition.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
+					b.Equal(workingCondition.Ident("updated_by"), updatedBy.Ident("id")),
 				),
 			)
 		}
@@ -138,11 +130,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 			join |= linkPauseTemplate
 			base.JoinWithOption(
 				b.LeftJoin(pauseTemplate,
-					b.JoinExpression{
-						Left:  workingCondition.Ident("pause_template_id"),
-						Op:    "=",
-						Right: pauseTemplate.Ident("id"),
-					},
+					b.Equal(workingCondition.Ident("pause_template_id"), pauseTemplate.Ident("id")),
 				),
 			)
 		}
@@ -155,11 +143,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 			join |= linkShiftTemplate
 			base.JoinWithOption(
 				b.LeftJoin(shiftTemplate,
-					b.JoinExpression{
-						Left:  workingCondition.Ident("shift_template_id"),
-						Op:    "=",
-						Right: shiftTemplate.Ident("id"),
-					},
+					b.Equal(workingCondition.Ident("shift_template_id"), shiftTemplate.Ident("id")),
 				),
 			)
 		}

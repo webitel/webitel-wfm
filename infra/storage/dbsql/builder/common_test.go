@@ -20,7 +20,7 @@ func TestEqual(t *testing.T) {
 
 	for scenario, tt := range tests {
 		t.Run(scenario, func(t *testing.T) {
-			result := Equal(tt.left, tt.right)
+			result := Equal(tt.left, tt.right).String()
 			assert.Equal(t, tt.expected, result)
 		})
 	}

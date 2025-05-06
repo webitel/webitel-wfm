@@ -93,11 +93,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 			join |= linkCreatedBy
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
-					b.JoinExpression{
-						Left:  shiftTemplate.Ident("created_by"),
-						Op:    "=",
-						Right: createdBy.Ident("id"),
-					},
+					b.Equal(shiftTemplate.Ident("created_by"), createdBy.Ident("id")),
 				),
 			)
 		}
@@ -110,11 +106,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 			join |= linkUpdatedBy
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
-					b.JoinExpression{
-						Left:  shiftTemplate.Ident("updated_by"),
-						Op:    "=",
-						Right: updatedBy.Ident("id"),
-					},
+					b.Equal(shiftTemplate.Ident("updated_by"), updatedBy.Ident("id")),
 				),
 			)
 		}

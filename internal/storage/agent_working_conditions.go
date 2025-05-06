@@ -45,11 +45,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 			join |= linkWorkingCondition
 			base.JoinWithOption(
 				b.LeftJoin(workingCondition,
-					b.JoinExpression{
-						Left:  agentWorkingCondition.Ident("working_condition_id"),
-						Op:    "=",
-						Right: workingCondition.Ident("id"),
-					},
+					b.Equal(agentWorkingCondition.Ident("working_condition_id"), workingCondition.Ident("id")),
 				),
 			)
 		}
@@ -62,11 +58,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 			join |= linkPauseTemplate
 			base.JoinWithOption(
 				b.LeftJoin(pauseTemplate,
-					b.JoinExpression{
-						Left:  agentWorkingCondition.Ident("pause_template_id"),
-						Op:    "=",
-						Right: pauseTemplate.Ident("id"),
-					},
+					b.Equal(agentWorkingCondition.Ident("pause_template_id"), pauseTemplate.Ident("id")),
 				),
 			)
 		}

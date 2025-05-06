@@ -1,20 +1,15 @@
 package builder
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/huandu/go-sqlbuilder"
 )
 
-type JoinExpression struct {
-	Left, Op, Right string
-}
-
-func LeftJoin(table Table, expr ...JoinExpression) (sqlbuilder.JoinOption, string, string) {
+func LeftJoin(table Table, expr ...Expression) (sqlbuilder.JoinOption, string, string) {
 	expressions := make([]string, 0, len(expr))
 	for _, e := range expr {
-		expressions = append(expressions, fmt.Sprintf("%s %s %s", e.Left, e.Op, e.Right))
+		expressions = append(expressions, e.String())
 	}
 
 	return sqlbuilder.LeftJoin, table.String(), strings.Join(expressions, " AND ")
