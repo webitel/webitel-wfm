@@ -34,6 +34,11 @@ func Coalesce(cols ...string) string {
 	return fmt.Sprintf("COALESCE(%s)", strings.Join(cols, ", "))
 }
 
+// Equal returns a SQL equality expression (e.g., "left = right").
+func Equal(left, right string) string {
+	return fmt.Sprintf("%s = %s", left, right)
+}
+
 type JSONBuildObjectFields map[string]any
 
 func (j *JSONBuildObjectFields) More(columns JSONBuildObjectFields) {

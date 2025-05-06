@@ -6,6 +6,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEqual(t *testing.T) {
+	tests := map[string]struct {
+		left     string
+		right    string
+		expected string
+	}{
+		"simple":          {"id", "42", "id = 42"},
+		"simple text":     {"name", "'Alice'", "name = 'Alice'"},
+		"simple enum":     {"status", "active", "status = active"},
+		"reserved column": {"\"user\"", "'admin'", "\"user\" = 'admin'"},
+	}
+
+	for scenario, tt := range tests {
+		t.Run(scenario, func(t *testing.T) {
+			result := Equal(tt.left, tt.right)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestJSONBuildObject(t *testing.T) {
 	tests := map[string]struct {
 		input  JSONBuildObjectFields

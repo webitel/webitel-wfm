@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
@@ -157,7 +156,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 
 	{
 		// Default fields
-		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by"} {
+		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by", "causes"} {
 			search.WithField(field)
 		}
 
@@ -191,7 +190,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 						causes             = b.Select().From(pauseTemplateCause.String())
 					)
 
-					causes.Where(fmt.Sprintf("%s = %s", pauseTemplate.Ident("id"), pauseTemplateCause.Ident("pause_template_id")))
+					causes.Where(b.Equal(pauseTemplate.Ident("id"), pauseTemplateCause.Ident("pause_template_id")))
 					for _, causesDerivedField := range causesDerivedFields {
 						switch causesDerivedField {
 						case "id", "duration":
