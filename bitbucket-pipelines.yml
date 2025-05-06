@@ -105,9 +105,9 @@ definitions:
             helper deploy --user $DEPLOYMENTS_USER \
               --host $DEV_HOST \
               --key ~/.ssh/$DEPLOYMENTS_USER \
-              --package webitel-wfm-*.deb \
-              --source-dir $BITBUCKET_CLONE_DIR/dist \
-              --remote-dir /home/$DEPLOYMENTS_USER/dist/
+              --package "webitel-wfm-*.deb" \
+              --source-dir "$BITBUCKET_CLONE_DIR/dist" \
+              --remote-dir "/home/$DEPLOYMENTS_USER/dist/"
 
     - step: &deploy-testing-step
         <<: *selfhosted-runner
