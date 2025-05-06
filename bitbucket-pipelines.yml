@@ -106,7 +106,7 @@ definitions:
               --host $DEV_HOST \
               --key ~/.ssh/$DEPLOYMENTS_USER \
               --package webitel-wfm-*.deb \
-              --source-dir dist \ 
+              --source-dir dist \
               --remote-dir ~/dist/
 
     - step: &deploy-testing-step
