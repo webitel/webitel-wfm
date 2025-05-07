@@ -39,6 +39,7 @@ definitions:
         <<: *selfhosted-runner
         <<: *code-backstage-condition
         name: Extract version
+        output-variables: [ "WEBITEL_VERSION", "WEBITEL_DEB_COMPONENT" ]
         script:
           - >
             helper parse-version --vars-path $BITBUCKET_PIPELINES_VARIABLES_PATH \
@@ -46,9 +47,7 @@ definitions:
               --component-env-name "WEBITEL_DEB_COMPONENT" \
               --development-branch "main" \
               --trigger-branch "$BITBUCKET_BRANCH" \
-              --build-number "$BITBUCKET_BUILD_NUMBER"
-          - cat $BITBUCKET_PIPELINES_VARIABLES_PATH
-        output-variables: [ "WEBITEL_VERSION", "WEBITEL_DEB_COMPONENT" ]
+              --build-number "$BITBUCKET_BUILD_NUMBER"        
 
     - step: &prepare-dependencies-step
         <<: *selfhosted-runner
