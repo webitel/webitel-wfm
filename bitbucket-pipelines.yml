@@ -43,10 +43,15 @@ definitions:
     - on-fail: &ignore-strategy
         strategy: fail
 
+  clones:
+    - clone: &disable-clone
+        enabled: false
+
   steps:
     - step: &prepare-version-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *disable-clone
         name: Extract version
         output-variables: [ "WEBITEL_VERSION", "WEBITEL_DEB_COMPONENT" ]
         script:
@@ -110,6 +115,7 @@ definitions:
     - step: &deploy-development-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *disable-clone
         name: Deploy (development)
         deployment: development
         script:
@@ -124,6 +130,7 @@ definitions:
     - step: &deploy-testing-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *disable-clone
         name: Deploy (testing)
         trigger: manual
         deployment: testing
@@ -139,6 +146,7 @@ definitions:
     - step: &deploy-staging-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *disable-clone
         name: Deploy (staging)
         trigger: manual
         deployment: staging
@@ -153,6 +161,7 @@ definitions:
     - step: &publish-deb-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *disable-clone
         name: Publish .deb package
         trigger: manual
         deployment: acceptance
