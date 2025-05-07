@@ -190,9 +190,7 @@ pipelines:
     v*.*:
       - parallel: *prepare-parallel
       - parallel: *test-parallel
-      - parallel:
-          steps:
-            - step: *deploy-staging-step
-            - step:
-                <<: *publish-deb-step
-                deployment: releases
+      - step: *deploy-staging-step
+      - step:
+          <<: *publish-deb-step
+          deployment: releases
