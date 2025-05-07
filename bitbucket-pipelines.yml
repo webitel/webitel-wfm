@@ -4,7 +4,7 @@ options:
   max-time: 30
   docker: false
   clone:
-    
+
 
 definitions:
   runners:
@@ -36,6 +36,13 @@ definitions:
         changesets:
           includePaths: *code-backstage-changesets
 
+  on-fails:
+    - on-fail: &fail-strategy
+        strategy: fail
+
+    - on-fail: &ignore-strategy
+        strategy: fail
+
   steps:
     - step: &prepare-version-step
         <<: *selfhosted-runner
@@ -66,8 +73,8 @@ definitions:
     - step: &test-compile-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *fail-strategy
         name: Compile application
-        on-fail: { strategy: fail }
         script:
           - GORELEASER_CURRENT_TAG=$WEBITEL_VERSION goreleaser release --clean --skip publish --skip validate
         artifacts:
@@ -78,26 +85,24 @@ definitions:
     - step: &test-linting-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *ignore-strategy
         name: Lint code
-        on-fail: { strategy: ignore }
-        variables:
-          GOLANGCI_LINT_CACHE: ~/.cache/golangci-lint
         script:
           - golangci-lint run # TODO: upload reports to Bitbucket; --out-format=checkstyle > checkstyle-result.xml
 
     - step: &test-unit-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
+        <<: *ignore-strategy
         name: Unit testing
-        on-fail: { strategy: ignore }
         script:
           - mkdir -p test-reports
           - go test -short -v 2>&1 ./... | go run github.com/jstemmer/go-junit-report/v2@v2.1.0 -set-exit-code > test-reports/junit.xml
 
     - step: &test-gitleaks-step
         <<: *selfhosted-runner
+        <<: *fail-strategy
         name: Secret scanner
-        on-fail: { strategy: fail }
         script:
           - mkdir -p test-reports
           - gitleaks git --report-format junit --report-path "test-reports/gitleaks.xml" # TODO: upload reports to Bitbucket
