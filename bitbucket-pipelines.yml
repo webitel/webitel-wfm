@@ -47,7 +47,8 @@ definitions:
               --development-branch "main" \
               --trigger-branch "$BITBUCKET_BRANCH" \
               --build-number "$BITBUCKET_BUILD_NUMBER"
-        output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
+          - cat $BITBUCKET_PIPELINES_VARIABLES_PATH
+        output-variables: [ "WEBITEL_VERSION", "WEBITEL_DEB_COMPONENT" ]
 
     - step: &prepare-dependencies-step
         <<: *selfhosted-runner
