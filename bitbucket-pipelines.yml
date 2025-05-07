@@ -40,8 +40,13 @@ definitions:
         <<: *code-backstage-condition
         name: Extract version
         script:
-          - echo "WEBITEL_VERSION=$(date +v%y.%-m)-dev.$BITBUCKET_BUILD_NUMBER" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-          - echo "WEBITEL_DEB_COMPONENT=dev" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
+          - >
+            helper parse-version --vars-path $BITBUCKET_PIPELINES_VARIABLES_PATH \
+              --version-env-name "WEBITEL_VERSION" \
+              --component-env-name "WEBITEL_DEB_COMPONENT" \
+              --development-branch "main" \
+              --trigger-branch "$BITBUCKET_BRANCH" \
+              --build-number "$BITBUCKET_BUILD_NUMBER"
         output-variables: [ WEBITEL_VERSION, WEBITEL_DEB_COMPONENT ]
 
     - step: &prepare-dependencies-step
@@ -194,18 +199,13 @@ pipelines:
           <<: *code-backstage-condition
           name: Prepare
           steps:
-            - step:
-                <<: *prepare-version-step
-                script:
-                  - echo "WEBITEL_VERSION=$BITBUCKET_BRANCH-$BITBUCKET_BUILD_NUMBER" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-                  - echo "WEBITEL_DEB_COMPONENT=$BITBUCKET_BRANCH-releases" >> $BITBUCKET_PIPELINES_VARIABLES_PATH
-
+            - step: *prepare-version-step
             - step: *prepare-dependencies-step
 
       - parallel: *test-parallel
-      - step: *deploy-staging-step
       - parallel:
           steps:
+            - step: *deploy-staging-step
             - step:
                 <<: *publish-deb-step
                 deployment: releases
