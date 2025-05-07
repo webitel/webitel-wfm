@@ -159,6 +159,11 @@ definitions:
               --s3-region "$DEB_AWS_DEFAULT_REGION" \
               --bucket "$DEB_AWS_BUCKET_NAME"
 
+    - parallel: &prepare-parallel
+        steps:
+          - step: *prepare-version-step
+          - step: *prepare-dependencies-step
+
     - parallel: &test-parallel
         steps:
           - step: *test-compile-step
@@ -168,26 +173,14 @@ definitions:
 
 pipelines:
   default:
-    - stage:
-        <<: *code-backstage-condition
-        name: Prepare
-        steps:
-          - step: *prepare-version-step
-          - step: *prepare-dependencies-step
-
+    - parallel: *prepare-parallel
     - parallel: *test-parallel
 
   branches:
     # Code from development branch deploys to development
     # and testing environments with manual approves.
     main:
-      - stage:
-          <<: *code-backstage-condition
-          name: Prepare
-          steps:
-            - step: *prepare-version-step
-            - step: *prepare-dependencies-step
-
+      - parallel: *prepare-parallel
       - parallel: *test-parallel
       - step: *deploy-development-step
       - step: *deploy-testing-step
@@ -195,13 +188,7 @@ pipelines:
 
     # Release branches goes to staging environments.
     v*.*:
-      - stage:
-          <<: *code-backstage-condition
-          name: Prepare
-          steps:
-            - step: *prepare-version-step
-            - step: *prepare-dependencies-step
-
+      - parallel: *prepare-parallel
       - parallel: *test-parallel
       - parallel:
           steps:
