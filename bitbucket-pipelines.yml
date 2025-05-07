@@ -206,4 +206,6 @@ pipelines:
       - step: *deploy-staging-step
       - parallel:
           steps:
-            - step: *publish-deb-step
+            - step:
+                <<: *publish-deb-step
+                deployment: releases
