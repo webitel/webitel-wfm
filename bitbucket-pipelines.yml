@@ -3,6 +3,8 @@ export: true
 options:
   max-time: 30
   docker: false
+  clone:
+    
 
 definitions:
   runners:
@@ -186,8 +188,20 @@ pipelines:
       - step: *deploy-testing-step
       - step: *publish-deb-step
 
-    # Release branches goes to staging environments.
+    # Older release branches uploads to deb repository only.
     v*.*:
+      - parallel: *prepare-parallel
+      - parallel: *test-parallel
+      - step:
+          <<: *publish-deb-step
+          deployment: releases
+          trigger: automatic
+
+    # Release branches goes to staging environments.
+    # As we should not correctly determine which release are latest,
+    # and we have no possibility to skip step - the latest release is separated.
+    # Change this on future releases.
+    v25.04:
       - parallel: *prepare-parallel
       - parallel: *test-parallel
       - step: *deploy-staging-step
