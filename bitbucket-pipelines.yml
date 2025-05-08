@@ -52,7 +52,9 @@ definitions:
     - step: &prepare-version-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        <<: *disable-clone
+        # <<: *disable-clone
+        clone:
+          enabled: false
         name: Extract version
         output-variables: [ "WEBITEL_VERSION", "WEBITEL_DEB_COMPONENT" ]
         script:
