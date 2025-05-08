@@ -47,6 +47,9 @@ definitions:
     - clone: &disable-clone
         enabled: false
 
+    - clone: &full-clone
+        depth: full
+
   steps:
     - step: &prepare-version-step
         <<: *selfhosted-runner
@@ -216,6 +219,16 @@ pipelines:
     # and we have no possibility to skip step - the latest release is separated.
     # Change this on future releases.
     v25.04:
+      - step:
+          <<: *selfhosted-runner
+          <<: *code-backstage-condition
+          <<: *full-clone
+          name: Check latest release
+          script:
+            - >
+              helper check-branch --branch "$BITBUCKET_BRANCH" \
+                --repo-path "$BITBUCKET_CLONE_DIR"
+
       - parallel: *prepare-parallel
       - parallel: *test-parallel
       - step: *deploy-staging-step
