@@ -3,8 +3,6 @@ export: true
 options:
   max-time: 30
   docker: false
-  clone:
-
 
 definitions:
   runners:
