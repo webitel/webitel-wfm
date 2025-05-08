@@ -42,19 +42,19 @@ definitions:
         strategy: fail
 
   clones:
-    - clone: &disable-clone
-        enabled: false
+    - disable-clone: &disable-clone
+        clone:
+          enabled: false
 
-    - clone: &full-clone
-        depth: full
+    - full-clone: &full-clone
+        clone:
+          depth: full
 
   steps:
     - step: &prepare-version-step
         <<: *selfhosted-runner
         <<: *code-backstage-condition
-        # <<: *disable-clone
-        clone:
-          enabled: false
+        <<: *disable-clone
         name: Extract version
         output-variables: [ "WEBITEL_VERSION", "WEBITEL_DEB_COMPONENT" ]
         script:
