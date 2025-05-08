@@ -48,6 +48,7 @@ definitions:
 
     - full-clone: &full-clone
         clone:
+          enabled: true
           depth: full
 
   steps:
@@ -219,7 +220,7 @@ pipelines:
     # and we have no possibility to skip step - the latest release is separated.
     # Change this on future releases.
     v25.04:
-      - step:
+      - step: # FIXME: runner clones only current branch even if depth: full
           <<: *selfhosted-runner
           <<: *code-backstage-condition
           <<: *full-clone
