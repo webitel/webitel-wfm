@@ -170,17 +170,18 @@ definitions:
         trigger: manual
         deployment: acceptance
         script:
-          - mkdir -p ~/.gnupg
-          - chmod 700 ~/.gnupg
-          - echo "use-agent" > ~/.gnupg/gpg.conf
-          - echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
-          - echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          - export GNUPGHOME=$(mktemp -d)
+          - chmod 700 "$GNUPGHOME"
+          - echo "use-agent" > "$GNUPGHOME/gpg.conf"
+          - echo "pinentry-mode loopback" >> "$GNUPGHOME/gpg.conf"
+          - echo "allow-preset-passphrase" >> "$GNUPGHOME/gpg-agent.conf"
 
           # Start gpg-agent and ensure environment is loaded
-          - gpgconf --kill gpg-agent || true
+          - gpgconf --kill all || true
+          - rm -f "$GNUPGHOME"/*.lock "$GNUPGHOME"/private-keys-v1.d/*.lock || true
+
           - gpgconf --launch gpg-agent
           - export GPG_TTY=$(tty)
-          - export GPG_AGENT_INFO=$(gpgconf --list-dirs agent-info-socket)
           - echo "$REPO_SIGNING_KEY" | base64 -d | gpg --batch --import
 
           # Get keygrip (required for gpg-preset-passphrase)
