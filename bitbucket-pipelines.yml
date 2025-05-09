@@ -187,7 +187,7 @@ definitions:
           - export KEYGRIP=$(gpg --with-keygrip --list-secret-keys | awk '/Keygrip/ {print $3; exit}')
 
           # Preset the passphrase (only stored in memory)
-          - echo "$REPO_SIGNING_KEY_PASSPHRASE" | base64 -d | /usr/lib/gnupg2/gpg-preset-passphrase --preset "$KEYGRIP"
+          - echo "$REPO_SIGNING_KEY_PASSPHRASE" | base64 -d | /usr/libexec/gpg-preset-passphrase --preset "$KEYGRIP"
           - >
             deb-s3 upload "dist/webitel-wfm-*.deb" --visibility nil --arch amd64 \
               --component "$WEBITEL_DEB_COMPONENT" \
