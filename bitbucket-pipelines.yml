@@ -170,10 +170,30 @@ definitions:
         trigger: manual
         deployment: acceptance
         script:
+          - mkdir -p ~/.gnupg
+          - chmod 700 ~/.gnupg
+          - echo "use-agent" > ~/.gnupg/gpg.conf
+          - echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
+          - echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+
+          # Start gpg-agent and ensure environment is loaded
+          - gpgconf --kill gpg-agent || true
+          - gpgconf --launch gpg-agent
+          - export GPG_TTY=$(tty)
+          - export GPG_AGENT_INFO=$(gpgconf --list-dirs agent-info-socket)
+          - echo "$REPO_SIGNING_KEY" | base64 -d | gpg --batch --import
+
+          # Get keygrip (required for gpg-preset-passphrase)
+          - export KEYGRIP=$(gpg --with-keygrip --list-secret-keys | awk '/Keygrip/ {print $3; exit}')
+
+          # Preset the passphrase (only stored in memory)
+          - echo "$REPO_SIGNING_KEY_PASSPHRASE" | base64 -d | /usr/lib/gnupg2/gpg-preset-passphrase --preset "$KEYGRIP"
           - >
             deb-s3 upload "dist/webitel-wfm-*.deb" --visibility nil --arch amd64 \
               --component "$WEBITEL_DEB_COMPONENT" \
               --codename "$DEB_CODENAME" \
+              --sign "${REPO_SIGNING_KEY_ID}" \
+              --gpg-options "--pinentry-mode loopback" \
               --access-key-id "$DEB_AWS_ACCESS_KEY_ID" \
               --secret-access-key "$DEB_AWS_SECRET_ACCESS_KEY" \
               --s3-region "$DEB_AWS_DEFAULT_REGION" \
