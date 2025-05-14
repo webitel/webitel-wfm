@@ -1,0 +1,79 @@
+name: Development
+
+on:
+  push:
+    branches:
+      - $default-branch
+
+jobs:
+  prepare:
+    name: Prepare
+    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@main
+    with:
+      package-pattern: package-*.deb
+      systemd-service: service-name
+
+  checks:
+    name: Checks
+    needs: [ prepare ]
+    uses: webitel/reusable-workflows/.github/workflows/go-checks.yml@main
+
+  compile:
+    name: Build
+    needs: [ prepare ]
+    uses: webitel/reusable-workflows/.github/workflows/go-build.yml@main
+    with:
+      source: ${{ needs.prepare.outputs.package-pattern }}
+      version: ${{ needs.prepare.outputs.version }}
+
+  development:
+    name: Development
+    needs: [ prepare, compile ]
+    uses: webitel/reusable-workflows/.github/workflows/deploy.yml@main
+    secrets:
+      host: ${{ secrets.DEPLOYMENTS_SSH_HOST_DEVELOPMENT }}
+      user: ${{ secrets.DEPLOYMENTS_SSH_USER }}
+      private-key: ${{ secrets.DEPLOYMENTS_SSH_PRIVATE_KEY }}
+
+    with:
+      environment: development
+      service: ${{ needs.prepare.outputs.systemd-service }}
+      source: ${{ needs.prepare.outputs.package-pattern }}
+
+  testing:
+    name: Testing
+    needs: [ prepare, compile, development ]
+    uses: webitel/reusable-workflows/.github/workflows/deploy.yml@main
+    secrets:
+      host: ${{ secrets.DEPLOYMENTS_SSH_HOST_TESTING }}
+      user: ${{ secrets.DEPLOYMENTS_SSH_USER }}
+      private-key: ${{ secrets.DEPLOYMENTS_SSH_PRIVATE_KEY }}
+
+    with:
+      environment: testing
+      service: ${{ needs.prepare.outputs.systemd-service }}
+      source: ${{ needs.prepare.outputs.package-pattern }}
+
+  repository:
+    name: Publish .deb package
+    needs: [ prepare, compile, testing ]
+    runs-on: [ arc-runner-set ]
+    environment: acceptance
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Publish build
+        uses: webitel/reusable-workflows/actions/deb-s3-upload@main
+        with:
+          source: ${{ needs.prepare.outputs.package-pattern }}
+          aws-bucket-name: ${{ vars.DEB_AWS_BUCKET_NAME }}
+          aws-bucket-region: ${{ vars.DEB_AWS_DEFAULT_REGION }}
+          aws-secret-id: ${{ secrets.DEB_AWS_ACCESS_KEY_ID }}
+          aws-secret-key: ${{ secrets.DEB_AWS_SECRET_ACCESS_KEY }}
+          component: ${{ needs.build.outputs.component }}
+          codename: ${{ vars.DEB_CODENAME }}
+          gpg-private-key: ${{ secrets.REPO_SIGNING_KEY }}
+          gpg-passphrase: ${{ secrets.REPO_SIGNING_KEY_PASSPHRASE }}
