@@ -10,6 +10,7 @@ jobs:
     name: Prepare
     uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@main
     with:
+      wire: true
       package-pattern: package-*.deb
       systemd-service: webitel-service
       check-latest: true
@@ -19,6 +20,7 @@ jobs:
     needs: [ prepare ]
     uses: webitel/reusable-workflows/.github/workflows/go-build.yml@main
     with:
+      wire: true
       source: ${{ needs.prepare.outputs.package-pattern }}
       version: ${{ needs.prepare.outputs.version }}
 
