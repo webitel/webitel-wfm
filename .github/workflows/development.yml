@@ -11,8 +11,8 @@ jobs:
     uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@main
     with:
       wire: true
-      package-pattern: package-*.deb
-      systemd-service: service-name
+      package-pattern: webitel-wfm-*.deb
+      systemd-service: webitel-wfm
 
   checks:
     name: Checks
