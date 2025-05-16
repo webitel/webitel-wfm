@@ -8,15 +8,11 @@ snapshot:
 report_sizes: true
 
 builds:
-  - env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
+  - env: [ CGO_ENABLED=0 ]
+    goos: [ linux ]
+    goarch: [ amd64 ]
     mod_timestamp: '{{ .CommitTimestamp }}'
-    flags:
-      - -trimpath
+    flags: [ -trimpath ]
     ldflags:
       - -s -w
       - -X github.com/webitel/webitel-wfm/cmd.version={{ .Version }}
@@ -69,11 +65,10 @@ archives:
   - name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Arch }}'
     formats: [ "zip" ]
     strip_binary_directory: true
+    files: [ README.md ]
     builds_info:
       group: root
       owner: root
-    files:
-      - README.md
 
 nfpms:
   - id: webitel-wfm
@@ -85,9 +80,7 @@ nfpms:
       Webitel WFM package.
 
     license: Apache 2.0
-    formats:
-      - deb
-
+    formats: [ deb ]
     umask: 0o002
     bindir: /usr/local/bin
     section: default
