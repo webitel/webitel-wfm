@@ -8,7 +8,7 @@ on:
 jobs:
   prepare:
     name: Prepare
-    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@main
+    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
     with:
       development-branch: main
       triggered-branch: ${{ github.ref_name }}
@@ -18,7 +18,7 @@ jobs:
   compile:
     name: Build
     needs: [ prepare ]
-    uses: webitel/reusable-workflows/.github/workflows/go-build.yml@main
+    uses: webitel/reusable-workflows/.github/workflows/go-build.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
     with:
       version: ${{ needs.prepare.outputs.version }}
       source: ${{ vars.PACKAGE_PATTERN }}
@@ -27,7 +27,7 @@ jobs:
   deploy:
     name: Deploy
     needs: [ prepare, compile ]
-    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@main
+    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
     secrets: inherit
     with:
       component: ${{ needs.prepare.outputs.component }}
