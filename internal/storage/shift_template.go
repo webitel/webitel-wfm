@@ -114,7 +114,12 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 
 	// Fields to retrieve.
 	{
-		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by", "times"} {
+		fields := []string{
+			"id", "created_at", "created_by", "updated_at", "updated_by",
+			"name", "description", "times",
+		}
+
+		for _, field := range fields {
 			search.WithField(field)
 		}
 
