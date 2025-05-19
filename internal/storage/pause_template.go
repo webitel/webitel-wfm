@@ -147,8 +147,13 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 	)
 
 	{
+		fields := []string{
+			"id", "created_at", "created_by", "updated_at", "updated_by",
+			"name", "description", "causes",
+		}
+
 		// Default fields
-		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by", "causes"} {
+		for _, field := range fields {
 			search.WithField(field)
 		}
 
