@@ -150,7 +150,14 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 	)
 
 	{
-		for _, field := range []string{"id", "name", "created_at", "created_by", "updated_at", "updated_by"} {
+		fields := []string{
+			"id", "domain_id", "created_at", "created_by", "updated_at", "updated_by",
+			"name", "description", "workday_hours", "workdays_per_month",
+			"vacation", "sick_leaves", "days_off", "pause_duration",
+			"pause_template", "shift_template",
+		}
+
+		for _, field := range fields {
 			search.WithField(field)
 		}
 
