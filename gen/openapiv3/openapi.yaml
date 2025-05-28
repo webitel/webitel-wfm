@@ -1,0 +1,1996 @@
+# Generated with protoc-gen-openapi
+# https://github.com/google/gnostic/tree/master/cmd/protoc-gen-openapi
+
+openapi: 3.0.3
+info:
+    title: ""
+    version: 0.0.1
+paths:
+    /wfm/agents/absences:
+        get:
+            tags:
+                - AgentAbsenceService
+            description: Searches absences by filters.
+            operationId: AgentAbsenceService_SearchAgentsAbsences
+            parameters:
+                - name: q
+                  in: query
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: sort
+                  in: query
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                - name: filters
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchAgentsAbsencesResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - AgentAbsenceService
+            description: Creates absences for multiple specified agents.
+            operationId: AgentAbsenceService_CreateAgentsAbsences
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateAgentsAbsencesRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateAgentsAbsencesResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/agents/working_schedules/{workingScheduleId}:
+        get:
+            tags:
+                - AgentWorkingScheduleService
+            operationId: AgentWorkingScheduleService_SearchAgentsWorkingSchedule
+            parameters:
+                - name: workingScheduleId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: date.from
+                  in: query
+                  schema:
+                    type: string
+                - name: date.to
+                  in: query
+                  schema:
+                    type: string
+                - name: supervisorId
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                - name: teamId
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                - name: skillId
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                - name: q
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchAgentsWorkingScheduleResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - AgentWorkingScheduleService
+            operationId: AgentWorkingScheduleService_CreateAgentsWorkingScheduleShifts
+            parameters:
+                - name: workingScheduleId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateAgentsWorkingScheduleShiftsRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateAgentsWorkingScheduleShiftsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/agents/{agentId}/absences:
+        get:
+            tags:
+                - AgentAbsenceService
+            description: Searches agent absences by filters.
+            operationId: AgentAbsenceService_SearchAgentAbsence
+            parameters:
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: sort
+                  in: query
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                - name: filters
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchAgentAbsenceResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - AgentAbsenceService
+            description: Creates one-day-absence for one agent.
+            operationId: AgentAbsenceService_CreateAgentAbsence
+            parameters:
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateAgentAbsenceRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateAgentAbsenceResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/agents/{agentId}/absences/{id}:
+        get:
+            tags:
+                - AgentAbsenceService
+            description: Reads one absence per agent by its id.
+            operationId: AgentAbsenceService_ReadAgentAbsence
+            parameters:
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadAgentAbsenceResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - AgentAbsenceService
+            description: Deletes agent concrete absence by its id.
+            operationId: AgentAbsenceService_DeleteAgentAbsence
+            parameters:
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteAgentAbsenceResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/agents/{agentId}/absences/{item.id}:
+        put:
+            tags:
+                - AgentAbsenceService
+            description: Updates agent concrete absence by its id.
+            operationId: AgentAbsenceService_UpdateAgentAbsence
+            parameters:
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: item.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateAgentAbsenceRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateAgentAbsenceResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/agents/{agentId}/conditions:
+        get:
+            tags:
+                - AgentWorkingConditionsService
+            operationId: AgentWorkingConditionsService_ReadAgentWorkingConditions
+            parameters:
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadAgentWorkingConditionsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        put:
+            tags:
+                - AgentWorkingConditionsService
+            operationId: AgentWorkingConditionsService_UpdateAgentWorkingConditions
+            parameters:
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateAgentWorkingConditionsRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateAgentWorkingConditionsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/forecast_calculation:
+        get:
+            tags:
+                - ForecastCalculationService
+            operationId: ForecastCalculationService_SearchForecastCalculation
+            parameters:
+                - name: q
+                  in: query
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: sort
+                  in: query
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchForecastCalculationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - ForecastCalculationService
+            operationId: ForecastCalculationService_CreateForecastCalculation
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateForecastCalculationRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateForecastCalculationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/forecast_calculation/{id}:
+        get:
+            tags:
+                - ForecastCalculationService
+            operationId: ForecastCalculationService_ReadForecastCalculation
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadForecastCalculationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - ForecastCalculationService
+            operationId: ForecastCalculationService_DeleteForecastCalculation
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteForecastCalculationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/forecast_calculation/{id}/execute:
+        get:
+            tags:
+                - ForecastCalculationService
+            operationId: ForecastCalculationService_ExecuteForecastCalculation
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: teamId
+                  in: query
+                  schema:
+                    type: string
+                - name: forecastData.from
+                  in: query
+                  schema:
+                    type: string
+                - name: forecastData.to
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ExecuteForecastCalculationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/forecast_calculation/{item.id}:
+        put:
+            tags:
+                - ForecastCalculationService
+            operationId: ForecastCalculationService_UpdateForecastCalculation
+            parameters:
+                - name: item.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateForecastCalculationRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateForecastCalculationResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/pause_templates:
+        get:
+            tags:
+                - PauseTemplateService
+            operationId: PauseTemplateService_SearchPauseTemplate
+            parameters:
+                - name: q
+                  in: query
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: sort
+                  in: query
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchPauseTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - PauseTemplateService
+            operationId: PauseTemplateService_CreatePauseTemplate
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreatePauseTemplateRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreatePauseTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/pause_templates/{id}:
+        get:
+            tags:
+                - PauseTemplateService
+            operationId: PauseTemplateService_ReadPauseTemplate
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadPauseTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - PauseTemplateService
+            operationId: PauseTemplateService_DeletePauseTemplate
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeletePauseTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/pause_templates/{item.id}:
+        put:
+            tags:
+                - PauseTemplateService
+            description: |-
+                UpdatePauseTemplateCauseBulk updates a pause template with a list of causes.
+                 Update existing cause, create that not exists in database and delete that not exists in the list.
+            operationId: PauseTemplateService_UpdatePauseTemplate
+            parameters:
+                - name: item.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdatePauseTemplateRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdatePauseTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/shift_templates:
+        get:
+            tags:
+                - ShiftTemplateService
+            operationId: ShiftTemplateService_SearchShiftTemplate
+            parameters:
+                - name: q
+                  in: query
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: sort
+                  in: query
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchShiftTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - ShiftTemplateService
+            operationId: ShiftTemplateService_CreateShiftTemplate
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateShiftTemplateRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateShiftTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/shift_templates/{id}:
+        get:
+            tags:
+                - ShiftTemplateService
+            operationId: ShiftTemplateService_ReadShiftTemplate
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadShiftTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - ShiftTemplateService
+            operationId: ShiftTemplateService_DeleteShiftTemplate
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteShiftTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/shift_templates/{item.id}:
+        put:
+            tags:
+                - ShiftTemplateService
+            description: |-
+                UpdateShiftTemplate updates a shift template with a list times.
+                 Update existing time, create that not exists in database and delete that not exists in the list.
+            operationId: ShiftTemplateService_UpdateShiftTemplate
+            parameters:
+                - name: item.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateShiftTemplateRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateShiftTemplateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_conditions:
+        get:
+            tags:
+                - WorkingConditionService
+            operationId: WorkingConditionService_SearchWorkingCondition
+            parameters:
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: q
+                  in: query
+                  schema:
+                    type: string
+                - name: sort
+                  in: query
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchWorkingConditionResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - WorkingConditionService
+            operationId: WorkingConditionService_CreateWorkingCondition
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateWorkingConditionRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateWorkingConditionResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_conditions/{id}:
+        get:
+            tags:
+                - WorkingConditionService
+            operationId: WorkingConditionService_ReadWorkingCondition
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadWorkingConditionResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - WorkingConditionService
+            operationId: WorkingConditionService_DeleteWorkingCondition
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteWorkingConditionResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_conditions/{item.id}:
+        put:
+            tags:
+                - WorkingConditionService
+            operationId: WorkingConditionService_UpdateWorkingCondition
+            parameters:
+                - name: item.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateWorkingConditionRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateWorkingConditionResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules:
+        get:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_SearchWorkingSchedule
+            parameters:
+                - name: q
+                  in: query
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
+                - name: sort
+                  in: query
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SearchWorkingScheduleResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_CreateWorkingSchedule
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateWorkingScheduleRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateWorkingScheduleResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{id}:
+        get:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_ReadWorkingSchedule
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: fields
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadWorkingScheduleResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_DeleteWorkingSchedule
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteWorkingScheduleResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{id}/agents:
+        post:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_UpdateWorkingScheduleAddAgents
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateWorkingScheduleAddAgentsRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateWorkingScheduleAddAgentsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{id}/agents/{agentId}:
+        delete:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_UpdateWorkingScheduleRemoveAgent
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: agentId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateWorkingScheduleRemoveAgentResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{id}/forecast:
+        get:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_ReadWorkingScheduleForecast
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: date.from
+                  in: query
+                  schema:
+                    type: string
+                - name: date.to
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadWorkingScheduleForecastResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{item.id}:
+        put:
+            tags:
+                - WorkingScheduleService
+            operationId: WorkingScheduleService_UpdateWorkingSchedule
+            parameters:
+                - name: item.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateWorkingScheduleRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateWorkingScheduleResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+components:
+    schemas:
+        Absence:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                typeId:
+                    type: integer
+                    format: enum
+                absentAt:
+                    type: string
+        AgentAbsences:
+            type: object
+            properties:
+                agent:
+                    $ref: '#/components/schemas/LookupEntity'
+                absences:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Absence'
+        AgentSchedule:
+            type: object
+            properties:
+                date:
+                    type: string
+                locked:
+                    type: boolean
+                absence:
+                    type: integer
+                    format: enum
+                shift:
+                    $ref: '#/components/schemas/AgentScheduleShift'
+        AgentScheduleShift:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                start:
+                    type: string
+                end:
+                    type: string
+                pauses:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentScheduleShiftPause'
+                skills:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentScheduleShiftSkill'
+        AgentScheduleShiftPause:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                start:
+                    type: string
+                end:
+                    type: string
+                cause:
+                    $ref: '#/components/schemas/LookupEntity'
+        AgentScheduleShiftSkill:
+            type: object
+            properties:
+                skill:
+                    $ref: '#/components/schemas/LookupEntity'
+                capacity:
+                    type: string
+                enabled:
+                    type: boolean
+        AgentWorkingConditions:
+            type: object
+            properties:
+                workingCondition:
+                    $ref: '#/components/schemas/LookupEntity'
+                pauseTemplate:
+                    $ref: '#/components/schemas/LookupEntity'
+        AgentWorkingSchedule:
+            type: object
+            properties:
+                agent:
+                    $ref: '#/components/schemas/LookupEntity'
+                schedule:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentSchedule'
+        CreateAgentAbsenceRequest:
+            type: object
+            properties:
+                agentId:
+                    type: string
+                item:
+                    $ref: '#/components/schemas/Absence'
+        CreateAgentAbsenceResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/Absence'
+        CreateAgentsAbsencesRequest:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/CreateAgentsAbsencesRequest_absentType'
+                agentIds:
+                    type: array
+                    items:
+                        type: string
+        CreateAgentsAbsencesRequest_absentType:
+            type: object
+            properties:
+                typeId:
+                    type: integer
+                    format: enum
+                dateFrom:
+                    type: string
+                dateTo:
+                    type: string
+        CreateAgentsAbsencesResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentAbsences'
+        CreateAgentsWorkingScheduleShiftsRequest:
+            type: object
+            properties:
+                workingScheduleId:
+                    type: string
+                date:
+                    $ref: '#/components/schemas/FilterBetween'
+                agents:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/LookupEntity'
+                items:
+                    type: object
+                    additionalProperties:
+                        $ref: '#/components/schemas/AgentScheduleShift'
+                    description: 'Map key is a day of week: 0 - Sunday, ..., 6 - Saturday.'
+        CreateAgentsWorkingScheduleShiftsResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentWorkingSchedule'
+        CreateForecastCalculationRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ForecastCalculation'
+        CreateForecastCalculationResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ForecastCalculation'
+        CreatePauseTemplateRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/PauseTemplate'
+        CreatePauseTemplateResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/PauseTemplate'
+        CreateShiftTemplateRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ShiftTemplate'
+        CreateShiftTemplateResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ShiftTemplate'
+        CreateWorkingConditionRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingCondition'
+        CreateWorkingConditionResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingCondition'
+        CreateWorkingScheduleRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingSchedule'
+        CreateWorkingScheduleResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingSchedule'
+        DeleteAgentAbsenceResponse:
+            type: object
+            properties:
+                id:
+                    type: string
+        DeleteForecastCalculationResponse:
+            type: object
+            properties:
+                id:
+                    type: string
+        DeletePauseTemplateResponse:
+            type: object
+            properties:
+                id:
+                    type: string
+        DeleteShiftTemplateResponse:
+            type: object
+            properties:
+                id:
+                    type: string
+        DeleteWorkingConditionResponse:
+            type: object
+            properties:
+                id:
+                    type: string
+        DeleteWorkingScheduleResponse:
+            type: object
+            properties:
+                id:
+                    type: string
+        ExecuteForecastCalculationResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ExecuteForecastCalculationResponse_Forecast'
+        ExecuteForecastCalculationResponse_Forecast:
+            type: object
+            properties:
+                timestamp:
+                    type: string
+                agents:
+                    type: string
+        FilterBetween:
+            type: object
+            properties:
+                from:
+                    type: string
+                to:
+                    type: string
+        ForecastCalculation:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                name:
+                    type: string
+                description:
+                    type: string
+                procedure:
+                    type: string
+                args:
+                    type: array
+                    items:
+                        type: string
+        GoogleProtobufAny:
+            type: object
+            properties:
+                '@type':
+                    type: string
+                    description: The type of the serialized message.
+            additionalProperties: true
+            description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message.
+        Holiday:
+            type: object
+            properties:
+                date:
+                    type: string
+                name:
+                    type: string
+        LookupEntity:
+            type: object
+            properties:
+                id:
+                    type: string
+                name:
+                    type: string
+        PauseTemplate:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                name:
+                    type: string
+                description:
+                    type: string
+                causes:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/PauseTemplateCause'
+        PauseTemplateCause:
+            type: object
+            properties:
+                duration:
+                    type: string
+                cause:
+                    $ref: '#/components/schemas/LookupEntity'
+        ReadAgentAbsenceResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/Absence'
+        ReadAgentWorkingConditionsResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/AgentWorkingConditions'
+        ReadForecastCalculationResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ForecastCalculation'
+        ReadPauseTemplateResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/PauseTemplate'
+        ReadShiftTemplateResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ShiftTemplate'
+        ReadWorkingConditionResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingCondition'
+        ReadWorkingScheduleForecastResponse:
+            type: object
+            properties:
+                items:
+                    type: object
+                    additionalProperties:
+                        $ref: '#/components/schemas/WorkingScheduleForecast'
+        ReadWorkingScheduleResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingSchedule'
+        SearchAgentAbsenceResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Absence'
+        SearchAgentsAbsencesResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentAbsences'
+                next:
+                    type: boolean
+        SearchAgentsWorkingScheduleResponse:
+            type: object
+            properties:
+                holidays:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Holiday'
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentWorkingSchedule'
+                total:
+                    type: string
+        SearchForecastCalculationResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ForecastCalculation'
+                next:
+                    type: boolean
+        SearchPauseTemplateResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/PauseTemplate'
+                next:
+                    type: boolean
+        SearchShiftTemplateResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ShiftTemplate'
+                next:
+                    type: boolean
+        SearchWorkingConditionResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/WorkingCondition'
+                next:
+                    type: boolean
+        SearchWorkingScheduleResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/WorkingSchedule'
+                next:
+                    type: boolean
+        ShiftTemplate:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                name:
+                    type: string
+                description:
+                    type: string
+                times:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ShiftTemplateTime'
+        ShiftTemplateTime:
+            type: object
+            properties:
+                start:
+                    type: integer
+                    format: int32
+                end:
+                    type: integer
+                    format: int32
+        Status:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    description: The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
+                    format: int32
+                message:
+                    type: string
+                    description: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client.
+                details:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/GoogleProtobufAny'
+                    description: A list of messages that carry the error details.  There is a common set of message types for APIs to use.
+            description: 'The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).'
+        UpdateAgentAbsenceRequest:
+            type: object
+            properties:
+                agentId:
+                    type: string
+                item:
+                    $ref: '#/components/schemas/Absence'
+        UpdateAgentAbsenceResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/Absence'
+        UpdateAgentWorkingConditionsRequest:
+            type: object
+            properties:
+                agentId:
+                    type: string
+                item:
+                    $ref: '#/components/schemas/AgentWorkingConditions'
+        UpdateAgentWorkingConditionsResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/AgentWorkingConditions'
+        UpdateForecastCalculationRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ForecastCalculation'
+        UpdateForecastCalculationResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ForecastCalculation'
+        UpdatePauseTemplateRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/PauseTemplate'
+        UpdatePauseTemplateResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/PauseTemplate'
+        UpdateShiftTemplateRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ShiftTemplate'
+        UpdateShiftTemplateResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/ShiftTemplate'
+        UpdateWorkingConditionRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingCondition'
+        UpdateWorkingConditionResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingCondition'
+        UpdateWorkingScheduleAddAgentsRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                agents:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/LookupEntity'
+        UpdateWorkingScheduleAddAgentsResponse:
+            type: object
+            properties:
+                agents:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/LookupEntity'
+        UpdateWorkingScheduleRemoveAgentResponse:
+            type: object
+            properties:
+                id:
+                    type: string
+        UpdateWorkingScheduleRequest:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingSchedule'
+        UpdateWorkingScheduleResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingSchedule'
+        WorkingCondition:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                name:
+                    type: string
+                description:
+                    type: string
+                workdayHours:
+                    type: integer
+                    format: int32
+                workdaysPerMonth:
+                    type: integer
+                    format: int32
+                vacation:
+                    type: integer
+                    format: int32
+                sickLeaves:
+                    type: integer
+                    format: int32
+                daysOff:
+                    type: integer
+                    format: int32
+                pauseDuration:
+                    type: integer
+                    format: int32
+                pauseTemplate:
+                    $ref: '#/components/schemas/LookupEntity'
+                shiftTemplate:
+                    $ref: '#/components/schemas/LookupEntity'
+        WorkingSchedule:
+            type: object
+            properties:
+                id:
+                    type: string
+                domainId:
+                    type: string
+                createdAt:
+                    type: string
+                createdBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                updatedAt:
+                    type: string
+                updatedBy:
+                    $ref: '#/components/schemas/LookupEntity'
+                name:
+                    type: string
+                state:
+                    type: integer
+                    format: enum
+                team:
+                    $ref: '#/components/schemas/LookupEntity'
+                calendar:
+                    $ref: '#/components/schemas/LookupEntity'
+                startDateAt:
+                    type: string
+                endDateAt:
+                    type: string
+                startTimeAt:
+                    type: string
+                endTimeAt:
+                    type: string
+                extraSkills:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/LookupEntity'
+                blockOutsideActivity:
+                    type: boolean
+                agents:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/LookupEntity'
+                totalAgents:
+                    type: string
+        WorkingScheduleForecast:
+            type: object
+            properties:
+                forecast:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/WorkingScheduleForecast_Forecast'
+        WorkingScheduleForecast_Forecast:
+            type: object
+            properties:
+                hour:
+                    type: string
+                agents:
+                    type: string
+tags:
+    - name: AgentAbsenceService
+    - name: AgentWorkingConditionsService
+    - name: AgentWorkingScheduleService
+    - name: ForecastCalculationService
+    - name: PauseTemplateService
+    - name: ShiftTemplateService
+    - name: WorkingConditionService
+    - name: WorkingScheduleService

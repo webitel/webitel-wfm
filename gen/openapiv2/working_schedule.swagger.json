@@ -1,0 +1,679 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "working_schedule.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "WorkingScheduleService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/wfm/lookups/working_schedules": {
+      "get": {
+        "operationId": "WorkingScheduleService_SearchWorkingSchedule",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmSearchWorkingScheduleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      },
+      "post": {
+        "operationId": "WorkingScheduleService_CreateWorkingSchedule",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmCreateWorkingScheduleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/wfmCreateWorkingScheduleRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_schedules/{id}": {
+      "get": {
+        "operationId": "WorkingScheduleService_ReadWorkingSchedule",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmReadWorkingScheduleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkingScheduleService_DeleteWorkingSchedule",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmDeleteWorkingScheduleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_schedules/{id}/agents": {
+      "post": {
+        "operationId": "WorkingScheduleService_UpdateWorkingScheduleAddAgents",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmUpdateWorkingScheduleAddAgentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "agents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "$ref": "#/definitions/wfmLookupEntity"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_schedules/{id}/agents/{agentId}": {
+      "delete": {
+        "operationId": "WorkingScheduleService_UpdateWorkingScheduleRemoveAgent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmUpdateWorkingScheduleRemoveAgentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_schedules/{id}/forecast": {
+      "get": {
+        "operationId": "WorkingScheduleService_ReadWorkingScheduleForecast",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmReadWorkingScheduleForecastResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "date.from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "date.to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_schedules/{item.id}": {
+      "put": {
+        "operationId": "WorkingScheduleService_UpdateWorkingSchedule",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmUpdateWorkingScheduleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "item.id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "item": {
+                  "type": "object",
+                  "properties": {
+                    "domainId": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "createdBy": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "updatedBy": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "$ref": "#/definitions/wfmWorkingScheduleState"
+                    },
+                    "team": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "calendar": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "startDateAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "endDateAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "startTimeAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "endTimeAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "extraSkills": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/wfmLookupEntity"
+                      }
+                    },
+                    "blockOutsideActivity": {
+                      "type": "boolean"
+                    },
+                    "agents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/wfmLookupEntity"
+                      }
+                    },
+                    "totalAgents": {
+                      "type": "string",
+                      "format": "int64"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "wfmCreateWorkingScheduleRequest": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingSchedule"
+        }
+      }
+    },
+    "wfmCreateWorkingScheduleResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingSchedule"
+        }
+      }
+    },
+    "wfmDeleteWorkingScheduleResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "wfmFilterBetween": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "format": "int64"
+        },
+        "to": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "wfmLookupEntity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "wfmReadWorkingScheduleForecastResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/wfmWorkingScheduleForecast"
+          }
+        }
+      }
+    },
+    "wfmReadWorkingScheduleResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingSchedule"
+        }
+      }
+    },
+    "wfmSearchWorkingScheduleResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmWorkingSchedule"
+          }
+        },
+        "next": {
+          "type": "boolean"
+        }
+      }
+    },
+    "wfmUpdateWorkingScheduleAddAgentsResponse": {
+      "type": "object",
+      "properties": {
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmLookupEntity"
+          }
+        }
+      }
+    },
+    "wfmUpdateWorkingScheduleRemoveAgentResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "wfmUpdateWorkingScheduleResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingSchedule"
+        }
+      }
+    },
+    "wfmWorkingSchedule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "domainId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "createdBy": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "updatedBy": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/wfmWorkingScheduleState"
+        },
+        "team": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "calendar": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "startDateAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "endDateAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "startTimeAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "endTimeAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "extraSkills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmLookupEntity"
+          }
+        },
+        "blockOutsideActivity": {
+          "type": "boolean"
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmLookupEntity"
+          }
+        },
+        "totalAgents": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "wfmWorkingScheduleForecast": {
+      "type": "object",
+      "properties": {
+        "forecast": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmWorkingScheduleForecastForecast"
+          }
+        }
+      }
+    },
+    "wfmWorkingScheduleForecastForecast": {
+      "type": "object",
+      "properties": {
+        "hour": {
+          "type": "string",
+          "format": "int64"
+        },
+        "agents": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "wfmWorkingScheduleState": {
+      "type": "string",
+      "enum": [
+        "WORKING_SCHEDULE_STATE_UNSPECIFIED",
+        "WORKING_SCHEDULE_STATE_ACTIVE",
+        "WORKING_SCHEDULE_STATE_PENDING",
+        "WORKING_SCHEDULE_STATE_DRAFT",
+        "WORKING_SCHEDULE_STATE_ARCHIVED"
+      ],
+      "default": "WORKING_SCHEDULE_STATE_UNSPECIFIED"
+    }
+  }
+}

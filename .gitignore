@@ -37,10 +37,5 @@ go.work
 # Ignore OSX indexing
 .DS_Store
 
-# wire generated files
-**/wire_gen.go
-
-gen/
-
 scripts
 dist

@@ -1,0 +1,441 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "working_condition.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "WorkingConditionService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/wfm/lookups/working_conditions": {
+      "get": {
+        "operationId": "WorkingConditionService_SearchWorkingCondition",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmSearchWorkingConditionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "WorkingConditionService"
+        ]
+      },
+      "post": {
+        "operationId": "WorkingConditionService_CreateWorkingCondition",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmCreateWorkingConditionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/wfmCreateWorkingConditionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WorkingConditionService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_conditions/{id}": {
+      "get": {
+        "operationId": "WorkingConditionService_ReadWorkingCondition",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmReadWorkingConditionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "WorkingConditionService"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkingConditionService_DeleteWorkingCondition",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmDeleteWorkingConditionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "WorkingConditionService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_conditions/{item.id}": {
+      "put": {
+        "operationId": "WorkingConditionService_UpdateWorkingCondition",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmUpdateWorkingConditionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "item.id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "item": {
+                  "type": "object",
+                  "properties": {
+                    "domainId": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "createdBy": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "updatedBy": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "workdayHours": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "workdaysPerMonth": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "vacation": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "sickLeaves": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "daysOff": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "pauseDuration": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "pauseTemplate": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "shiftTemplate": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "WorkingConditionService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "wfmCreateWorkingConditionRequest": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingCondition"
+        }
+      }
+    },
+    "wfmCreateWorkingConditionResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingCondition"
+        }
+      }
+    },
+    "wfmDeleteWorkingConditionResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "wfmLookupEntity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "wfmReadWorkingConditionResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingCondition"
+        }
+      }
+    },
+    "wfmSearchWorkingConditionResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmWorkingCondition"
+          }
+        },
+        "next": {
+          "type": "boolean"
+        }
+      }
+    },
+    "wfmUpdateWorkingConditionResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingCondition"
+        }
+      }
+    },
+    "wfmWorkingCondition": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "domainId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "createdBy": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "updatedBy": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "workdayHours": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "workdaysPerMonth": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "vacation": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "sickLeaves": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "daysOff": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pauseDuration": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pauseTemplate": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "shiftTemplate": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        }
+      }
+    }
+  }
+}
