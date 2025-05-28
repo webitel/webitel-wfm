@@ -19,9 +19,27 @@ jobs:
     needs: [ prepare ]
     uses: webitel/reusable-workflows/.github/workflows/go-checks.yml@main
 
+  # FIXME: reusable workflows (uses: syntax) cannot access the github context
+  #        from the calling workflow unless the values are explicitly passed as with inputs.
+  output-vars:
+    name: Prepare variables
+    runs-on: [ arc-runner-set ]
+    env:
+      LDFLAGS: >
+        -X github.com/webitel/webitel-wfm/cmd.commit=${{ github.sha }}
+        -X github.com/webitel/webitel-wfm/cmd.branch="${{ github.ref_name }}"
+
+    outputs:
+      ldflags: ${{ steps.ldflags.outputs.LDFLAGS }}
+
+    steps:
+      - id: ldflags
+        run: |
+          echo "LDFLAGS=$LDFLAGS" >> $GITHUB_OUTPUT
+
   compile:
     name: Build
-    needs: [ prepare ]
+    needs: [ output-vars, prepare ]
     uses: webitel/reusable-workflows/.github/workflows/go-build.yml@main
 
     with:
@@ -30,8 +48,7 @@ jobs:
       ldflags: >
         -s -w
         -X github.com/webitel/webitel-wfm/cmd.version="${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.version-build }}"
-        -X github.com/webitel/webitel-wfm/cmd.commit="${{ github.sha }}"
-        -X github.com/webitel/webitel-wfm/cmd.branch="${{ github.ref_name }}"
+        ${{ needs.output-vars.outputs.ldflags }}
         
       upload-artifact-pattern: |
         ${{ vars.SERVICE_NAME }}
