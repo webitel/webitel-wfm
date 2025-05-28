@@ -2,8 +2,12 @@ name: Development
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+
+permissions: { contents: read }
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   prepare:
@@ -40,7 +44,7 @@ jobs:
       prerelease: dev
       package-name: ${{ vars.SERVICE_NAME }}
       package-description: |
-        Webitel workforce management service [WFM] package.
+        Webitel workforce management service (WFM) package.
 
       package-contents: |
         src=${{ vars.SERVICE_NAME }} dst=/usr/local/bin/${{ vars.SERVICE_NAME }} type=file
