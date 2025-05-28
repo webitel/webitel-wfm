@@ -3,17 +3,22 @@ name: PR
 on:
   pull_request:
 
+permissions: { contents: read }
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   prepare:
     name: Prepare
-    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
-    with:
-      only-dependencies: true
-      generated-code-path: ${{ vars.GENERATED_CODE_PATH }}
+    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@6c815148861a4eb96eed529288301f76b6040cf1
+    with: { only-dependencies: true }
 
   checks:
     name: Checks
     needs: [ prepare ]
-    uses: webitel/reusable-workflows/.github/workflows/go-checks.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
-    with:
-      generated-code: ${{ vars.GENERATED_CODE_PATH != '' }}
+    uses: webitel/reusable-workflows/.github/workflows/go-checks.yml@6c815148861a4eb96eed529288301f76b6040cf1
+    permissions:
+      contents: read
+      actions: read
+      security-events: write

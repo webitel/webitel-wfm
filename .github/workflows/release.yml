@@ -2,33 +2,65 @@ name: Release
 
 on:
   push:
-    branches:
-      - v*.* # Only release branches
+    branches: [ v*.* ] # Only release branches
+
+permissions: { contents: read }
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   prepare:
     name: Prepare
-    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
+    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@6c815148861a4eb96eed529288301f76b6040cf1
     with:
       development-branch: main
       triggered-branch: ${{ github.ref_name }}
       build-number: ${{ github.run_number }}
-      generated-code-path: ${{ vars.GENERATED_CODE_PATH }}
+
+  checks:
+    name: Checks
+    needs: [ prepare ]
+    uses: webitel/reusable-workflows/.github/workflows/go-checks.yml@6c815148861a4eb96eed529288301f76b6040cf1
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
 
   compile:
     name: Build
     needs: [ prepare ]
-    uses: webitel/reusable-workflows/.github/workflows/go-build.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
+    uses: webitel/reusable-workflows/.github/workflows/go-build.yml@6c815148861a4eb96eed529288301f76b6040cf1
     with:
+      binary-name: ${{ vars.SERVICE_NAME }}
+      ldflags: >
+        -s -w
+        -X github.com/webitel/webitel-wfm/cmd.version=${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.version-build }}
+        -X github.com/webitel/webitel-wfm/cmd.commit=${{ github.sha }}
+        -X github.com/webitel/webitel-wfm/cmd.branch=${{ github.ref_name }}
+
+      upload-artifact-pattern: |
+        ${{ vars.SERVICE_NAME }}
+        deploy/systemd/${{ vars.SERVICE_NAME }}.service
+
       version: ${{ needs.prepare.outputs.version }}
-      source: ${{ vars.PACKAGE_PATTERN }}
-      generated-code: ${{ vars.GENERATED_CODE_PATH != '' }}
+      version-build: ${{ github.run_number }}
+      package-name: ${{ vars.SERVICE_NAME }}
+      package-description: |
+        Webitel workforce management service (WFM) package.
+
+      package-contents: |
+        src=${{ vars.SERVICE_NAME }} dst=/usr/local/bin/${{ vars.SERVICE_NAME }} type=file
+        src=deploy/systemd/${{ vars.SERVICE_NAME }}.service dst=/etc/systemd/system/${{ vars.SERVICE_NAME }}.service type=config
 
   deploy:
     name: Deploy
     needs: [ prepare, compile ]
-    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
+    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@6c815148861a4eb96eed529288301f76b6040cf1
+    permissions: { contents: write }
     secrets: inherit
     with:
       component: ${{ needs.prepare.outputs.component }}
       repository-environment: ${{ needs.prepare.outputs.component }}
+      create-tag: true
+      version: ${{ needs.prepare.outputs.version }}-${{ github.run_number }}
