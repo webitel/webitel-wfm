@@ -5,29 +5,55 @@ on:
     branches:
       - main
 
+env:
+  SERVICE_NAME: webitel-wfm
+
 jobs:
   prepare:
     name: Prepare
-    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
+    uses: webitel/reusable-workflows/.github/workflows/go-prepare.yml@main
     with:
       development-branch: main
       triggered-branch: ${{ github.ref_name }}
       build-number: ${{ github.run_number }}
-      generated-code-path: ${{ vars.GENERATED_CODE_PATH }}
+
+  checks:
+    name: Checks
+    needs: [ prepare ]
+    uses: webitel/reusable-workflows/.github/workflows/go-checks.yml@main
 
   compile:
     name: Build
     needs: [ prepare ]
-    uses: webitel/reusable-workflows/.github/workflows/go-build.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
+    uses: webitel/reusable-workflows/.github/workflows/go-build.yml@main
     with:
+      main-path: .
+      binary-name: ${{ env.SERVICE_NAME }}
+      ldflags: >
+        -s -w
+        -X github.com/webitel/webitel-wfm/cmd.version=${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.version-build }}
+        -X github.com/webitel/webitel-wfm/cmd.commit=${{ github.sha }}
+        -X github.com/webitel/webitel-wfm/cmd.branch=${{ github.ref_name }}
+        
+      upload-artifact-pattern: |
+        ${{ env.SERVICE_NAME }}
+        deploy/systemd/${{ env.SERVICE_NAME }}.service
+
       version: ${{ needs.prepare.outputs.version }}
-      source: ${{ vars.PACKAGE_PATTERN }}
-      generated-code: ${{ vars.GENERATED_CODE_PATH != '' }}
+      version-build: ${{ needs.prepare.outputs.version-build }}
+      prerelease: dev
+      package-name: ${{ env.SERVICE_NAME }}
+      package-description: |
+        Webitel workforce management service [WFM] package.
+
+      package-contents: |
+        src=${{ env.SERVICE_NAME }} dst=/usr/local/bin/${{ env.SERVICE_NAME }} type=file
+        src=deploy/systemd/${{ env.SERVICE_NAME }}.service dst=/etc/systemd/system/${{ env.SERVICE_NAME }}.service type=config
 
   deploy:
     name: Deploy
     needs: [ prepare, compile ]
-    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@abafeba0418db40ae8dd5e4f14457370e09187d2
+    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@main
     secrets: inherit
     with:
       component: ${{ needs.prepare.outputs.component }}
