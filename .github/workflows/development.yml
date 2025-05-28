@@ -5,9 +5,6 @@ on:
     branches:
       - main
 
-env:
-  SERVICE_NAME: webitel-wfm
-
 jobs:
   prepare:
     name: Prepare
@@ -28,7 +25,7 @@ jobs:
     uses: webitel/reusable-workflows/.github/workflows/go-build.yml@main
     with:
       main-path: .
-      binary-name: ${{ env.SERVICE_NAME }}
+      binary-name: ${{ vars.SERVICE_NAME }}
       ldflags: >
         -s -w
         -X github.com/webitel/webitel-wfm/cmd.version=${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.version-build }}
@@ -36,19 +33,19 @@ jobs:
         -X github.com/webitel/webitel-wfm/cmd.branch=${{ github.ref_name }}
         
       upload-artifact-pattern: |
-        ${{ env.SERVICE_NAME }}
-        deploy/systemd/${{ env.SERVICE_NAME }}.service
+        ${{ vars.SERVICE_NAME }}
+        deploy/systemd/${{ vars.SERVICE_NAME }}.service
 
       version: ${{ needs.prepare.outputs.version }}
       version-build: ${{ needs.prepare.outputs.version-build }}
       prerelease: dev
-      package-name: ${{ env.SERVICE_NAME }}
+      package-name: ${{ vars.SERVICE_NAME }}
       package-description: |
         Webitel workforce management service [WFM] package.
 
       package-contents: |
-        src=${{ env.SERVICE_NAME }} dst=/usr/local/bin/${{ env.SERVICE_NAME }} type=file
-        src=deploy/systemd/${{ env.SERVICE_NAME }}.service dst=/etc/systemd/system/${{ env.SERVICE_NAME }}.service type=config
+        src=${{ vars.SERVICE_NAME }} dst=/usr/local/bin/${{ vars.SERVICE_NAME }} type=file
+        src=deploy/systemd/${{ vars.SERVICE_NAME }}.service dst=/etc/systemd/system/${{ vars.SERVICE_NAME }}.service type=config
 
   deploy:
     name: Deploy
