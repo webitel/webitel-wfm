@@ -12,7 +12,7 @@ concurrency:
 jobs:
   workflow:
     name: Workflow
-    uses: webitel/reusable-workflows/.github/workflows/golang/workflow.yml@feat/organize
+    uses: webitel/reusable-workflows/.github/workflows/go-workflow.yml@feat/organize
     with:
       workflow-ref: feat/organize
       development-branch: ${{ github.event.repository.default_branch }}
