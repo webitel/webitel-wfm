@@ -59,6 +59,7 @@ jobs:
     needs: [ prepare, compile ]
     uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@main
     secrets: inherit
+    permissions: { contents: write }
     with:
       component: ${{ needs.prepare.outputs.component }}
       repository-environment: acceptance
