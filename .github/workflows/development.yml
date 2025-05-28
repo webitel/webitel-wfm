@@ -24,7 +24,6 @@ jobs:
     needs: [ prepare ]
     uses: webitel/reusable-workflows/.github/workflows/go-build.yml@main
     with:
-      main-path: .
       binary-name: ${{ vars.SERVICE_NAME }}
       ldflags: >
         -s -w
@@ -37,7 +36,7 @@ jobs:
         deploy/systemd/${{ vars.SERVICE_NAME }}.service
 
       version: ${{ needs.prepare.outputs.version }}
-      version-build: ${{ needs.prepare.outputs.version-build }}
+      version-build: ${{ github.run_number }}
       prerelease: dev
       package-name: ${{ vars.SERVICE_NAME }}
       package-description: |
