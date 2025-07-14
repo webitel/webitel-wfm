@@ -1,15 +1,37 @@
 [Unit]
-Description=Engine Startup process
+Description=Webitel WFM
 After=network.target consul.service rabbitmq-server.service postgresql.service engine.service call_center.service
+
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
-Restart=always
-LimitNOFILE=64000
-TimeoutStartSec=0
+User=webitel
+Group=webitel
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+
 EnvironmentFile=/etc/default/webitel
 Environment="BIND_ADDRESS=127.0.0.1:10022"
+
 ExecStart=/usr/local/bin/webitel-wfm api
 
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStartSec=0
+TimeoutStopSec=30
+
+# Resource limits
+LimitNOFILE=64000
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=webitel-wfm
+
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
