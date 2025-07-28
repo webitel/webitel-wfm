@@ -52,8 +52,8 @@ jobs:
         postinstall: deploy/debian/postinst.sh
         preremove: deploy/debian/prerm.sh
 
-  webitel-wfm:
-    name: Deploy
+  deploy:
+    name: Deploy (webitel-wfm)
     needs: [ prepare, compile ]
     uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@4d3e0c4a01f089f37ec0c8bf1f35cc6e37c7f3f6
     permissions: { contents: write }
