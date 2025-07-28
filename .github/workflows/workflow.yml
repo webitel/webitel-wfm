@@ -1,4 +1,4 @@
-name: Workflow
+name: Workflow (webitel-wfm)
 
 on:
   push:
@@ -52,7 +52,7 @@ jobs:
         postinstall: deploy/debian/postinst.sh
         preremove: deploy/debian/prerm.sh
 
-  deploy:
+  webitel-wfm:
     name: Deploy
     needs: [ prepare, compile ]
     uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@4d3e0c4a01f089f37ec0c8bf1f35cc6e37c7f3f6

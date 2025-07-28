@@ -1,4 +1,4 @@
-name: Pull request
+name: Pull request (webitel-wfm)
 
 on:
   pull_request:
