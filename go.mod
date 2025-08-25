@@ -15,7 +15,7 @@ replace github.com/armon/go-metrics v0.5.3 => github.com/hashicorp/go-metrics v0
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.4-20241127180247-a33202765966.1
 	buf.build/gen/go/webitel/engine/grpc/go v1.5.1-20241204053309-7eac59c4b6c7.1
-	buf.build/gen/go/webitel/engine/protocolbuffers/go v1.36.0-20241204053309-7eac59c4b6c7.1
+	buf.build/gen/go/webitel/engine/protocolbuffers/go v1.36.8-20250819064009-210ce08fa80c.1
 	buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20240911114117-1d910a772b4f.1
 	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.0-20240911114117-1d910a772b4f.1
 	github.com/VictoriaMetrics/fastcache v1.12.2
@@ -39,14 +39,14 @@ require (
 	golang.org/x/sync v0.13.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250127172529-29210b9bc287
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.8
 )
 
 require (
 	buf.build/gen/go/bufbuild/bufplugin/protocolbuffers/go v1.36.4-20250121211742-6d880cc6cc8d.1 // indirect
 	buf.build/gen/go/bufbuild/registry/connectrpc/go v1.18.1-20250116203702-1c024d64352b.1 // indirect
 	buf.build/gen/go/bufbuild/registry/protocolbuffers/go v1.36.4-20250116203702-1c024d64352b.1 // indirect
-	buf.build/gen/go/grpc-ecosystem/grpc-gateway/protocolbuffers/go v1.36.0-20240617172850-a48fcebcf8f1.1 // indirect
+	buf.build/gen/go/grpc-ecosystem/grpc-gateway/protocolbuffers/go v1.36.8-20231027202514-3f42134f4c56.1 // indirect
 	buf.build/gen/go/pluginrpc/pluginrpc/protocolbuffers/go v1.36.4-20241007202033-cf42259fcbfc.1 // indirect
 	buf.build/gen/go/webitel/webitel-go/grpc/go v1.5.1-20241211101732-846cb7ad222f.1 // indirect
 	buf.build/gen/go/webitel/webitel-go/protocolbuffers/go v1.36.0-20241211101732-846cb7ad222f.1 // indirect
