@@ -12,7 +12,7 @@ permissions: { contents: read }
 jobs:
   backport:
     name: Backport
-    uses: webitel/reusable-workflows/.github/workflows/_backport.yml@1796c05c3f8d5a733b5f8d2572522ba6f3b2924a
+    uses: webitel/reusable-workflows/.github/workflows/_backport.yml@2b2ecb6df60e6e186d20d37b9fd6e1e5853c3ab4
     permissions:
       id-token: write
       actions: read
