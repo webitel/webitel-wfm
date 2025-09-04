@@ -7,9 +7,7 @@ on:
   pull_request:
     types: [ closed, labeled ]
 
-permissions:
-  id-token: write
-  actions: read
+permissions: {}
 
 jobs:
   trigger:
