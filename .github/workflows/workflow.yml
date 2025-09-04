@@ -14,16 +14,15 @@ concurrency:
 jobs:
   prepare:
     name: Prepare
-    uses: webitel/reusable-workflows/.github/workflows/golang-prepare.yml@4d3e0c4a01f089f37ec0c8bf1f35cc6e37c7f3f6
+    uses: webitel/reusable-workflows/.github/workflows/golang-prepare.yml@98bbd192d5bd26702c0b82689f42bfec6fb892a2
     with:
       development-branch: ${{ github.event.repository.default_branch }}
       triggered-branch: ${{ github.ref_name }}
-      build-number: ${{ github.run_number }}
 
   checks:
     name: Checks
     needs: [ prepare ]
-    uses: webitel/reusable-workflows/.github/workflows/golang-checks.yml@4d3e0c4a01f089f37ec0c8bf1f35cc6e37c7f3f6
+    uses: webitel/reusable-workflows/.github/workflows/golang-checks.yml@98bbd192d5bd26702c0b82689f42bfec6fb892a2
     permissions:
       contents: read
       actions: read
@@ -32,40 +31,43 @@ jobs:
   compile:
     name: Build
     needs: [ prepare ]
-    uses: webitel/reusable-workflows/.github/workflows/golang-build.yml@4d3e0c4a01f089f37ec0c8bf1f35cc6e37c7f3f6
+    uses: webitel/reusable-workflows/.github/workflows/golang-build.yml@98bbd192d5bd26702c0b82689f42bfec6fb892a2
     with:
-      binary-name: ${{ vars.SERVICE_NAME }}
+      binary-name: webitel-wfm
       ldflags: >
         -s -w
-        -X github.com/webitel/webitel-wfm/cmd.version=${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.version-build }}
+        -X github.com/webitel/webitel-wfm/cmd.version=${{ needs.prepare.outputs.version }}-${{ github.run_number }}
         -X github.com/webitel/webitel-wfm/cmd.commit=${{ github.sha }}
         -X github.com/webitel/webitel-wfm/cmd.branch=${{ github.ref_name }}
+        
 
       version: ${{ needs.prepare.outputs.version }}
       version-build: ${{ github.run_number }}
       prerelease: ${{ github.event.repository.default_branch == github.ref_name && 'dev' || '' }}
-      package-name: ${{ vars.SERVICE_NAME }}
+      package-name: webitel-wfm
       package-description: ${{ github.event.repository.description }}
       package-contents: |
         src=deploy/systemd/${{ vars.SERVICE_NAME }}.service dst=/etc/systemd/system/${{ vars.SERVICE_NAME }}.service type=config
+        
 
       scripts: |
         preinstall: deploy/debian/preinst.sh
         postinstall: deploy/debian/postinst.sh
         preremove: deploy/debian/prerm.sh
+        
 
-  webitel-wfm:
+  deploy:
     name: Deploy
     needs: [ prepare, compile ]
-    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@4d3e0c4a01f089f37ec0c8bf1f35cc6e37c7f3f6
+    uses: webitel/reusable-workflows/.github/workflows/_deploy.yml@98bbd192d5bd26702c0b82689f42bfec6fb892a2
     permissions: { contents: write }
     secrets: inherit
     with:
       tag: ${{ github.event.repository.default_branch != github.ref_name && format('{0}-{1}', needs.prepare.outputs.version, github.run_number) || '' }}
       tag-target-commitish: ${{ github.sha }}
-      repository-environment: ${{ github.event.repository.default_branch == github.ref_name && 'acceptance' || needs.prepare.outputs.component }}
+      repository-environment: ${{ github.event.repository.default_branch == github.ref_name && 'acceptance' || format('{0}-releases', needs.prepare.outputs.version) }}
       deb-package-pattern: webitel-wfm*.deb
-      deb-component: ${{ needs.prepare.outputs.component }}
+      deb-component: ${{ github.event.repository.default_branch == github.ref_name && 'dev' || format('{0}-releases', needs.prepare.outputs.version) }}
       deb-codename: ${{ vars.DEB_CODENAME }}
       deb-aws-bucket-name: ${{ vars.DEB_AWS_BUCKET_NAME }}
       deb-aws-bucket-region: ${{ vars.DEB_AWS_DEFAULT_REGION }}

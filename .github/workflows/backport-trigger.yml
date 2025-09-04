@@ -1,0 +1,19 @@
+# We need secrets to backport, but they're not available for actions ran by forks.
+# So this workflow is used as a 'trigger', which the backport-workflow.yml will with
+# via workflow_run
+name: Backport (trigger)
+
+on:
+  pull_request:
+    types: [ closed, labeled ]
+
+permissions: {}
+
+jobs:
+  trigger:
+    name: Trigger backport
+    uses: webitel/reusable-workflows/.github/workflows/_backport-trigger.yml@98bbd192d5bd26702c0b82689f42bfec6fb892a2
+    if: |
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.pull_request.merged == true &&
+      contains(join(github.event.pull_request.labels.*.name, ','), 'backport v')
