@@ -1,6 +1,6 @@
 # Runs the actual backport after being triggered by the backport-trigger.yml workflow.
 name: Backport (workflow)
-run-name: "Backport for $ #$"
+run-name: Backport for ${{ github.event.workflow_run.head_branch }} #${{ github.event.workflow_run.run_number }}
 
 on:
   workflow_run:
@@ -12,7 +12,9 @@ permissions: {}
 jobs:
   backport:
     name: Backport
-    uses: webitel/reusable-workflows/.github/workflows/_backport.yml@98bbd192d5bd26702c0b82689f42bfec6fb892a2
+    uses: webitel/reusable-workflows/.github/workflows/_backport.yml@f09928e8ff63860f9656be12b9454fac00a52598
+
+    # Only run this job if the triggering workflow was not skipped (and on webitel repositories)
     if: |
       github.event.workflow_run.head_repository.fork == false &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
