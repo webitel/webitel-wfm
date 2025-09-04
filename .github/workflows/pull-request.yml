@@ -58,9 +58,17 @@ jobs:
     name: Publish .deb package
     needs: [ compile ]
     uses: webitel/reusable-workflows/.github/workflows/_publish-deb.yml@2b2ecb6df60e6e186d20d37b9fd6e1e5853c3ab4
+    secrets:
+      DEB_AWS_ACCESS_KEY_ID: ${{ secrets.DEB_AWS_ACCESS_KEY_ID }}
+      DEB_AWS_SECRET_ACCESS_KEY: ${{ secrets.DEB_AWS_SECRET_ACCESS_KEY }}
+      REPO_SIGNING_KEY: ${{ secrets.REPO_SIGNING_KEY }}
+      REPO_SIGNING_KEY_PASSPHRASE: ${{ secrets.REPO_SIGNING_KEY_PASSPHRASE }}
+
     with:
       deb-package-pattern: webitel-wfm*.deb
       deb-component: ${{ github.event.repository.default_branch == github.ref_name && 'dev' || format('{0}-releases', needs.prepare.outputs.version) }}
       deb-codename: ${{ vars.DEB_CODENAME }}
       deb-aws-bucket-name: ${{ vars.DEB_AWS_BUCKET_NAME }}
       deb-aws-bucket-region: ${{ vars.DEB_AWS_DEFAULT_REGION }}
+
+

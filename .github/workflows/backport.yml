@@ -21,5 +21,4 @@ jobs:
     # Only run this job if the triggering workflow was not skipped (and on webitel repositories)
     if: |
       github.event.workflow_run.head_repository.fork == false &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
       github.event.workflow_run.conclusion == 'success'
