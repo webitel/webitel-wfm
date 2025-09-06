@@ -2,6 +2,7 @@
 # So this workflow is used as a 'trigger', which the backport-workflow.yml will with
 # via workflow_run
 name: Backport (trigger)
+run-name: "backport@pr${{ github.event.pull_request.number }}#${{ github.run_number }} - trigger backport workflow"
 
 on:
   pull_request:
@@ -10,9 +11,9 @@ on:
 permissions: {}
 
 jobs:
-  trigger:
-    name: Trigger backport
-    uses: webitel/reusable-workflows/.github/workflows/_backport-trigger.yml@2b2ecb6df60e6e186d20d37b9fd6e1e5853c3ab4
+  backport:
+    name: Backport
+    uses: webitel/reusable-workflows/.github/workflows/_backport-trigger.yml@v1.0.1
 
     # Only run this job if the PR has been merged and has a label containing "backport v"
     if: |
