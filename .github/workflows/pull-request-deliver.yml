@@ -1,5 +1,5 @@
 name: PR deliver (webitel-wfm)
-run-name: "webitel-wfm@pr${{ github.event.pull_request.number }}#${{ github.run_number }} - upload package - ${{ github.event.pull_request.title }}"
+run-name: "webitel-wfm@${{ github.event.workflow_run.head_branch }} - upload package for #${{ github.event.workflow_run.run_number }}"
 
 on:
   workflow_run:
