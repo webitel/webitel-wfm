@@ -41,8 +41,7 @@ jobs:
 
       version: ${{ needs.prepare.outputs.version }}
       version-build: ${{ github.run_number }}
-      version-metadata: pr${{ github.event.pull_request.number }}
-      prerelease: dev
+      prerelease: dev~pr${{ github.event.pull_request.number }}
       package-name: ${{ vars.SERVICE_NAME }}
       package-description: ${{ github.event.repository.description }}
       package-contents: |
