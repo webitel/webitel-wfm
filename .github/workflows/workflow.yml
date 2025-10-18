@@ -49,6 +49,7 @@ jobs:
         src=deploy/systemd/${{ vars.SERVICE_NAME }}.service dst=/etc/systemd/system/${{ vars.SERVICE_NAME }}.service type=config
         
 
+      package-depends: 
       scripts: |
         preinstall: deploy/debian/preinst.sh
         postinstall: deploy/debian/postinst.sh
