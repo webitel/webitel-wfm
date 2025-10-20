@@ -29,7 +29,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/pressly/goose/v3 v3.24.0
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/webitel/engine v0.0.0-20240620111912-86e1807cf401
 	github.com/webitel/webitel-go-kit v0.0.20
