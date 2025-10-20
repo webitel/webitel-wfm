@@ -22,7 +22,7 @@ require (
 	github.com/bufbuild/protovalidate-go v0.8.2
 	github.com/georgysavva/scany/v2 v2.1.3
 	github.com/google/uuid v1.6.0
-	github.com/google/wire v0.6.0
+	github.com/google/wire v0.7.0
 	github.com/hashicorp/consul/api v1.30.0
 	github.com/huandu/go-sqlbuilder v1.33.1
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
