@@ -35,7 +35,8 @@ jobs:
             echo "PR already approved ($review_decision), skipping additional approvals to minimize emails/notification noise."
           fi
 
-          gh pr edit "$PR_URL" --add-label "auto-merge"
+          # TODO: uncomment when we will have labels sync workflow
+          # gh pr edit "$PR_URL" --add-label "auto-merge"
 
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
