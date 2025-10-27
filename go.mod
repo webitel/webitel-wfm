@@ -13,7 +13,7 @@ tool (
 replace github.com/armon/go-metrics v0.5.3 => github.com/hashicorp/go-metrics v0.5.3
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.4-20241127180247-a33202765966.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1
 	buf.build/gen/go/webitel/engine/grpc/go v1.5.1-20241204053309-7eac59c4b6c7.1
 	buf.build/gen/go/webitel/engine/protocolbuffers/go v1.36.0-20241204053309-7eac59c4b6c7.1
 	buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20240911114117-1d910a772b4f.1
