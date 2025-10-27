@@ -20,7 +20,7 @@ require (
 	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.0-20240911114117-1d910a772b4f.1
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/bufbuild/protovalidate-go v0.8.2
-	github.com/georgysavva/scany/v2 v2.1.3
+	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.7.0
 	github.com/hashicorp/consul/api v1.30.0
