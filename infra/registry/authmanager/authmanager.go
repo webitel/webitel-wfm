@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/webitel/engine/discovery"
+	"github.com/webitel/engine/pkg/discovery"
 
 	"github.com/webitel/webitel-wfm/infra/registry"
 	"github.com/webitel/webitel-wfm/pkg/endpoint"

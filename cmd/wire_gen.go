@@ -26,11 +26,7 @@ import (
 // Injectors from wire.go:
 
 func initResources(contextContext context.Context, configConfig *config.Config, wlogLogger *wlog.Logger, checkRegistry *health.CheckRegistry, tracker *shutdown.Tracker) (*resources, error) {
-	registry, err := serviceDiscovery(contextContext, configConfig, wlogLogger, checkRegistry, tracker)
-	if err != nil {
-		return nil, err
-	}
-	authManager, err := auth(registry, checkRegistry, tracker)
+	authManager, err := auth(configConfig, checkRegistry, tracker)
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +40,10 @@ func initResources(contextContext context.Context, configConfig *config.Config, 
 	}
 	configCache := &configConfig.Cache
 	cacheCache, err := cache.New(configCache)
+	if err != nil {
+		return nil, err
+	}
+	registry, err := serviceDiscovery(contextContext, configConfig, wlogLogger, checkRegistry, tracker)
 	if err != nil {
 		return nil, err
 	}

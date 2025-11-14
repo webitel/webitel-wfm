@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/webitel/engine/auth_manager"
+	"github.com/webitel/engine/pkg/wbt/auth_manager"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -109,7 +109,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 	for scenario, tt := range tests {
 		t.Run(scenario, func(t *testing.T) {
 			ctx := context.Background()
-			f := func(token string) (*auth_manager.Session, error) {
+			f := func(ctx context.Context, token string) (*auth_manager.Session, error) {
 				if tt.session == nil {
 					return nil, fmt.Errorf("empty session")
 				}
@@ -121,7 +121,7 @@ func TestAuthUnaryServerInterceptor(t *testing.T) {
 			}
 
 			am := authmock.NewMockManager(t)
-			am.EXPECT().GetSession(mock.AnythingOfType("string")).RunAndReturn(f).Maybe()
+			am.EXPECT().GetSession(mock.Anything, mock.AnythingOfType("string")).RunAndReturn(f).Maybe()
 			if tt.token != nil {
 				md := metadata.New(map[string]string{
 					hdrTokenAccess: *tt.token,

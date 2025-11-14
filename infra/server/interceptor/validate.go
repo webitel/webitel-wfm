@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	validatepb "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	"github.com/bufbuild/protovalidate-go"
+	"buf.build/go/protovalidate"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
@@ -16,7 +16,7 @@ import (
 
 var ErrValidation = werror.InvalidArgument("validate input message", werror.WithID("interceptor.validate"))
 
-func ValidateUnaryServerInterceptor(val *protovalidate.Validator) grpc.UnaryServerInterceptor {
+func ValidateUnaryServerInterceptor(val protovalidate.Validator) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if v, ok := req.(proto.Message); ok {
 			if err := val.Validate(v); err != nil {
@@ -48,7 +48,7 @@ func ValidateUnaryServerInterceptor(val *protovalidate.Validator) grpc.UnaryServ
 							fields = append(fields, field)
 						}
 
-						wrappers = append(wrappers, werror.WithValue(strings.Join(fields, ".")+"["+violation.Proto.GetConstraintId()+"]",
+						wrappers = append(wrappers, werror.WithValue(strings.Join(fields, ".")+"["+violation.Proto.GetRuleId()+"]",
 							violation.Proto.GetMessage()),
 						)
 					}

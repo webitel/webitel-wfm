@@ -172,9 +172,13 @@ func (s *Search) WithSearch(term string) {
 	s.query = Substring(term)
 }
 
-func (s *Search) WithPagination(page int32, size int32) {
+func (s *Search) WithPagination(page, size int32) {
 	s.page = int(page)
-	s.size = int(size) + 1
+	if size > 0 {
+		s.size = int(size) + 1
+	} else {
+		s.size = 0
+	}
 }
 
 func (s *Search) PopulateFromRead(r *Read) *Search {

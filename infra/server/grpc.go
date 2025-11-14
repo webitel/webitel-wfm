@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 
-	"github.com/bufbuild/protovalidate-go"
-	"github.com/webitel/engine/auth_manager"
+	"buf.build/go/protovalidate"
+	"github.com/webitel/engine/pkg/wbt/auth_manager"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 	otelgrpc "github.com/webitel/webitel-go-kit/tracing/grpc"
 	"google.golang.org/grpc"
