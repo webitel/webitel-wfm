@@ -5,9 +5,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/webitel/engine/auth_manager"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/webitel/engine/pkg/wbt/auth_manager"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
@@ -28,7 +29,7 @@ var (
 
 // AuthUnaryServerInterceptor returns a server interceptor function to authenticate && authorize unary RPC.
 func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		token, err := tokenFromContext(ctx)
 		if err != nil {
 			return nil, werror.Wrap(ErrInvalidToken, werror.WithCause(err))
@@ -96,7 +97,8 @@ func tokenFromContext(ctx context.Context) (string, error) {
 }
 
 func validateSession(authcli auth_manager.AuthManager, token string) (*auth_manager.Session, error) {
-	session, err := authcli.GetSession(token)
+	ctx := context.Background()
+	session, err := authcli.GetSession(ctx, token)
 	if err != nil {
 		return nil, werror.Prepend(err, "client")
 	}

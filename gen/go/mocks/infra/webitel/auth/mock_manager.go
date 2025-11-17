@@ -5,7 +5,7 @@ package auth
 import (
 	context "context"
 
-	auth_manager "github.com/webitel/engine/auth_manager"
+	auth_manager "github.com/webitel/engine/pkg/wbt/auth_manager"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -23,9 +23,9 @@ func (_m *MockManager) EXPECT() *MockManager_Expecter {
 	return &MockManager_Expecter{mock: &_m.Mock}
 }
 
-// GetSession provides a mock function with given fields: token
-func (_m *MockManager) GetSession(token string) (*auth_manager.Session, error) {
-	ret := _m.Called(token)
+// GetSession provides a mock function with given fields: ctx, token
+func (_m *MockManager) GetSession(ctx context.Context, token string) (*auth_manager.Session, error) {
+	ret := _m.Called(ctx, token)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetSession")
@@ -33,19 +33,19 @@ func (_m *MockManager) GetSession(token string) (*auth_manager.Session, error) {
 
 	var r0 *auth_manager.Session
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*auth_manager.Session, error)); ok {
-		return rf(token)
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*auth_manager.Session, error)); ok {
+		return rf(ctx, token)
 	}
-	if rf, ok := ret.Get(0).(func(string) *auth_manager.Session); ok {
-		r0 = rf(token)
+	if rf, ok := ret.Get(0).(func(context.Context, string) *auth_manager.Session); ok {
+		r0 = rf(ctx, token)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*auth_manager.Session)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(token)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, token)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -59,14 +59,15 @@ type MockManager_GetSession_Call struct {
 }
 
 // GetSession is a helper method to define mock.On call
+//   - ctx context.Context
 //   - token string
-func (_e *MockManager_Expecter) GetSession(token interface{}) *MockManager_GetSession_Call {
-	return &MockManager_GetSession_Call{Call: _e.mock.On("GetSession", token)}
+func (_e *MockManager_Expecter) GetSession(ctx interface{}, token interface{}) *MockManager_GetSession_Call {
+	return &MockManager_GetSession_Call{Call: _e.mock.On("GetSession", ctx, token)}
 }
 
-func (_c *MockManager_GetSession_Call) Run(run func(token string)) *MockManager_GetSession_Call {
+func (_c *MockManager_GetSession_Call) Run(run func(ctx context.Context, token string)) *MockManager_GetSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -76,7 +77,7 @@ func (_c *MockManager_GetSession_Call) Return(_a0 *auth_manager.Session, _a1 err
 	return _c
 }
 
-func (_c *MockManager_GetSession_Call) RunAndReturn(run func(string) (*auth_manager.Session, error)) *MockManager_GetSession_Call {
+func (_c *MockManager_GetSession_Call) RunAndReturn(run func(context.Context, string) (*auth_manager.Session, error)) *MockManager_GetSession_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
-	authmanager "github.com/webitel/engine/auth_manager"
+	authmanager "github.com/webitel/engine/pkg/wbt/auth_manager"
+	authLogger "github.com/webitel/wlog"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 	"golang.org/x/sync/errgroup"
 
@@ -23,7 +24,6 @@ import (
 	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/pubsub"
 	"github.com/webitel/webitel-wfm/infra/registry"
-	amdiscovery "github.com/webitel/webitel-wfm/infra/registry/authmanager"
 	"github.com/webitel/webitel-wfm/infra/registry/provider/consul"
 	"github.com/webitel/webitel-wfm/infra/server"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
@@ -45,6 +45,14 @@ const (
 	// sessionCacheTime is the duration in seconds for which a session will be cached.
 	sessionCacheTime = 60 * 5
 )
+
+func newAuthLogger() *authLogger.Logger {
+	return authLogger.NewLogger(&authLogger.LoggerConfiguration{
+		EnableConsole: true,
+		ConsoleLevel:  authLogger.LevelDebug,
+		EnableExport:  true,
+	})
+}
 
 var serviceInstance = &registry.ServiceInstance{
 	Name:    "wfm",
@@ -398,9 +406,11 @@ func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, 
 	return conn, nil
 }
 
-func auth(discovery registry.Discovery, health *health.CheckRegistry, tracker *shutdown.Tracker) (authmanager.AuthManager, error) {
+func auth(cfg *config.Config, /* discovery registry.Discovery, */ health *health.CheckRegistry, tracker *shutdown.Tracker) (authmanager.AuthManager, error) {
 	const scope = "webitel-auth"
-	conn := authmanager.NewAuthManager(sessionCacheSize, sessionCacheTime, amdiscovery.New(discovery))
+
+	log := newAuthLogger()
+	conn := authmanager.NewAuthManager(sessionCacheSize, sessionCacheTime, cfg.Consul.Address, log)
 	shutdownFunc := func(p *shutdown.Process) error {
 		conn.Stop()
 
