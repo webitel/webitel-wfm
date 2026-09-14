@@ -272,7 +272,7 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 	return &app{
 		cfg:       cfg,
 		log:       log,
-		health:    health.NewCheckRegistry(log),
+		health:    check,
 		shutdown:  tracker,
 		resources: res,
 		startedCh: startedCh,

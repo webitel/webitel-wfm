@@ -18,6 +18,20 @@ func logger(t *testing.T) *wlog.Logger {
 	return wlog.NewLogger(&wlog.LoggerConfiguration{})
 }
 
+const consulAddr = "127.0.0.1:8500"
+
+// requireConsul skips the test when no Consul agent is listening.
+func requireConsul(t *testing.T) {
+	t.Helper()
+
+	conn, err := net.DialTimeout("tcp", consulAddr, time.Second)
+	if err != nil {
+		t.Skipf("no consul agent on %s: %v", consulAddr, err)
+	}
+
+	conn.Close()
+}
+
 func tcpServer(lis net.Listener) {
 	for {
 		conn, err := lis.Accept()
@@ -33,6 +47,8 @@ func TestRegistry_Register(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
+
+	requireConsul(t)
 
 	opts := []Option{
 		WithHealthCheck(false),
@@ -158,6 +174,8 @@ func TestRegistry_GetService(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
+
+	requireConsul(t)
 
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	lis, err := net.Listen("tcp", addr)
@@ -312,6 +330,8 @@ func TestRegistry_Watch(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
+	requireConsul(t)
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)
 	instance1 := &registry.ServiceInstance{
@@ -454,6 +474,8 @@ func TestRegistry_IdleAndWatch(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
+	requireConsul(t)
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)
 	r, err := New(logger(t), "127.0.0.1:8500", []Option{WithHealthCheck(false)}...)
@@ -573,6 +595,8 @@ func TestRegistry_IdleAndWatch2(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
+	requireConsul(t)
+
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)
 	instance1 := &registry.ServiceInstance{
@@ -687,6 +711,8 @@ func TestRegistry_ExitOldResolverAndReWatch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
+
+	requireConsul(t)
 
 	addr := fmt.Sprintf("%s:9091", getIntranetIP())
 	time.Sleep(time.Millisecond * 100)

@@ -28,6 +28,9 @@ type Tracker struct {
 
 	mu       sync.Mutex
 	handlers map[string]Handler
+
+	// fatalErr, when set, makes the process exit non-zero.
+	fatalErr error
 }
 
 func NewTracker(log *wlog.Logger, opts ...Option) *Tracker {
@@ -153,6 +156,7 @@ func (t *Tracker) Shutdown(reasonSignal os.Signal, reasonError error) {
 		close(t.initiated)
 
 		if reasonError != nil {
+			t.fatalErr = reasonError
 			t.log.Error("a fatal error occurred, initiating graceful shutdown", wlog.Err(reasonError))
 		}
 
@@ -346,10 +350,16 @@ func (t *Tracker) runShutdownHandlers(p *Process) {
 func (t *Tracker) exitOnCompletion(p *Process) {
 	<-p.ShutdownCompleted.Done()
 
-	if p.WasCleanShutdown() {
+	switch {
+	case t.fatalErr != nil:
+		t.log.Debug("shutdown completed after a fatal error", wlog.Err(t.fatalErr))
+		os.Exit(1)
+
+	case p.WasCleanShutdown():
 		t.log.Debug("graceful shutdown completed")
 		os.Exit(0)
-	} else {
+
+	default:
 		t.log.Debug("graceful shutdown window closed, forcing shutdown")
 		os.Exit(1)
 	}
