@@ -7,12 +7,12 @@ import (
 	"context"
 
 	"github.com/google/wire"
+	"github.com/webitel/webitel-go-kit/infra/health"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 	"google.golang.org/grpc"
 
 	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra"
-	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/registry"
 	"github.com/webitel/webitel-wfm/infra/registry/provider/consul"
 	"github.com/webitel/webitel-wfm/infra/server"
@@ -24,7 +24,7 @@ import (
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
-func initResources(context.Context, *config.Config, *wlog.Logger, *health.CheckRegistry, *shutdown.Tracker) (*resources, error) {
+func initResources(context.Context, *config.Config, *wlog.Logger, *health.Registry, *shutdown.Tracker) (*resources, error) {
 	panic(wire.Build(sqlStorage, wire.Bind(new(cluster.Store), new(*cluster.Cluster)), auth, infra.Set,
 		serviceDiscovery, wire.Bind(new(registry.Discovery), new(*consul.Registry)),
 		wire.FieldsOf(new(*config.Config), "Cache", "Pubsub"),

@@ -10,7 +10,6 @@ import (
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
 	"github.com/webitel/webitel-wfm/config"
-	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/migrations"
 )
@@ -41,7 +40,6 @@ type migrator struct {
 	cfg *config.Config
 	log *wlog.Logger
 
-	health   *health.CheckRegistry
 	shutdown *shutdown.Tracker
 
 	doneCh chan struct{}
@@ -52,7 +50,6 @@ func newMigrator(cfg *config.Config, log *wlog.Logger) *migrator {
 		cfg:      cfg,
 		log:      log,
 		shutdown: shutdown.NewTracker(log),
-		health:   health.NewCheckRegistry(log),
 		doneCh:   make(chan struct{}),
 	}
 }
