@@ -7,9 +7,6 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
-
-	"github.com/webitel/webitel-wfm/config"
-	"github.com/webitel/webitel-wfm/infra/shutdown"
 )
 
 type Manager struct {
@@ -31,9 +28,9 @@ type Manager struct {
 	runningHandlers sync.WaitGroup
 }
 
-func New(log *wlog.Logger, cfg *config.Pubsub) (*Manager, error) {
+func New(log *wlog.Logger, address string) (*Manager, error) {
 	m := &Manager{
-		address:         cfg.Address,
+		address:         address,
 		log:             log,
 		close:           make(chan bool),
 		waitConnection:  make(chan struct{}),
@@ -74,29 +71,20 @@ func (m *Manager) Start() error {
 }
 
 // Shutdown stops the manager from fetching new messages and processing them.
-func (m *Manager) Shutdown(p *shutdown.Process) error {
-	// Once it's time to force-close tasks, cancel the base context.
-	go func() {
-		<-p.ForceCloseTasks.Done()
-		m.closeConn()
-	}()
-
-	p.Log.Debug("pubsub: stop fetching new events")
+func (m *Manager) Stop() {
+	m.log.Debug("pubsub: stop fetching new events")
 
 	// Immediately fetching new events.
 	m.ctxs.StopFetchingNewEvents()
 
-	p.Log.Debug("pubsub: waiting on running fetches")
+	m.log.Debug("pubsub: waiting on running fetches")
 	m.runningFetches.Wait()
 
 	// Wait for running handlers to finish.
 	m.runningHandlers.Wait()
-	p.MarkOutstandingPubSubMessagesCompleted()
 
 	// Finally, close all connections to the PubSub providers.
 	m.closeConn()
-
-	return nil
 }
 
 func (m *Manager) Channel() *Channel {

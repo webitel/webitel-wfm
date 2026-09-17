@@ -10,7 +10,6 @@ import (
 
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
-	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 )
 
@@ -98,14 +97,6 @@ func New(log *wlog.Logger, nodes []dbsql.Node, opts ...Option) (*Cluster, error)
 	}
 
 	return cl, nil
-}
-
-func (cl *Cluster) Shutdown(p *shutdown.Process) error {
-	// Wait for all user code to finish before shutting down databases.
-	<-p.ServicesShutdownCompleted.Done()
-	<-p.OutstandingTasks.Done()
-
-	return cl.Close()
 }
 
 // Close databases and stop node updates.

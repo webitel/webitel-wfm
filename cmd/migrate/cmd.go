@@ -1,67 +1,77 @@
-package cmd
+package migrate
 
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
 	"github.com/urfave/cli/v2"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
+	"go.uber.org/fx"
 
+	"github.com/webitel/webitel-wfm/cmd/server"
 	"github.com/webitel/webitel-wfm/config"
-	"github.com/webitel/webitel-wfm/infra/shutdown"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/pg"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/migrations"
 )
 
-func migrate(cfg *config.Config, log *wlog.Logger) *cli.Command {
+func CMD() *cli.Command {
 	return &cli.Command{
 		Name:    "migrate",
 		Aliases: []string{"m"},
 		Usage:   "Execute database migrations",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "config_file",
+				Usage: "Path to the configuration file",
+			},
+		},
 		Action: func(c *cli.Context) error {
-			m := newMigrator(cfg, log)
-			m.shutdown.WatchForShutdownSignals()
-
-			if err := m.run(c.Context); err != nil {
-				m.shutdown.Shutdown(nil, err)
-
+			cfg, err := config.LoadMigrateConfig()
+			if err != nil {
+				return err
 			}
 
-			<-m.doneCh
-			m.shutdown.Shutdown(nil, nil)
+			app := fx.New(
+				fx.Provide(
+					func() *config.Config { return cfg },
+					server.ProvideLogger,
+				),
+				fx.Invoke(func(cfg *config.Config, log *wlog.Logger) error {
+					return run(c.Context, cfg, log)
+				}),
+				fx.NopLogger,
+			)
 
-			return nil
+			return app.Start(c.Context)
 		},
 	}
 }
 
-type migrator struct {
-	cfg *config.Config
-	log *wlog.Logger
+func run(ctx context.Context, cfg *config.Config, log *wlog.Logger) error {
+	nodes := make([]dbsql.Node, 0, 1)
 
-	shutdown *shutdown.Tracker
+	for _, dsn := range strings.Fields(cfg.Postgres.DSN) {
+		db, err := pg.New(ctx, log, dsn)
+		if err != nil {
+			return err
+		}
 
-	doneCh chan struct{}
-}
-
-func newMigrator(cfg *config.Config, log *wlog.Logger) *migrator {
-	return &migrator{
-		cfg:      cfg,
-		log:      log,
-		shutdown: shutdown.NewTracker(log),
-		doneCh:   make(chan struct{}),
+		nodes = append(nodes, dbsql.New(dsn, db, scanner.MustNewDBScan()))
 	}
-}
 
-func (m *migrator) run(ctx context.Context) error {
-	defer close(m.doneCh)
-	cl, err := sqlStorage(ctx, m.cfg, m.log)
+	cl, err := cluster.New(log, nodes, cluster.WithUpdate())
 	if err != nil {
 		return err
 	}
+	defer cl.Close()
 
-	goose.SetLogger(newLogger(m.log))
+	goose.SetLogger(newLogger(log))
 	goose.SetVerbose(true)
 	store, err := database.NewStore(database.DialectPostgres, "wfm_schema_version")
 	if err != nil {
@@ -79,6 +89,10 @@ func (m *migrator) run(ctx context.Context) error {
 		return err
 	}
 
+	if len(res) == 0 {
+		log.Info("database is up to date")
+	}
+
 	for i, r := range res {
 		fields := []wlog.Field{
 			wlog.Int("num", i),
@@ -90,7 +104,7 @@ func (m *migrator) run(ctx context.Context) error {
 			wlog.String("type", string(r.Source.Type)),
 		}
 
-		log := m.log.With(fields...)
+		log := log.With(fields...)
 		if r.Error != nil {
 			log.Error("unable to apply migration", wlog.Err(r.Error))
 		} else {

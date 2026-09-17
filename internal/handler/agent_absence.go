@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
@@ -17,14 +15,10 @@ type AgentAbsence struct {
 	service service.AgentAbsenceManager
 }
 
-func NewAgentAbsence(sr grpc.ServiceRegistrar, service service.AgentAbsenceManager) *AgentAbsence {
-	s := &AgentAbsence{
+func NewAgentAbsence(service service.AgentAbsenceManager) *AgentAbsence {
+	return &AgentAbsence{
 		service: service,
 	}
-
-	pb.RegisterAgentAbsenceServiceServer(sr, s)
-
-	return s
 }
 
 func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, req *pb.CreateAgentAbsenceRequest) (*pb.CreateAgentAbsenceResponse, error) {

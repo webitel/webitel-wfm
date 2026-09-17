@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -18,14 +16,10 @@ type WorkingSchedule struct {
 	service service.WorkingScheduleManager
 }
 
-func NewWorkingSchedule(sr grpc.ServiceRegistrar, service service.WorkingScheduleManager) *WorkingSchedule {
-	s := &WorkingSchedule{
+func NewWorkingSchedule(service service.WorkingScheduleManager) *WorkingSchedule {
+	return &WorkingSchedule{
 		service: service,
 	}
-
-	pb.RegisterWorkingScheduleServiceServer(sr, s)
-
-	return s
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.CreateWorkingScheduleRequest) (*pb.CreateWorkingScheduleResponse, error) {
