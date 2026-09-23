@@ -6,9 +6,10 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const DefaultSearchSize = 16
@@ -88,7 +89,7 @@ type Search struct {
 func NewSearch(ctx context.Context, options ...Option) (*Search, error) {
 	s := grpccontext.FromContext(ctx)
 	if s.SignedInUser == nil {
-		return nil, werror.Unauthenticated("can not find signed in user", werror.WithID("model.options.user"))
+		return nil, errors.Unauthenticated("can not find signed in user", errors.WithID("model.options.user"))
 	}
 
 	search := &Search{

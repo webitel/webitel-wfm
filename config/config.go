@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strconv"
@@ -12,7 +13,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/webitel/webitel-go-kit/appconfig"
-	"github.com/webitel/webitel-go-kit/logging/wlog"
 )
 
 type Config struct {
@@ -53,18 +53,18 @@ func LoadServerConfig() (*Config, error) {
 	}
 
 	loader.Watch(func(e fsnotify.Event) {
-		log := wlog.GlobalLogger()
-		log.Info("config file changed", wlog.String("name", e.Name))
+		log := slog.Default()
+		log.Info("config file changed", slog.String("name", e.Name))
 
 		newCfg := &Config{}
 		if err := loader.Viper().Unmarshal(newCfg); err != nil {
-			log.Error("config reload: unmarshal failed", wlog.Err(err))
+			log.Error("config reload: unmarshal failed", slog.Any("error", err))
 
 			return
 		}
 
 		if err := newCfg.validate(); err != nil {
-			log.Error("config reload: validation failed", wlog.Err(err))
+			log.Error("config reload: validation failed", slog.Any("error", err))
 
 			return
 		}
@@ -107,7 +107,7 @@ func registerServiceFlags(fs *pflag.FlagSet) {
 	fs.String("service.probe_addr", "127.0.0.1:10033", "address serving /livez, /readyz and /healthz; empty disables them")
 	fs.String("service.node_id", defaultNodeID(), "instance id registered in service discovery")
 	fs.String("forecast.dsn", "", "PostgreSQL DSN for forecast calculation queries; defaults to postgres.dsn")
-	fs.Int("cache.size", 1024, "in-memory cache capacity in bytes")
+	fs.Int("cache.size", 1024, "maximum number of entries per in-memory cache")
 }
 
 func defaultNodeID() string {

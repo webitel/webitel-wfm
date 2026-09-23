@@ -2,21 +2,20 @@ package migrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/database"
 	"github.com/urfave/cli/v2"
-	"github.com/webitel/webitel-go-kit/logging/wlog"
 	"go.uber.org/fx"
 
 	"github.com/webitel/webitel-wfm/cmd/server"
 	"github.com/webitel/webitel-wfm/config"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/pg"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
 	"github.com/webitel/webitel-wfm/migrations"
 )
 
@@ -42,34 +41,36 @@ func CMD() *cli.Command {
 					func() *config.Config { return cfg },
 					server.ProvideLogger,
 				),
-				fx.Invoke(func(cfg *config.Config, log *wlog.Logger) error {
+				fx.Invoke(func(cfg *config.Config, log *slog.Logger) error {
 					return run(c.Context, cfg, log)
 				}),
 				fx.NopLogger,
 			)
 
-			return app.Start(c.Context)
+			if err := app.Start(c.Context); err != nil {
+				return err
+			}
+
+			// Stop flushes whatever the otel log bridge has buffered; without
+			// it a failed migration is never reported to the collector.
+			return app.Stop(c.Context)
 		},
 	}
 }
 
-func run(ctx context.Context, cfg *config.Config, log *wlog.Logger) error {
-	nodes := make([]dbsql.Node, 0, 1)
-
-	for _, dsn := range strings.Fields(cfg.Postgres.DSN) {
-		db, err := pg.New(ctx, log, dsn)
-		if err != nil {
-			return err
-		}
-
-		nodes = append(nodes, dbsql.New(dsn, db, scanner.MustNewDBScan()))
+func run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+	dsns := strings.Fields(cfg.Postgres.DSN)
+	if len(dsns) == 0 {
+		return errors.New("postgres dsn is required")
 	}
 
-	cl, err := cluster.New(log, nodes, cluster.WithUpdate())
+	conf, err := pgxpool.ParseConfig(dsns[0])
 	if err != nil {
 		return err
 	}
-	defer cl.Close()
+
+	db := stdlib.OpenDB(*conf.ConnConfig)
+	defer db.Close()
 
 	goose.SetLogger(newLogger(log))
 	goose.SetVerbose(true)
@@ -79,7 +80,7 @@ func run(ctx context.Context, cfg *config.Config, log *wlog.Logger) error {
 	}
 
 	noopDialect := goose.Dialect("")
-	provider, err := goose.NewProvider(noopDialect, cl.Primary().Stdlib(), migrations.Embed, goose.WithStore(store))
+	provider, err := goose.NewProvider(noopDialect, db, migrations.Embed, goose.WithStore(store))
 	if err != nil {
 		return err
 	}
@@ -94,19 +95,19 @@ func run(ctx context.Context, cfg *config.Config, log *wlog.Logger) error {
 	}
 
 	for i, r := range res {
-		fields := []wlog.Field{
-			wlog.Int("num", i),
-			wlog.Duration("elapsed", r.Duration),
-			wlog.String("direction", r.Direction),
-			wlog.Any("empty", r.Empty),
-			wlog.String("path", r.Source.Path),
-			wlog.Int64("version", r.Source.Version),
-			wlog.String("type", string(r.Source.Type)),
+		fields := []any{
+			slog.Int("num", i),
+			slog.Duration("elapsed", r.Duration),
+			slog.String("direction", r.Direction),
+			slog.Any("empty", r.Empty),
+			slog.String("path", r.Source.Path),
+			slog.Int64("version", r.Source.Version),
+			slog.String("type", string(r.Source.Type)),
 		}
 
 		log := log.With(fields...)
 		if r.Error != nil {
-			log.Error("unable to apply migration", wlog.Err(r.Error))
+			log.Error("unable to apply migration", slog.Any("error", r.Error))
 		} else {
 			log.Info("applied migration")
 		}
@@ -116,10 +117,10 @@ func run(ctx context.Context, cfg *config.Config, log *wlog.Logger) error {
 }
 
 type migrateLogger struct {
-	log *wlog.Logger
+	log *slog.Logger
 }
 
-func newLogger(log *wlog.Logger) *migrateLogger {
+func newLogger(log *slog.Logger) *migrateLogger {
 	return &migrateLogger{log: log}
 }
 

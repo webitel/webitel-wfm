@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/webitel/webitel-wfm/infra/storage/cache"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	b "github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type AgentAbsenceManager interface {
@@ -25,14 +24,12 @@ type AgentAbsenceManager interface {
 }
 
 type AgentAbsence struct {
-	db    cluster.Store
-	cache *cache.Scope[model.Absence]
+	db dbsql.Store
 }
 
-func NewAgentAbsence(db cluster.Store, manager cache.Manager) *AgentAbsence {
+func NewAgentAbsence(db dbsql.Store) *AgentAbsence {
 	return &AgentAbsence{
-		db:    db,
-		cache: cache.NewScope[model.Absence](manager, b.AgentAbsenceTable.Name()),
+		db: db,
 	}
 }
 
@@ -59,11 +56,11 @@ func (a *AgentAbsence) ReadAgentAbsence(ctx context.Context, read *options.Read)
 	}
 
 	if len(items) > 1 {
-		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.agent_absence.read.conflict"))
+		return nil, errors.Wrap(dbsql.ErrEntityConflict, errors.WithID("storage.agent_absence.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.agent_absence.read"))
+		return nil, errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.agent_absence.read"))
 	}
 
 	return items[0], nil

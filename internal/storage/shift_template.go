@@ -3,12 +3,12 @@ package storage
 import (
 	"context"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	b "github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type ShiftTemplateManager interface {
@@ -20,10 +20,10 @@ type ShiftTemplateManager interface {
 }
 
 type ShiftTemplate struct {
-	db cluster.Store
+	db dbsql.Store
 }
 
-func NewShiftTemplate(db cluster.Store) *ShiftTemplate {
+func NewShiftTemplate(db dbsql.Store) *ShiftTemplate {
 	return &ShiftTemplate{
 		db: db,
 	}
@@ -62,11 +62,11 @@ func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Rea
 	}
 
 	if len(items) > 1 {
-		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.shift_template.read.conflict"))
+		return nil, errors.Wrap(dbsql.ErrEntityConflict, errors.WithID("storage.shift_template.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.shift_template.read"))
+		return nil, errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.shift_template.read"))
 	}
 
 	return items[0], nil

@@ -4,9 +4,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/webitel/webitel-wfm/config"
-	"github.com/webitel/webitel-wfm/infra/pubsub"
-	"github.com/webitel/webitel-wfm/infra/registry"
-	"github.com/webitel/webitel-wfm/infra/registry/provider/consul"
 	grpcsrv "github.com/webitel/webitel-wfm/infra/server/grpc"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/internal/handler"
@@ -26,13 +23,13 @@ func MainModule(cfg *config.Config) fx.Option {
 			ProvideHealth,
 			ProvideProbes,
 			ProvideDiscovery,
-			func(r *consul.Registry) registry.Discovery { return r },
 			ProvideStorage,
 			ProvideForecastStorage,
 			ProvideCache,
 			ProvideAuth,
 			ProvideEngine,
 			ProvideLoggerClient,
+			ProvidePublisher,
 			func(c *logger.Client) *logger.ConfigService { return c.ConfigService },
 			logger.NewAudit,
 		),
@@ -40,7 +37,6 @@ func MainModule(cfg *config.Config) fx.Option {
 		storage.Module,
 		service.Module,
 		handler.Module,
-		pubsub.Module,
 		grpcsrv.Module,
 
 		// Invoked last so their OnStop hooks run first, in reverse: the node

@@ -5,17 +5,18 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/storage"
 	"github.com/webitel/webitel-wfm/pkg/timeutils"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 var (
-	ErrAgentWorkingScheduleDateFilter   = werror.InvalidArgument("invalid input: date should be within working schedule period", werror.WithID("service.agent_working_schedule.date"))
-	ErrAgentWorkingScheduleDateShiftMap = werror.InvalidArgument("invalid input: required at least one shift day within date period", werror.WithID("service.agent_working_schedule.shift"))
+	ErrAgentWorkingScheduleDateFilter   = errors.InvalidArgument("invalid input: date should be within working schedule period", errors.WithID("service.agent_working_schedule.date"))
+	ErrAgentWorkingScheduleDateShiftMap = errors.InvalidArgument("invalid input: required at least one shift day within date period", errors.WithID("service.agent_working_schedule.shift"))
 )
 
 type AgentWorkingScheduleManager interface {

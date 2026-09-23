@@ -2,15 +2,18 @@ package storage
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/webitel/webitel-wfm/infra/storage/cache"
+	"go.uber.org/fx"
+
+	"github.com/webitel/webitel-go-kit/pkg/cache"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/pkg/fields"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type WorkingScheduleManager interface {
@@ -25,17 +28,21 @@ type WorkingScheduleManager interface {
 }
 
 type WorkingSchedule struct {
-	db    cluster.Store
-	cache *cache.Scope[model.WorkingSchedule]
+	db    dbsql.Store
+	items cache.Cache[string, model.WorkingSchedule]
 }
 
-func NewWorkingSchedule(db cluster.Store, manager cache.Manager) *WorkingSchedule {
+func NewWorkingSchedule(lc fx.Lifecycle, db dbsql.Store, cfg cache.RistrettoConfig) (*WorkingSchedule, error) {
 	dbsql.RegisterConstraint("working_schedule_check", "start_date_at should be lower that end_date_at")
 
-	return &WorkingSchedule{
-		db:    db,
-		cache: cache.NewScope[model.WorkingSchedule](manager, builder.WorkingScheduleTable.Name()),
+	items, err := cache.New[string, model.WorkingSchedule]().Name(builder.WorkingScheduleTable.Name()).L1(cfg).Build()
+	if err != nil {
+		return nil, err
 	}
+
+	lc.Append(fx.Hook{OnStop: func(context.Context) error { return items.Close() }})
+
+	return &WorkingSchedule{db: db, items: items}, nil
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
@@ -101,20 +108,24 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 		return nil, err
 	}
 
-	out, err := w.ReadWorkingSchedule(ctx, read)
-	if err != nil {
-		return nil, err
-	}
-
-	w.cache.Key(user.DomainId, id).Set(ctx, *out)
-
-	return out, nil
+	// The row was just committed; a standby may not have it yet.
+	return w.read(ctx, w.db.Primary(), read)
 }
 
 func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, read *options.Read) (*model.WorkingSchedule, error) {
-	out, ok := w.cache.Key(read.User().DomainId, read.ID()).Get(ctx)
-	if ok {
-		return &out, nil
+	return w.read(ctx, w.db.StandbyPreferred(), read)
+}
+
+func (w *WorkingSchedule) read(ctx context.Context, node dbsql.Node, read *options.Read) (*model.WorkingSchedule, error) {
+	// A field mask makes the row a partial one, which must not stand in for
+	// the whole entity under the same key.
+	cacheable := len(read.Fields()) == 0
+	key := itemKey(read.User().DomainId, read.ID())
+
+	if cacheable {
+		if out, ok, err := w.items.Get(ctx, key); err == nil && ok {
+			return &out, nil
+		}
 	}
 
 	search, err := options.NewSearch(ctx, options.WithID(read.ID()))
@@ -122,36 +133,33 @@ func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, read *options
 		return nil, err
 	}
 
-	items, err := w.SearchWorkingSchedule(ctx, search.PopulateFromRead(read))
+	items, err := w.search(ctx, node, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}
 
 	if len(items) > 1 {
-		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.working_schedule.read.conflict"))
+		return nil, errors.Wrap(dbsql.ErrEntityConflict, errors.WithID("storage.working_schedule.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.working_schedule.read"))
+		return nil, errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.working_schedule.read"))
 	}
 
-	w.cache.Key(read.User().DomainId, read.ID()).Set(ctx, *items[0])
+	if cacheable {
+		_ = w.items.Set(ctx, key, *items[0])
+	}
 
 	return items[0], nil
 }
 
 func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, search *options.Search) ([]*model.WorkingSchedule, error) {
-	// The collection key holds the whole domain and encodes no filters, so only
-	// an unfiltered search may read or write it. A read by id delegates here and
-	// would otherwise overwrite the collection with its own narrow result.
-	collection := len(search.IDs()) == 0
-	if collection {
-		out, ok := w.cache.Key(search.User().DomainId, 0).GetMany(ctx)
-		if ok {
-			return out, nil
-		}
-	}
+	return w.search(ctx, w.db.StandbyPreferred(), search)
+}
 
+// search is not cached: a collection key can encode neither the filters nor the
+// paging of the query that produced it, and no write path could invalidate it.
+func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *options.Search) ([]*model.WorkingSchedule, error) {
 	columns := []string{fields.Wildcard(model.WorkingSchedule{})}
 	if f := search.Fields(); len(f) > 0 {
 		columns = f
@@ -180,12 +188,8 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, search *opt
 	var items []*model.WorkingSchedule
 
 	sql, args := sb.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := w.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
-	}
-
-	if collection {
-		w.cache.Key(search.User().DomainId, 0).SetMany(ctx, items)
 	}
 
 	return items, nil
@@ -228,19 +232,14 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		return nil, err
 	}
 
-	w.cache.Key(user.DomainId, in.Id).Delete(ctx)
+	_ = w.items.Delete(ctx, itemKey(user.DomainId, in.Id))
 
 	read, err := options.NewRead(ctx, options.WithID(in.Id))
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := w.ReadWorkingSchedule(ctx, read)
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
+	return w.read(ctx, w.db.Primary(), read)
 }
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *options.Read) (int64, error) {
@@ -255,7 +254,7 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *optio
 		return 0, err
 	}
 
-	w.cache.Key(read.User().DomainId, read.ID()).Delete(ctx)
+	_ = w.items.Delete(ctx, itemKey(read.User().DomainId, read.ID()))
 
 	return read.ID(), nil
 }
@@ -275,9 +274,9 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 		return nil, err
 	}
 
-	w.cache.Key(read.User().DomainId, read.ID()).Delete(ctx)
+	_ = w.items.Delete(ctx, itemKey(read.User().DomainId, read.ID()))
 
-	out, err := w.ReadWorkingSchedule(ctx, read)
+	out, err := w.read(ctx, w.db.Primary(), read)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +296,11 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, 
 		return 0, err
 	}
 
-	w.cache.Key(read.User().DomainId, read.ID()).Delete(ctx)
+	_ = w.items.Delete(ctx, itemKey(read.User().DomainId, read.ID()))
 
 	return agentID, nil
+}
+
+func itemKey(domain, id int64) string {
+	return fmt.Sprintf("domain-%d-id-%d", domain, id)
 }

@@ -2,7 +2,6 @@ package interceptor
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 
@@ -11,10 +10,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/webitel/webitel-wfm/pkg/werror"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 )
 
-var ErrValidation = werror.InvalidArgument("validate input message", werror.WithID("interceptor.validate"))
+var ErrValidation = errors.InvalidArgument("validate input message", errors.WithID("interceptor.validate"))
 
 func ValidateUnaryServerInterceptor(val protovalidate.Validator) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -22,7 +21,7 @@ func ValidateUnaryServerInterceptor(val protovalidate.Validator) grpc.UnaryServe
 			if err := val.Validate(v); err != nil {
 				var ve *protovalidate.ValidationError
 				if ok := errors.As(err, &ve); ok {
-					wrappers := make([]werror.Wrapper, 0)
+					wrappers := make([]errors.Wrapper, 0)
 					for _, violation := range ve.Violations {
 						fields := make([]string, 0, len(ve.Violations))
 						for _, f := range violation.Proto.GetField().GetElements() {
@@ -48,15 +47,15 @@ func ValidateUnaryServerInterceptor(val protovalidate.Validator) grpc.UnaryServe
 							fields = append(fields, field)
 						}
 
-						wrappers = append(wrappers, werror.WithValue(strings.Join(fields, ".")+"["+violation.Proto.GetRuleId()+"]",
+						wrappers = append(wrappers, errors.WithValue(strings.Join(fields, ".")+"["+violation.Proto.GetRuleId()+"]",
 							violation.Proto.GetMessage()),
 						)
 					}
 
-					return nil, werror.Wrap(ErrValidation, wrappers...)
+					return nil, errors.Wrap(ErrValidation, wrappers...)
 				}
 
-				return nil, werror.Wrap(err, werror.WithCause(err))
+				return nil, errors.Wrap(err, errors.WithCause(err))
 			}
 		}
 
