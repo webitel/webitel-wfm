@@ -14,10 +14,12 @@ Group=webitel
 Restart=on-failure
 RestartSec=5
 
-EnvironmentFile=/etc/default/webitel
-Environment="BIND_ADDRESS=127.0.0.1:10022"
+Environment="SERVICE_ADDR=127.0.0.1:10022"
+EnvironmentFile=/etc/default/webitel-wfm
+EnvironmentFile=-/etc/default/webitel-otel
+EnvironmentFile=-/etc/default/webitel
 
-ExecStart=/usr/local/bin/webitel-wfm api
+ExecStart=/usr/local/bin/webitel-wfm server
 
 KillMode=mixed
 KillSignal=SIGTERM

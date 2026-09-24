@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc/connectivity"
 
 	"github.com/webitel/webitel-wfm/infra/registry"
-	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/webitel"
 	"github.com/webitel/webitel-wfm/pkg/werror"
 )
@@ -35,7 +34,7 @@ func New(log *wlog.Logger, discovery registry.Discovery) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) Shutdown(p *shutdown.Process) error {
+func (c *Client) Close() error {
 	return c.conn.Close()
 }
 

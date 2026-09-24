@@ -49,9 +49,10 @@ jobs:
       binary-name: webitel-wfm
       ldflags: >
         -s -w
-        -X github.com/webitel/webitel-wfm/cmd.version=${{ needs.prepare.outputs.version }}-${{ github.run_number }}
-        -X github.com/webitel/webitel-wfm/cmd.commit=${{ github.sha }}
-        -X github.com/webitel/webitel-wfm/cmd.branch=${{ github.ref_name }}
+        -X github.com/webitel/webitel-wfm/internal/model.Version=${{ needs.prepare.outputs.version }}-${{ github.run_number }}
+        -X github.com/webitel/webitel-wfm/internal/model.Commit=${{ github.sha }}
+        -X github.com/webitel/webitel-wfm/internal/model.CommitDate=${{ github.event.head_commit.timestamp }}
+        -X github.com/webitel/webitel-wfm/internal/model.Branch=${{ github.ref_name }}
         
 
       version: ${{ needs.prepare.outputs.version }}

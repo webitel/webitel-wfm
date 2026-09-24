@@ -121,12 +121,14 @@ services:
     container_name: wfm
     restart: always
     command:
-      - api
-      - -l debug
-      - -c consul-server:8500
-      - -b 0.0.0.0:10122
-      - -d "postgres://webitel:webitel@pg-1:5432/webitel?application_name=wfm&sslmode=disable&connect_timeout=10"
-      - -s "postgres://webitel:webitel@pg-2:5433/webitel?application_name=wfm&sslmode=disable&connect_timeout=10"
+      - server
+    environment:
+      - "LOG_LEVEL=debug"
+      - "SERVICE_ADDR=0.0.0.0:10122"
+      - "CONSUL_ADDR=consul-server:8500"
+      - "PUBSUB_URL=amqp://webitel:webitel@rabbitmq:5672/"
+      - "POSTGRES_DSN=postgres://webitel:webitel@pg-1:5432/webitel?application_name=wfm&sslmode=disable&connect_timeout=10"
+      - "FORECAST_DSN=postgres://webitel:webitel@pg-2:5432/webitel?application_name=wfm&sslmode=disable&connect_timeout=10"
     networks:
       webitel:
     ports:
