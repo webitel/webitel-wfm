@@ -3,6 +3,7 @@ package werror
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 )
 
@@ -15,10 +16,19 @@ func Details(err error) string {
 
 	var det string
 	values := Values(err)
-	for key, value := range values {
+
+	// Values returns a map, so sort the keys to keep the output stable.
+	keys := make([]string, 0, len(values))
+	for key := range values {
 		if k, ok := key.(string); ok {
-			det = fmt.Sprintf("%s; %s = %s", det, k, value)
+			keys = append(keys, k)
 		}
+	}
+
+	slices.Sort(keys)
+
+	for _, k := range keys {
+		det = fmt.Sprintf("%s; %s = %s", det, k, values[k])
 	}
 
 	msg := err.Error() + det

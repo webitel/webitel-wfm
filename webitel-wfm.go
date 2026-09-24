@@ -1,6 +1,11 @@
 package main
 
-import "github.com/webitel/webitel-wfm/cmd"
+import (
+	"fmt"
+	"os"
+
+	"github.com/webitel/webitel-wfm/cmd"
+)
 
 //go:generate go tool buf generate --template buf.gen.yaml
 //go:generate go tool mockery
@@ -8,6 +13,7 @@ import "github.com/webitel/webitel-wfm/cmd"
 
 func main() {
 	if err := cmd.Run(); err != nil {
-		return
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
