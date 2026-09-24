@@ -6,6 +6,7 @@ import (
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 	"github.com/webitel/webitel-wfm/pkg/timeutils"
 )
@@ -24,6 +25,7 @@ func NewWorkingSchedule(service service.WorkingScheduleManager) *WorkingSchedule
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.CreateWorkingScheduleRequest) (*pb.CreateWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
+
 	out, err := w.service.CreateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
 	if err != nil {
 		return nil, err
@@ -33,8 +35,12 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.Cre
 }
 
 func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, req *pb.ReadWorkingScheduleRequest) (*pb.ReadWorkingScheduleResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := w.service.ReadWorkingSchedule(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()), options.WithFields(req.GetFields()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := w.service.ReadWorkingSchedule(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +49,11 @@ func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, req *pb.ReadW
 }
 
 func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *pb.ReadWorkingScheduleForecastRequest) (*pb.ReadWorkingScheduleForecastResponse, error) {
-	s := grpccontext.FromContext(ctx)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
 	date := &model.FilterBetween{}
 	if v := req.Date; v != nil {
 		date = &model.FilterBetween{
@@ -52,7 +62,7 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 		}
 	}
 
-	items, err := w.service.ReadWorkingScheduleForecast(ctx, s.SignedInUser, req.Id, date)
+	items, err := w.service.ReadWorkingScheduleForecast(ctx, read, date)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +71,7 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 	for _, i := range items {
 		day := timeutils.Date(i.Timestamp.Time).Unix()
 		if _, ok := out[day]; !ok {
-			out[day].Forecast = make([]*pb.WorkingScheduleForecast_Forecast, 0)
+			out[day] = &pb.WorkingScheduleForecast{Forecast: make([]*pb.WorkingScheduleForecast_Forecast, 0)}
 		}
 
 		out[day].Forecast = append(out[day].Forecast, &pb.WorkingScheduleForecast_Forecast{
@@ -74,16 +84,19 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 }
 
 func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.SearchWorkingScheduleRequest) (*pb.SearchWorkingScheduleResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	search := &model.SearchItem{
-		Page:   req.GetPage(),
-		Size:   req.GetSize(),
-		Search: req.Q,
-		Sort:   req.Sort,
-		Fields: req.Fields,
+	opts := []options.Option{
+		options.WithPagination(req.GetPage(), req.GetSize()),
+		options.WithSearch(req.GetQ()),
+		options.WithFields(req.GetFields()),
+		options.WithOrder(req.GetSort()),
 	}
 
-	items, next, err := w.service.SearchWorkingSchedule(ctx, s.SignedInUser, search)
+	search, err := options.NewSearch(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	items, next, err := w.service.SearchWorkingSchedule(ctx, search)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +106,7 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.Sea
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.UpdateWorkingScheduleRequest) (*pb.UpdateWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
+
 	out, err := w.service.UpdateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
 	if err != nil {
 		return nil, err
@@ -102,8 +116,12 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.Upd
 }
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, req *pb.DeleteWorkingScheduleRequest) (*pb.DeleteWorkingScheduleResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	id, err := w.service.DeleteWorkingSchedule(ctx, s.SignedInUser, req.Id)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := w.service.DeleteWorkingSchedule(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -112,13 +130,17 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, req *pb.Del
 }
 
 func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, req *pb.UpdateWorkingScheduleAddAgentsRequest) (*pb.UpdateWorkingScheduleAddAgentsResponse, error) {
-	s := grpccontext.FromContext(ctx)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
 	agents := make([]int64, 0, len(req.GetAgents()))
 	for _, agent := range req.GetAgents() {
 		agents = append(agents, agent.Id)
 	}
 
-	items, err := w.service.UpdateWorkingScheduleAddAgents(ctx, s.SignedInUser, req.Id, agents)
+	items, err := w.service.UpdateWorkingScheduleAddAgents(ctx, read, agents)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +154,12 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 }
 
 func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, req *pb.UpdateWorkingScheduleRemoveAgentRequest) (*pb.UpdateWorkingScheduleRemoveAgentResponse, error) {
-	s := grpccontext.FromContext(ctx)
-	out, err := w.service.UpdateWorkingScheduleRemoveAgent(ctx, s.SignedInUser, req.Id, req.AgentId)
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := w.service.UpdateWorkingScheduleRemoveAgent(ctx, read, req.GetAgentId())
 	if err != nil {
 		return nil, err
 	}

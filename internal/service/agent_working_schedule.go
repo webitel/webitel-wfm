@@ -7,6 +7,7 @@ import (
 
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/storage"
 	"github.com/webitel/webitel-wfm/pkg/timeutils"
 	"github.com/webitel/webitel-wfm/pkg/werror"
@@ -36,7 +37,12 @@ func NewAgentWorkingSchedule(storage storage.AgentWorkingScheduleManager, workin
 }
 
 func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, in *model.CreateAgentsWorkingScheduleShifts) ([]*model.AgentWorkingSchedule, error) {
-	ws, err := a.workingScheduleStorage.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: in.WorkingScheduleID})
+	read, err := options.NewRead(ctx, options.WithID(in.WorkingScheduleID))
+	if err != nil {
+		return nil, err
+	}
+
+	ws, err := a.workingScheduleStorage.ReadWorkingSchedule(ctx, read)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +84,12 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 }
 
 func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error) {
-	ws, err := a.workingScheduleStorage.ReadWorkingSchedule(ctx, user, &model.SearchItem{Id: search.WorkingScheduleId})
+	read, err := options.NewRead(ctx, options.WithID(search.WorkingScheduleId))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ws, err := a.workingScheduleStorage.ReadWorkingSchedule(ctx, read)
 	if err != nil {
 		return nil, nil, err
 	}

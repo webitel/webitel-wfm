@@ -18,6 +18,13 @@ var (
 	AgentAbsenceTable          = Table{name: "wfm.agent_absence", alias: "aa"}
 )
 
+var (
+	WorkingScheduleTable           = Table{name: "wfm.working_schedule", alias: "ws"}
+	WorkingScheduleViewTable       = Table{name: "wfm.working_schedule_v", alias: "wsv"}
+	WorkingScheduleExtraSkillTable = Table{name: "wfm.working_schedule_extra_skill", alias: "wses"}
+	WorkingScheduleAgentTable      = Table{name: "wfm.working_schedule_agent", alias: "wsa"}
+)
+
 type Table struct {
 	name  string
 	alias string
