@@ -282,6 +282,8 @@ github.com/webitel/engine/pkg/wbt v0.0.0-20260911163812-d2259eb61c4a h1:js6rpUC3
 github.com/webitel/engine/pkg/wbt v0.0.0-20260911163812-d2259eb61c4a/go.mod h1:y0Gn1/nB0PfCpsD9LDUg3sB0ApUZfVMwEXoTSQVvTTA=
 github.com/webitel/webitel-go-kit v0.0.20 h1:/pyjoJOTFgP71fr4iCNuJfaKQJulTej7CKQKLoRI84M=
 github.com/webitel/webitel-go-kit v0.0.20/go.mod h1:nrG1wtufD7vZxuSg3EP8+ewVtaZHcfntS6B3RHdvgtQ=
+github.com/webitel/webitel-go-kit/infra/health v0.0.0-20260901092450-f7cbb06aceb5 h1:tMAcAy//iW3vZ4QUVuM/pjD0w3bpmRlS2BJdmoN0XfI=
+github.com/webitel/webitel-go-kit/infra/health v0.0.0-20260901092450-f7cbb06aceb5/go.mod h1:qumOZfpiFfBSIxGd3CMiEyiNKY4xNaVpUh6nlnTgoPk=
 github.com/webitel/webitel-go-kit/logging/wlog v0.0.0-20241119150325-b21de048f596 h1:QICQ5xj+R3BjCRxkeBNARq+Uet+nunLG3VTqE5vsz/o=
 github.com/webitel/webitel-go-kit/logging/wlog v0.0.0-20241119150325-b21de048f596/go.mod h1:mdwPNCv2dd7RIJ8euwVJGYf8AaVH2H7CVh8D/zyCTqA=
 github.com/webitel/wlog v0.0.0-20250325101442-de4f125c1ec7 h1:Qi/ustGBfh13I6aZ/ljul679SPJmHbZzFn9h43eloLg=

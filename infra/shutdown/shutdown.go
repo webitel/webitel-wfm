@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/webitel/webitel-go-kit/logging/wlog"
-
-	"github.com/webitel/webitel-wfm/infra/health"
 )
 
 type Tracker struct {
@@ -131,22 +129,6 @@ func (t *Tracker) ShutdownInitiated() bool {
 	default:
 		return false
 	}
-}
-
-// HealthCheck returns a health check failure once a SIGTERM has been received.
-//
-// This is to allow load balancers to detect this instance is shutting down
-// and should not be routed to for new traffic.
-func (t *Tracker) HealthCheck(_ context.Context) []health.CheckResult {
-	var reportError error
-	if t.ShutdownInitiated() {
-		reportError = errors.New("SIGTERM has been received, graceful shutdown started")
-	}
-
-	return []health.CheckResult{{
-		Name: "shutdown-signal-monitoring",
-		Err:  reportError,
-	}}
 }
 
 // Shutdown triggers the shutdown logic.

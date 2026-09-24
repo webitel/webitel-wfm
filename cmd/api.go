@@ -9,8 +9,10 @@ import (
 
 	"github.com/urfave/cli/v2"
 	authmanager "github.com/webitel/engine/pkg/wbt/auth_manager"
-	authLogger "github.com/webitel/wlog"
+	"github.com/webitel/webitel-go-kit/infra/health"
+	healthhttp "github.com/webitel/webitel-go-kit/infra/health/http"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
+	authLogger "github.com/webitel/wlog"
 	"golang.org/x/sync/errgroup"
 
 	// _ "github.com/webitel/webitel-go-kit/otel/sdk/log/otlp"
@@ -21,7 +23,6 @@ import (
 	// _ "github.com/webitel/webitel-go-kit/otel/sdk/trace/stdout"
 
 	"github.com/webitel/webitel-wfm/config"
-	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/pubsub"
 	"github.com/webitel/webitel-wfm/infra/registry"
 	"github.com/webitel/webitel-wfm/infra/registry/provider/consul"
@@ -35,7 +36,6 @@ import (
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/pkg/endpoint"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
@@ -105,6 +105,14 @@ func apiFlags(cfg *config.Config) []cli.Flag {
 			EnvVars:     []string{"BIND_ADDRESS"},
 		},
 		&cli.StringFlag{
+			Name:        "probe-address",
+			Category:    "server",
+			Usage:       "address serving the /livez, /readyz and /healthz probes; empty disables them",
+			Value:       "127.0.0.1:10033",
+			Destination: &cfg.Service.ProbeAddress,
+			EnvVars:     []string{"PROBE_ADDRESS"},
+		},
+		&cli.StringFlag{
 			Name:        "consul-discovery",
 			Category:    "service/discovery",
 			Usage:       "service discovery address",
@@ -164,7 +172,8 @@ type app struct {
 	log *wlog.Logger
 
 	shutdown *shutdown.Tracker
-	health   *health.CheckRegistry
+	health   *health.Registry
+	probes   *healthhttp.Server
 
 	resources *resources
 
@@ -187,7 +196,7 @@ type resources struct {
 }
 
 //nolint:unused
-func (r *resources) registerShutdownAndHealthHooks(tracker *shutdown.Tracker, checker *health.CheckRegistry) error {
+func (r *resources) registerShutdownHooks(tracker *shutdown.Tracker) error {
 	elem := reflect.ValueOf(r).Elem()
 	elemType := elem.Type()
 
@@ -204,13 +213,6 @@ func (r *resources) registerShutdownAndHealthHooks(tracker *shutdown.Tracker, ch
 				}
 			}
 		}
-
-		if fieldType.Implements(reflect.TypeOf((*health.Check)(nil)).Elem()) {
-			hook, ok := fieldValue.Interface().(health.Check)
-			if ok {
-				checker.Register(hook)
-			}
-		}
 	}
 
 	return nil
@@ -223,7 +225,17 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 	// This can be used by, e.g., app tests.
 	defer close(startedCh)
 
-	check := health.NewCheckRegistry(log)
+	hcfg := health.DefaultConfig()
+	// Must fit inside the shutdown tracker's 5s window, or the hook never completes.
+	hcfg.DrainHold = 2 * time.Second
+	check := health.New(hcfg, nil)
+	probes := healthhttp.NewServer(check, cfg.Service.ProbeAddress)
+	if err := tracker.RegisterShutdownHandlerFunc("health", func(p *shutdown.Process) error {
+		return health.Shutdown(ctx, check, probes)
+	}); err != nil {
+		return nil, err
+	}
+
 	// service := otelsdk.WithResource(resource.NewSchemaless(semconv.ServiceName(serviceName),
 	// 	semconv.ServiceVersion(version),
 	// 	semconv.ServiceInstanceID(cfg.Service.NodeID),
@@ -247,10 +259,12 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 		return nil, err
 	}
 
+	check.Critical("primary-database", res.storage.HealthCheck)
+
 	// Iterates over struct fields to find those which implement
-	// shutdown.Handler interface and register shutdown and healthcheck hooks.
+	// shutdown.Handler interface and register shutdown hooks.
 	// TODO: reflect.Value.Interface: cannot return value obtained from unexported field or method
-	// if err = res.registerShutdownAndHealthHooks(tracker, check); err != nil {
+	// if err = res.registerShutdownHooks(tracker); err != nil {
 	// 	return nil, err
 	// }
 
@@ -273,6 +287,7 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 		cfg:       cfg,
 		log:       log,
 		health:    check,
+		probes:    probes,
 		shutdown:  tracker,
 		resources: res,
 		startedCh: startedCh,
@@ -281,20 +296,17 @@ func newApp(ctx context.Context, cfg *config.Config, log *wlog.Logger, tracker *
 }
 
 func (a *app) run(ctx context.Context) error {
-	// Verify registered health checks.
-	var err error
-	a.log.Info("run healthchecks before starting resources")
-	checks := a.health.RunAll(ctx)
-	for _, check := range checks {
-		if check.Err != nil {
-			a.log.Error("healthcheck was unsuccessful", wlog.String("check", check.Name), wlog.Err(check.Err))
-			err = werror.Wrap(err, werror.WithValue(check.Name, check.Err))
-		}
-	}
-
-	if err != nil {
+	// Checks run in the background from here on: a failing dependency makes the
+	// node report not-ready instead of aborting the start.
+	if err := a.health.Start(ctx); err != nil {
 		return err
 	}
+
+	if err := a.probes.Start(); err != nil {
+		return err
+	}
+
+	a.log.Info("serving health probes", wlog.String("listen", a.cfg.Service.ProbeAddress))
 
 	// Start server requests listening, serve all application resources.
 	a.eg.Go(func() error {
@@ -343,7 +355,7 @@ func (a *app) run(ctx context.Context) error {
 	return nil
 }
 
-func serviceDiscovery(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*consul.Registry, error) {
+func serviceDiscovery(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.Registry, tracker *shutdown.Tracker) (*consul.Registry, error) {
 	opts := []consul.Option{
 		consul.WithHeartbeat(true),
 		consul.WithTimeout(time.Second * 30),
@@ -385,14 +397,16 @@ func sqlStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger) (*clu
 	return conn, nil
 }
 
-func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.CheckRegistry, tracker *shutdown.Tracker) (*cluster.Cluster, error) {
+func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, health *health.Registry, tracker *shutdown.Tracker) (*cluster.Cluster, error) {
 	const scope = "forecast-sql-storage"
 	db, err := pg.New(ctx, log, cfg.Database.ForecastCalculationDSN)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := cluster.New(log, []dbsql.Node{dbsql.New(cfg.Database.ForecastCalculationDSN, db, scanner.MustNewDBScan())})
+	// Without WithUpdate the node states are never refreshed, which would leave
+	// the health check below permanently green.
+	conn, err := cluster.New(log, []dbsql.Node{dbsql.New(cfg.Database.ForecastCalculationDSN, db, scanner.MustNewDBScan())}, cluster.WithUpdate())
 	if err != nil {
 		return nil, err
 	}
@@ -401,12 +415,12 @@ func forecastStorage(ctx context.Context, cfg *config.Config, log *wlog.Logger, 
 		return nil, err
 	}
 
-	health.Register(conn)
+	health.Critical("forecast-database", conn.HealthCheck)
 
 	return conn, nil
 }
 
-func auth(cfg *config.Config, /* discovery registry.Discovery, */ health *health.CheckRegistry, tracker *shutdown.Tracker) (authmanager.AuthManager, error) {
+func auth(cfg *config.Config /* discovery registry.Discovery, */, health *health.Registry, tracker *shutdown.Tracker) (authmanager.AuthManager, error) {
 	const scope = "webitel-auth"
 
 	log := newAuthLogger()
@@ -421,7 +435,7 @@ func auth(cfg *config.Config, /* discovery registry.Discovery, */ health *health
 		return nil, err
 	}
 
-	health.RegisterFunc(scope, func(ctx context.Context) error {
+	health.Informational(scope, func(ctx context.Context) error {
 		return nil
 	})
 

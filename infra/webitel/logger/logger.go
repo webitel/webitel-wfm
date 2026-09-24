@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/registry"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/webitel"
@@ -40,11 +39,11 @@ func (c *Client) Shutdown(p *shutdown.Process) error {
 	return c.conn.Close()
 }
 
-func (c *Client) HealthCheck(ctx context.Context) []health.CheckResult {
+func (c *Client) HealthCheck(ctx context.Context) error {
 	state := c.conn.GetState()
 	if state != connectivity.Idle && state != connectivity.Ready {
-		return []health.CheckResult{{Name: serviceName, Err: werror.New("service is not ready", werror.WithValue("state", state.String()))}}
+		return werror.New("service is not ready", werror.WithValue("state", state.String()))
 	}
 
-	return []health.CheckResult{{Name: serviceName, Err: nil}}
+	return nil
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 
-	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 )
@@ -27,6 +26,7 @@ const (
 type Store interface {
 	Close() error
 	Err() error
+	HealthCheck(ctx context.Context) error
 
 	Alive() dbsql.Node
 	Primary() dbsql.Node
@@ -127,16 +127,10 @@ func (cl *Cluster) Close() error {
 	return nil
 }
 
-func (cl *Cluster) HealthCheck(ctx context.Context) []health.CheckResult {
-	var reportError error
-	if n := cl.Primary(); n == nil {
-		reportError = errors.New("primary database not alive")
-	}
-
-	return []health.CheckResult{{
-		Name: "primary-database",
-		Err:  reportError,
-	}}
+func (cl *Cluster) HealthCheck(ctx context.Context) error {
+	// Node never reports a missing node as nil: with nothing alive it returns a
+	// NoopNode carrying the last check error, so ask the cluster for that error.
+	return cl.Err()
 }
 
 // Err returns cause of nodes most recent check failures.

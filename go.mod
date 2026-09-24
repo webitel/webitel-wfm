@@ -26,6 +26,7 @@ require (
 	github.com/webitel/engine/pkg/discovery v0.0.0-20260911163812-d2259eb61c4a
 	github.com/webitel/engine/pkg/wbt v0.0.0-20260911163812-d2259eb61c4a
 	github.com/webitel/webitel-go-kit v0.0.20
+	github.com/webitel/webitel-go-kit/infra/health v0.0.0-20260901092450-f7cbb06aceb5
 	github.com/webitel/webitel-go-kit/logging/wlog v0.0.0-20241119150325-b21de048f596
 	github.com/webitel/wlog v0.0.0-20250325101442-de4f125c1ec7
 	go.opentelemetry.io/otel v1.46.0

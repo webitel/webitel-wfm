@@ -8,9 +8,9 @@ package cmd
 
 import (
 	"context"
+	"github.com/webitel/webitel-go-kit/infra/health"
 	"github.com/webitel/webitel-go-kit/logging/wlog"
 	"github.com/webitel/webitel-wfm/config"
-	"github.com/webitel/webitel-wfm/infra/health"
 	"github.com/webitel/webitel-wfm/infra/pubsub"
 	"github.com/webitel/webitel-wfm/infra/server"
 	"github.com/webitel/webitel-wfm/infra/shutdown"
@@ -25,8 +25,8 @@ import (
 
 // Injectors from wire.go:
 
-func initResources(contextContext context.Context, configConfig *config.Config, wlogLogger *wlog.Logger, checkRegistry *health.CheckRegistry, tracker *shutdown.Tracker) (*resources, error) {
-	authManager, err := auth(configConfig, checkRegistry, tracker)
+func initResources(contextContext context.Context, configConfig *config.Config, wlogLogger *wlog.Logger, registry *health.Registry, tracker *shutdown.Tracker) (*resources, error) {
+	authManager, err := auth(configConfig, registry, tracker)
 	if err != nil {
 		return nil, err
 	}
@@ -43,15 +43,15 @@ func initResources(contextContext context.Context, configConfig *config.Config, 
 	if err != nil {
 		return nil, err
 	}
-	registry, err := serviceDiscovery(contextContext, configConfig, wlogLogger, checkRegistry, tracker)
+	consulRegistry, err := serviceDiscovery(contextContext, configConfig, wlogLogger, registry, tracker)
 	if err != nil {
 		return nil, err
 	}
-	client, err := engine.New(wlogLogger, registry)
+	client, err := engine.New(wlogLogger, consulRegistry)
 	if err != nil {
 		return nil, err
 	}
-	loggerClient, err := logger.New(wlogLogger, registry)
+	loggerClient, err := logger.New(wlogLogger, consulRegistry)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func initResources(contextContext context.Context, configConfig *config.Config, 
 		engine:     client,
 		loggercli:  loggerClient,
 		audit:      audit,
-		registry:   registry,
+		registry:   consulRegistry,
 		ps:         manager,
 	}
 	return cmdResources, nil

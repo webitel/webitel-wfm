@@ -19,6 +19,7 @@ type Service struct {
 	NodeID        string
 	Address       string
 	MetricAddress string
+	ProbeAddress  string
 }
 
 type Database struct {
@@ -87,6 +88,7 @@ func New() *Config {
 			NodeID:        hostname + "-" + id.String(),
 			Address:       "127.0.0.1:10031",
 			MetricAddress: "127.0.0.1:10032",
+			ProbeAddress:  "127.0.0.1:10033",
 		},
 		Database: Database{
 			DSN: "postgres://opensips:webitel@127.0.0.1:5432/webitel?application_name=wfm&sslmode=disable&connect_timeout=10",
