@@ -2,78 +2,71 @@ package dbsql
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/scanner"
+	"github.com/georgysavva/scany/v2/pgxscan"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/webitel/webitel-go-kit/infra/pgw"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 )
 
-type Batcher interface {
-	// Queue queues a query to batch.
-	// Query can be an SQL query or the name of a prepared statement.
-	Queue(query string, arguments ...any)
-
-	Send(ctx context.Context) BatcherResults
-
-	// Len returns number of queries that have been queued so far.
-	Len() int
+type batch struct {
+	pool  *pgw.Pool
+	batch pgx.Batch
 }
 
-type BatcherResults interface {
-	// Query reads the results from the next query in the batch
-	// as if the query has been sent with Conn.Query.
-	Query() (scanner.Rows, error)
-
-	// Exec reads the results from the next query in the batch
-	// as if the query has been sent with Conn.Exec.
-	Exec() error
-
-	// Close closes the batch operation, must be called before the underlying connection
-	// can be used again. Any error that occurred during a batch operation may have made
-	// it impossible to resyncronize the connection with the server.
-	// In this case the underlying connection will have been closed.
-	// Close is safe to call multiple times. If it returns an error subsequent calls
-	// will return the same error. Callback functions will not be rerun
-	Close() error
+func (b *batch) Queue(query string, args ...any) {
+	b.batch.Queue(query, args...)
 }
 
-type sqlNodeBatch struct {
-	batcher Batcher
-	scanner scanner.Scanner
-}
-
-func newSqlNodeBatch(batcher Batcher) *sqlNodeBatch {
-	return &sqlNodeBatch{
-		batcher: batcher,
-		scanner: scanner.MustNewBatchScan(),
+// Select runs the queued queries and appends every result set to dest.
+func (b *batch) Select(ctx context.Context, dest any) error {
+	conn, err := b.pool.Acquire(ctx)
+	if err != nil {
+		return ParseError(err)
 	}
-}
+	defer conn.Release()
 
-func (n *sqlNodeBatch) Queue(sql string, args ...any) {
-	n.batcher.Queue(sql, args...)
-}
-
-func (n *sqlNodeBatch) Select(ctx context.Context, dest any) error {
-	queryer := n.batcher.Send(ctx)
-	for i := 0; i < n.batcher.Len(); i++ {
-		rows, err := queryer.Query()
+	res := conn.SendBatch(ctx, &b.batch)
+	for range b.batch.Len() {
+		rows, err := res.Query()
 		if err != nil {
+			_ = res.Close()
+
 			return ParseError(err)
 		}
 
-		if err := n.scanner.ScanAll(dest, rows); err != nil {
+		if err := scanAppend(dest, rows); err != nil {
+			_ = res.Close()
+
 			return ParseError(err)
 		}
 	}
 
-	return queryer.Close()
+	return ParseError(res.Close())
 }
 
-func (n *sqlNodeBatch) Exec(ctx context.Context) error {
-	queryer := n.batcher.Send(ctx)
-	for i := 0; i < n.batcher.Len(); i++ {
-		if err := queryer.Exec(); err != nil {
-			return ParseError(err)
-		}
+// scanAppend scans rows into a fresh slice of dest's type and appends it, so
+// the results of several queued queries accumulate in dest.
+func scanAppend(dest any, rows pgx.Rows) error {
+	v := reflect.ValueOf(dest)
+	if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Slice {
+		// ScanAll would have closed them; nothing else will.
+		rows.Close()
+
+		return errors.New("batch destination must be a pointer to a slice", errors.WithID("dbsql.batch.destination"),
+			errors.WithValue("type", fmt.Sprintf("%T", dest)),
+		)
 	}
 
-	return queryer.Close()
+	part := reflect.New(v.Elem().Type())
+	if err := pgxscan.ScanAll(part.Interface(), rows); err != nil {
+		return err
+	}
+
+	v.Elem().Set(reflect.AppendSlice(v.Elem(), part.Elem()))
+
+	return nil
 }

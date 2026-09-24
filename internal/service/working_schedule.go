@@ -3,19 +3,20 @@ package service
 import (
 	"context"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/storage"
 	"github.com/webitel/webitel-wfm/pkg/compare"
 	"github.com/webitel/webitel-wfm/pkg/timeutils"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 var (
-	ErrWorkingScheduleUpdateDraft = werror.InvalidArgument("working schedule can only be updated in a draft state", werror.WithID("service.working_schedule.state"))
-	ErrAgentNotAllowed            = werror.Forbidden("you haven't read access to a desired set of agents")
-	ErrEmptyForecastCalculation   = werror.InvalidArgument("attached team doesn't have configured forecast calculation procedure", werror.WithID("service.working_schedule.empty_forecast_calculation"))
+	ErrWorkingScheduleUpdateDraft = errors.InvalidArgument("working schedule can only be updated in a draft state", errors.WithID("service.working_schedule.state"))
+	ErrAgentNotAllowed            = errors.Forbidden("you haven't read access to a desired set of agents")
+	ErrEmptyForecastCalculation   = errors.InvalidArgument("attached team doesn't have configured forecast calculation procedure", errors.WithID("service.working_schedule.empty_forecast_calculation"))
 )
 
 type WorkingScheduleManager interface {
@@ -101,7 +102,7 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, read 
 	}
 
 	if team.ForecastCalculation == nil || team.ForecastCalculation.Id == 0 {
-		return nil, werror.Wrap(ErrEmptyForecastCalculation, werror.WithValue("team", team.Name))
+		return nil, errors.Wrap(ErrEmptyForecastCalculation, errors.WithValue("team", team.Name))
 	}
 
 	forecast, err := w.forecast.ExecuteForecastCalculation(ctx, read.User(), team.GetForecastCalculation().GetId(), team.GetId(), date)
@@ -135,7 +136,7 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 	}
 
 	if item.State != model.WorkingScheduleStateDraft {
-		return nil, werror.Wrap(ErrWorkingScheduleUpdateDraft, werror.WithValue("state", item.State.String()))
+		return nil, errors.Wrap(ErrWorkingScheduleUpdateDraft, errors.WithValue("state", item.State.String()))
 	}
 
 	if item.Team.Id != in.Team.Id || item.Calendar.Id != in.Calendar.Id {
@@ -176,7 +177,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 
 	// Checks if signed user has read access to a desired set of agents.
 	if ok := compare.ElementsMatch(agents, agentIDs); !ok {
-		return nil, werror.Wrap(ErrAgentNotAllowed, werror.WithID("service.working_schedule.check_agents"))
+		return nil, errors.Wrap(ErrAgentNotAllowed, errors.WithID("service.working_schedule.check_agents"))
 	}
 
 	out, err := w.storage.UpdateWorkingScheduleAddAgents(ctx, read, agentIDs)

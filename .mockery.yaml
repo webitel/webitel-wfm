@@ -10,14 +10,6 @@ issue-845-fix: true # https://vektra.github.io/mockery/v2.50/deprecations/#issue
 resolve-type-alias: false # https://vektra.github.io/mockery/v2.50/deprecations/#resolve-type-alias
 
 packages:
-  github.com/webitel/webitel-wfm/infra/webitel/auth:
-    interfaces:
-      Manager:
-
-  github.com/webitel/webitel-wfm/infra/storage/dbsql:
-    interfaces:
-      Database:
-
   github.com/webitel/webitel-wfm/internal/service:
     interfaces:
       PauseTemplateManager:

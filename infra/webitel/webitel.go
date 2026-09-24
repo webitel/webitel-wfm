@@ -5,29 +5,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/webitel/webitel-go-kit/logging/wlog"
-	otelgrpc "github.com/webitel/webitel-go-kit/tracing/grpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/webitel/webitel-wfm/infra/registry"
-	"github.com/webitel/webitel-wfm/infra/registry/resolver"
+	"github.com/webitel/webitel-go-kit/infra/discovery"
+	resolver "github.com/webitel/webitel-go-kit/infra/transport/gRPC/resolver/discovery"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 var (
-	ErrInternal = werror.Internal("internal server error", werror.WithID("webitel.connection.service"))
-	ErrNoRows   = werror.NotFound("no rows in result set", werror.WithID("webitel.connection.service"))
+	ErrInternal = errors.Internal("internal server error", errors.WithID("webitel.connection.service"))
+	ErrNoRows   = errors.NotFound("no rows in result set", errors.WithID("webitel.connection.service"))
 )
 
 var (
 	// see https://github.com/grpc/grpc/blob/master/doc/service_config.md to know more about service config
 	retryPolicy = `{
-		"loadBalancingConfig": [ { "selector": {} } ],
+		"loadBalancingConfig": [ { "round_robin": {} } ],
 		"methodConfig": [
 			{
          		"timeout": "5.000000001s",
@@ -44,14 +44,22 @@ var (
 	}`
 )
 
-func New(log *wlog.Logger, discovery registry.Discovery, target string) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithResolvers(resolver.NewBuilder(log, discovery, resolver.WithInsecure(true))),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+// New dials a Webitel service with retries, waiting for it to come up, and
+// forwards the signed-in user's token with every call.
+func New(dp discovery.Discovery, target string) (*grpc.ClientConn, error) {
+	return Dial(dp, target,
 		grpc.WithDefaultServiceConfig(retryPolicy),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithChainUnaryInterceptor(timeoutUnaryInterceptor(10*time.Second), authUnaryInterceptor()),
-	}
+	)
+}
+
+// Dial connects to a service registered in discovery.
+func Dial(dp discovery.Discovery, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	opts = append([]grpc.DialOption{
+		grpc.WithResolvers(resolver.NewBuilder(dp, resolver.WithInsecure(true))),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+	}, opts...)
 
 	// Set up a connection to the server with service config and create the channel.
 	//
@@ -70,17 +78,17 @@ func ParseError(err error) error {
 	if ok {
 		switch st.Code() {
 		case codes.NotFound, codes.PermissionDenied:
-			return werror.Wrap(ErrNoRows, werror.WithCause(st.Err()))
+			return errors.Wrap(ErrNoRows, errors.WithCause(st.Err()))
 		default:
 			if strings.Contains(st.Message(), "no rows in result set") {
-				return werror.Wrap(ErrNoRows, werror.WithCause(st.Err()))
+				return errors.Wrap(ErrNoRows, errors.WithCause(st.Err()))
 			}
 
-			return werror.Wrap(ErrInternal, werror.WithCause(st.Err()))
+			return errors.Wrap(ErrInternal, errors.WithCause(st.Err()))
 		}
 	}
 
-	return werror.Wrap(ErrInternal, werror.WithCause(err))
+	return errors.Wrap(ErrInternal, errors.WithCause(err))
 }
 
 func authUnaryInterceptor() grpc.UnaryClientInterceptor {
@@ -102,8 +110,6 @@ func timeoutUnaryInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor 
 			defer cancel()
 		}
 
-		var p registry.Peer
-
-		return invoker(registry.NewPeerContext(ctx, &p), method, req, reply, cc, opts...)
+		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }

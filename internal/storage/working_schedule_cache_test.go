@@ -4,74 +4,269 @@ import (
 	"context"
 	"testing"
 
-	"github.com/webitel/webitel-wfm/config"
+	"github.com/webitel/webitel-go-kit/pkg/cache"
+
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
-	"github.com/webitel/webitel-wfm/infra/storage/cache"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 )
 
+// probeNode answers Select with canned rows and records that it was asked, so a
+// test can tell which role of the cluster a query was routed to.
 type probeNode struct {
 	dbsql.Node
 
-	rows *[]*model.WorkingSchedule
+	role  string
+	rows  *[]*model.WorkingSchedule
+	id    int64
+	asked *[]string
 }
 
 func (p probeNode) Select(_ context.Context, dest any, _ string, _ ...any) error {
-	out := dest.(*[]*model.WorkingSchedule)
+	*p.asked = append(*p.asked, p.role)
+
+	out, ok := dest.(*[]*model.WorkingSchedule)
+	if !ok {
+		return nil
+	}
+
 	*out = *p.rows
 
 	return nil
 }
 
-type probeStore struct {
-	cluster.Store
+func (p probeNode) Get(_ context.Context, dest any, _ string, _ ...any) error {
+	*p.asked = append(*p.asked, p.role)
 
-	node probeNode
+	if out, ok := dest.(*int64); ok {
+		*out = p.id
+	}
+
+	return nil
 }
 
-func (p probeStore) StandbyPreferred() dbsql.Node { return p.node }
+func (p probeNode) Exec(_ context.Context, _ string, _ ...any) error {
+	*p.asked = append(*p.asked, p.role)
 
-func TestSearchWorkingScheduleCollectionCache(t *testing.T) {
-	m, err := cache.New(&config.Cache{Size: 1024})
+	return nil
+}
+
+type probeStore struct {
+	primary probeNode
+	standby probeNode
+}
+
+func (p *probeStore) Primary() dbsql.Node          { return p.primary }
+func (p *probeStore) StandbyPreferred() dbsql.Node { return p.standby }
+
+// newProbe wires a WorkingSchedule onto canned rows. primaryRows and
+// standbyRows are separate so a test can simulate replication lag.
+func newProbe(t *testing.T, primaryRows, standbyRows *[]*model.WorkingSchedule, id int64) (*WorkingSchedule, *[]string) {
+	t.Helper()
+
+	asked := &[]string{}
+	db := &probeStore{
+		primary: probeNode{role: "primary", rows: primaryRows, id: id, asked: asked},
+		standby: probeNode{role: "standby", rows: standbyRows, id: id, asked: asked},
+	}
+
+	return &WorkingSchedule{db: db, items: cache.Noop[string, model.WorkingSchedule]()}, asked
+}
+
+func userCtx(domain, user int64) context.Context {
+	return grpccontext.SetUser(context.Background(), &model.SignedInUser{Id: user, DomainId: domain})
+}
+
+func schedule(id int64, name string) []*model.WorkingSchedule {
+	return []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{Id: id}, Name: name}}
+}
+
+// A row read straight after a write must come from the primary: a standby may
+// not have replicated it yet, and the stale row would then be cached.
+func TestUpdateWorkingScheduleReadsBackFromPrimary(t *testing.T) {
+	primary := schedule(7, "renamed")
+	standby := schedule(7, "stale")
+
+	ws, asked := newProbe(t, &primary, &standby, 7)
+	ctx := userCtx(1, 1)
+
+	in := &model.WorkingSchedule{DomainRecord: model.DomainRecord{Id: 7}, Name: "renamed"}
+
+	out, err := ws.UpdateWorkingSchedule(ctx, &model.SignedInUser{Id: 1, DomainId: 1}, in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer m.Stop()
 
-	var rows []*model.WorkingSchedule
+	if out.Name != "renamed" {
+		t.Errorf("update returned %q, want %q: the read-back went to a lagging standby", out.Name, "renamed")
+	}
 
-	scope := cache.NewScope[model.WorkingSchedule](m, "wfm.working_schedule")
-	ws := &WorkingSchedule{db: probeStore{node: probeNode{rows: &rows}}, cache: scope}
-	ctx := grpccontext.SetUser(context.Background(), &model.SignedInUser{Id: 1, DomainId: 1})
+	for _, role := range *asked {
+		if role == "standby" {
+			t.Fatalf("update touched the standby: %v", *asked)
+		}
+	}
+}
 
-	// Cold cache, as after a restart. working_schedule_id carries no validate
-	// rule, so a zero reaches storage and matches no row.
-	rows = nil
+func TestCreateWorkingScheduleReadsBackFromPrimary(t *testing.T) {
+	primary := schedule(9, "created")
 
-	s1, _ := options.NewSearch(ctx, options.WithID(0))
-	if _, err := ws.SearchWorkingSchedule(ctx, s1); err != nil {
+	var standby []*model.WorkingSchedule // not replicated yet
+
+	ws, asked := newProbe(t, &primary, &standby, 9)
+	ctx := userCtx(1, 1)
+
+	in := &model.WorkingSchedule{Name: "created"}
+
+	out, err := ws.CreateWorkingSchedule(ctx, &model.SignedInUser{Id: 1, DomainId: 1}, in)
+	if err != nil {
+		t.Fatalf("create of a committed row failed: %v", err)
+	}
+
+	if out.Name != "created" {
+		t.Errorf("create returned %q, want %q", out.Name, "created")
+	}
+
+	for _, role := range *asked {
+		if role == "standby" {
+			t.Fatalf("create touched the standby: %v", *asked)
+		}
+	}
+}
+
+// A field mask makes the row partial, so it must neither be served from nor
+// written to the entity cache.
+func TestReadWorkingScheduleFieldMaskBypassesCache(t *testing.T) {
+	rows := []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{Id: 7}}}
+
+	ws, _ := newProbe(t, &rows, &rows, 7)
+	ctx := userCtx(1, 1)
+
+	masked, err := options.NewRead(ctx, options.WithID(7), options.WithFields([]string{"id"}))
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, ok := scope.Key(1, 0).GetMany(ctx)
-	t.Logf("collection key after read by id 0: ok=%v len=%d", ok, len(got))
-
-	rows = []*model.WorkingSchedule{
-		{DomainRecord: model.DomainRecord{Id: 7}, Name: "seven"},
-		{DomainRecord: model.DomainRecord{Id: 8}, Name: "eight"},
+	if _, err := ws.ReadWorkingSchedule(ctx, masked); err != nil {
+		t.Fatal(err)
 	}
 
-	s2, _ := options.NewSearch(ctx)
+	rows = schedule(7, "seven")
 
-	out, err := ws.SearchWorkingSchedule(ctx, s2)
+	full, err := options.NewRead(ctx, options.WithID(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := ws.ReadWorkingSchedule(ctx, full)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if out.Name != "seven" {
+		t.Errorf("full read returned %q: the field-masked read poisoned the cache", out.Name)
+	}
+}
+
+// The cache key carries the domain, so one tenant can never be served another
+// tenant's row.
+func TestReadWorkingScheduleIsolatesDomains(t *testing.T) {
+	rows := schedule(7, "domain one")
+
+	ws, _ := newProbe(t, &rows, &rows, 7)
+
+	one := userCtx(1, 1)
+
+	read, err := options.NewRead(one, options.WithID(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ws.ReadWorkingSchedule(one, read); err != nil {
+		t.Fatal(err)
+	}
+
+	rows = schedule(7, "domain two")
+
+	two := userCtx(2, 1)
+
+	read2, err := options.NewRead(two, options.WithID(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := ws.ReadWorkingSchedule(two, read2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if out.Name != "domain two" {
+		t.Errorf("domain 2 read returned %q: it was served domain 1's cache entry", out.Name)
+	}
+}
+
+func TestDeleteWorkingScheduleInvalidatesItem(t *testing.T) {
+	rows := schedule(7, "seven")
+
+	ws, _ := newProbe(t, &rows, &rows, 7)
+	ctx := userCtx(1, 1)
+
+	read, err := options.NewRead(ctx, options.WithID(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ws.ReadWorkingSchedule(ctx, read); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok, _ := ws.items.Get(ctx, itemKey(1, 7)); !ok {
+		t.Fatal("read did not populate the entity cache")
+	}
+
+	if _, err := ws.DeleteWorkingSchedule(ctx, read); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok, _ := ws.items.Get(ctx, itemKey(1, 7)); ok {
+		t.Error("delete left the entity in the cache")
+	}
+}
+
+// Searches are not cached at all: no collection key can encode the filters or
+// the paging of the query that produced it.
+func TestSearchWorkingScheduleIsNotCached(t *testing.T) {
+	rows := schedule(7, "night")
+
+	ws, _ := newProbe(t, &rows, &rows, 7)
+	ctx := userCtx(1, 1)
+
+	filtered, err := options.NewSearch(ctx, options.WithID(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ws.SearchWorkingSchedule(ctx, filtered); err != nil {
+		t.Fatal(err)
+	}
+
+	rows = []*model.WorkingSchedule{
+		{DomainRecord: model.DomainRecord{Id: 7}, Name: "night"},
+		{DomainRecord: model.DomainRecord{Id: 8}, Name: "day"},
+	}
+
+	all, err := options.NewSearch(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := ws.SearchWorkingSchedule(ctx, all)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(out) != 2 {
-		t.Fatalf("search returned %d schedules, want 2: the read by id overwrote the collection key", len(out))
+		t.Fatalf("unfiltered search returned %d rows, want 2: a narrower search was served from a cache", len(out))
 	}
 }

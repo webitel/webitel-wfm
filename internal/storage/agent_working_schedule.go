@@ -3,9 +3,8 @@ package storage
 import (
 	"context"
 
-	"github.com/webitel/webitel-wfm/infra/storage/cache"
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
@@ -25,14 +24,12 @@ type AgentWorkingScheduleManager interface {
 }
 
 type AgentWorkingSchedule struct {
-	db    cluster.Store
-	cache *cache.Scope[model.AgentWorkingSchedule]
+	db dbsql.Store
 }
 
-func NewAgentWorkingSchedule(db cluster.Store, manager cache.Manager) *AgentWorkingSchedule {
+func NewAgentWorkingSchedule(db dbsql.Store) *AgentWorkingSchedule {
 	return &AgentWorkingSchedule{
-		db:    db,
-		cache: cache.NewScope[model.AgentWorkingSchedule](manager, agentWorkingScheduleTable),
+		db: db,
 	}
 }
 

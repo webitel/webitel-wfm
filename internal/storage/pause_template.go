@@ -2,15 +2,13 @@ package storage
 
 import (
 	"context"
-	"errors"
 
-	"github.com/webitel/webitel-wfm/infra/storage/cache"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	b "github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 // TODO: add cache invalidation
@@ -24,16 +22,12 @@ type PauseTemplateManager interface {
 	DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error)
 }
 type PauseTemplate struct {
-	db cluster.Store
-
-	// TODO: split db and cache in separate layers
-	cache *cache.Scope[model.PauseTemplate]
+	db dbsql.Store
 }
 
-func NewPauseTemplate(db cluster.Store, manager cache.Manager) *PauseTemplate {
+func NewPauseTemplate(db dbsql.Store) *PauseTemplate {
 	return &PauseTemplate{
-		db:    db,
-		cache: cache.NewScope[model.PauseTemplate](manager, b.PauseTemplateTable.Name()),
+		db: db,
 	}
 }
 
@@ -96,11 +90,11 @@ func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Rea
 	}
 
 	if len(items) > 1 {
-		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.pause_template.read.conflict"))
+		return nil, errors.Wrap(dbsql.ErrEntityConflict, errors.WithID("storage.pause_template.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.pause_template.read"))
+		return nil, errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.pause_template.read"))
 	}
 
 	return items[0], nil
@@ -332,7 +326,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	sql, args := b.Select("distinct pause_template.id").From("pause_template", "del_causes", "ins_causes").With(cte).Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		if errors.Is(err, dbsql.ErrNoRows) {
-			return werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.pause_template.update"), werror.WithCause(err))
+			return errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.pause_template.update"), errors.WithCause(err))
 		}
 
 		return err
