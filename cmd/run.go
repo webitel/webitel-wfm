@@ -12,8 +12,18 @@ import (
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
+// CI stamps the build into these with -ldflags "-X github.com/webitel/webitel-wfm/cmd.version=…";
+// the targets come from webitel/reusable-configs (golang/sync.yml) and are shared by synced workflows.
+var (
+	version string
+	commit  string
+	branch  string
+)
+
 // Run the default command.
 func Run() error {
+	model.SetBuild(version, commit, branch)
+
 	app := &cli.App{
 		Name:      "webitel-wfm",
 		Usage:     "Effective planning of human resources in the Webitel",
