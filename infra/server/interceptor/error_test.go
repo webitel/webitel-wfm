@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"github.com/webitel/webitel-wfm/pkg/werror"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 )
 
 func TestErrUnaryServerInterceptor(t *testing.T) {
@@ -21,7 +21,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 
 	t.Run("not nil werror received", func(t *testing.T) {
 		_, err := interceptor(context.Background(), nil, info, func(context.Context, any) (any, error) {
-			return nil, werror.New("testing", werror.WithID("server.interceptor.error.testing"), werror.WithCode(codes.InvalidArgument))
+			return nil, errors.New("testing", errors.WithID("server.interceptor.error.testing"), errors.WithCode(codes.InvalidArgument))
 		})
 
 		require.Error(t, err)

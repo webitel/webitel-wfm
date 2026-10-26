@@ -2,7 +2,7 @@
 
 ################################################################################
 # Create a stage for building the application.
-ARG GO_VERSION=1.22
+ARG GO_VERSION=1.26
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
 WORKDIR /src
 
@@ -25,7 +25,7 @@ ARG TARGETARCH
 # source code into the container.
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,target=. \
-    CGO_ENABLED=0 GOARCH=$TARGETARCH go build -o /bin/webitel-wfm webitel-wfm.go
+    CGO_ENABLED=0 GOARCH=$TARGETARCH go build -o /bin/webitel-wfm .
 
 ################################################################################
 # Create a new stage for running the application that contains the minimal

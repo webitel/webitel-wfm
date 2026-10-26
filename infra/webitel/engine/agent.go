@@ -6,22 +6,17 @@ import (
 
 	gogrpc "buf.build/gen/go/webitel/engine/grpc/go/_gogrpc"
 	pb "buf.build/gen/go/webitel/engine/protocolbuffers/go"
-	"github.com/webitel/webitel-go-kit/logging/wlog"
 
 	"github.com/webitel/webitel-wfm/infra/webitel"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
 type AgentService struct {
-	log *wlog.Logger
 	cli gogrpc.AgentServiceClient
 }
 
 func newAgentServiceClient(cli *Client) *AgentService {
-	return &AgentService{
-		log: cli.log,
-		cli: gogrpc.NewAgentServiceClient(cli.conn),
-	}
+	return &AgentService{cli: gogrpc.NewAgentServiceClient(cli.conn)}
 }
 
 func (a *AgentService) Agent(ctx context.Context, id int64) (int64, error) {

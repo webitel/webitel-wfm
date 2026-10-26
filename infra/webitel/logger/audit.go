@@ -6,25 +6,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/webitel/webitel-wfm/infra/pubsub"
+	"github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq"
+
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
-var (
+const (
+	exchange = "logger"
 	rkFormat = "logger.%d.%s"
-	exchange = pubsub.Exchange{
-		Name:    "logger",
-		Type:    pubsub.ExchangeTypeTopic,
-		Durable: false,
-	}
 )
 
 type Audit struct {
 	svc *ConfigService
-	pub *pubsub.Manager
+	pub *rabbitmq.MessagePublisher
 }
 
-func NewAudit(svc *ConfigService, pub *pubsub.Manager) *Audit {
+func NewAudit(svc *ConfigService, pub *rabbitmq.MessagePublisher) *Audit {
 	return &Audit{
 		svc: svc,
 		pub: pub,
@@ -80,7 +77,7 @@ func (a *Audit) audit(ctx context.Context, action Action, user *model.SignedInUs
 		},
 	}
 
-	if err = a.pub.Channel().Publish(ctx, exchange.Name, fmt.Sprintf(rkFormat, msg.DomainId, user.Object), msg.ToJson()); err != nil {
+	if err = a.pub.Publish(ctx, exchange, fmt.Sprintf(rkFormat, msg.DomainId, user.Object), msg.ToJson(), nil); err != nil {
 		return err
 	}
 

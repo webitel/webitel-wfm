@@ -8,12 +8,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/webitel/engine/pkg/wbt/auth_manager"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
+	"github.com/webitel/webitel-wfm/infra/webitel/auth"
 	"github.com/webitel/webitel-wfm/internal/model"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const hdrTokenAccess = "X-Webitel-Access"
@@ -21,23 +21,23 @@ const hdrTokenAccess = "X-Webitel-Access"
 var reg = regexp.MustCompile(`^(.*\.)`)
 
 var (
-	ErrInvalidToken    = werror.Unauthenticated("auth token is invalid", werror.WithID("interceptor.auth.metadata"))
-	ErrInvalidSession  = werror.Unauthenticated("auth session is invalid", werror.WithID("interceptor.auth.session"))
-	ErrLicenseRequired = werror.Forbidden("license required", werror.WithID("interceptor.auth.license"))
-	ErrForbidden       = werror.Forbidden("permission denied on resource (or it might not exist)", werror.WithID("interceptor.auth.permission"))
+	ErrInvalidToken    = errors.Unauthenticated("auth token is invalid", errors.WithID("interceptor.auth.metadata"))
+	ErrInvalidSession  = errors.Unauthenticated("auth session is invalid", errors.WithID("interceptor.auth.session"))
+	ErrLicenseRequired = errors.Forbidden("license required", errors.WithID("interceptor.auth.license"))
+	ErrForbidden       = errors.Forbidden("permission denied on resource (or it might not exist)", errors.WithID("interceptor.auth.permission"))
 )
 
 // AuthUnaryServerInterceptor returns a server interceptor function to authenticate && authorize unary RPC.
-func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServerInterceptor {
+func AuthUnaryServerInterceptor(authcli auth.Manager) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		token, err := tokenFromContext(ctx)
 		if err != nil {
-			return nil, werror.Wrap(ErrInvalidToken, werror.WithCause(err))
+			return nil, errors.Wrap(ErrInvalidToken, errors.WithCause(err))
 		}
 
-		session, err := validateSession(authcli, token)
+		session, err := validateSession(ctx, authcli, token)
 		if err != nil {
-			return nil, werror.Wrap(ErrInvalidSession, werror.WithCause(err))
+			return nil, errors.Wrap(ErrInvalidSession, errors.WithCause(err))
 		}
 
 		objClass, licenses, action := objClassWithAction(info)
@@ -50,8 +50,8 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 			}
 
 			if len(nfl) > 0 {
-				return nil, werror.Wrap(ErrLicenseRequired, werror.WithValue("objclass", objClass),
-					werror.WithValue("license", strings.Join(nfl, ", ")),
+				return nil, errors.Wrap(ErrLicenseRequired, errors.WithValue("objclass", objClass),
+					errors.WithValue("license", strings.Join(nfl, ", ")),
 				)
 			}
 		}
@@ -59,17 +59,17 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 		ok, useRBAC := validateSessionPermission(session, objClass, action)
 		_ = ok
 		//if ok { // FIXME: must be !ok
-		//	return nil, werror.Wrap(ErrForbidden, werror.WithValue("objclass", objClass), werror.WithValue("action", action.Name()))
+		//	return nil, errors.Wrap(ErrForbidden, errors.WithValue("objclass", objClass), errors.WithValue("action", action.Name()))
 		//}
 
 		s := &model.SignedInUser{
-			Token:    session.Id,
-			DomainId: session.DomainId,
-			Id:       session.UserId,
+			Token:    session.Token,
+			DomainId: session.DomainID,
+			Id:       session.UserID,
 			Object:   objClass,
 			UseRBAC:  useRBAC,
 			RbacOptions: model.RbacOptions{
-				Groups: session.GetAclRoles(),
+				Groups: session.Roles(),
 				Access: action.Value(),
 			},
 		}
@@ -81,65 +81,68 @@ func AuthUnaryServerInterceptor(authcli auth_manager.AuthManager) grpc.UnaryServ
 func tokenFromContext(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", werror.New("empty metadata")
+		return "", errors.New("empty metadata")
 	}
 
 	token := md.Get(hdrTokenAccess)
 	if len(token) < 1 {
-		return "", werror.New("can't find authorization token")
+		return "", errors.New("can't find authorization token")
 	}
 
 	if token[0] == "" {
-		return "", werror.New("empty authorization token")
+		return "", errors.New("empty authorization token")
 	}
 
 	return token[0], nil
 }
 
-func validateSession(authcli auth_manager.AuthManager, token string) (*auth_manager.Session, error) {
-	ctx := context.Background()
-	session, err := authcli.GetSession(ctx, token)
+func validateSession(ctx context.Context, authcli auth.Manager, token string) (*auth.Session, error) {
+	session, err := authcli.Session(ctx, token)
 	if err != nil {
-		return nil, werror.Prepend(err, "client")
+		return nil, errors.Prepend(err, "client")
 	}
 
-	if err := session.IsValid(); err != nil {
+	if session == nil {
+		return nil, errors.New("empty session")
+	}
+
+	if err := session.Validate(); err != nil {
 		return nil, err
 	}
 
-	if session.IsExpired() {
-		return nil, werror.New("expired authorization token")
+	if session.Expired() {
+		return nil, errors.New("expired authorization token")
 	}
 
 	return session, nil
 }
 
-func objClassWithAction(info *grpc.UnaryServerInfo) (string, []string, auth_manager.PermissionAccess) {
+func objClassWithAction(info *grpc.UnaryServerInfo) (string, []string, auth.Access) {
 	service, method := splitFullMethodName(info.FullMethod)
 	objClass := pb.WebitelAPI[service].ObjClass
 	licenses := pb.WebitelAPI[service].AdditionalLicenses
 	action := pb.WebitelAPI[service].WebitelMethods[method].Access
 
 	// TODO: make licenses unique list
-	return objClass, append(licenses, "WFM"), auth_manager.PermissionAccess(action)
+	return objClass, append(licenses, "WFM"), auth.Access(action)
 }
 
-func validateSessionPermission(session *auth_manager.Session, objClass string, action auth_manager.PermissionAccess) (bool, bool) {
-	permission := session.GetPermission(objClass)
+func validateSessionPermission(session *auth.Session, objClass string, action auth.Access) (bool, bool) {
+	permission := session.Permission(objClass)
 	switch action {
-	case auth_manager.PERMISSION_ACCESS_CREATE:
+	case auth.AccessCreate:
 		if !permission.CanCreate() {
 			return false, false
 		}
-	case auth_manager.PERMISSION_ACCESS_READ:
+	case auth.AccessRead:
 		if !permission.CanRead() {
 			return false, false
 		}
-	case auth_manager.PERMISSION_ACCESS_UPDATE:
+	case auth.AccessUpdate:
 		if !permission.CanRead() && !permission.CanUpdate() {
 			return false, false
 		}
-	case auth_manager.PERMISSION_ACCESS_DELETE:
+	case auth.AccessDelete:
 		if !permission.CanDelete() {
 			return false, false
 		}

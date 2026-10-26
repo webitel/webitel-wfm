@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -17,14 +15,10 @@ type ForecastCalculation struct {
 	service service.ForecastCalculationManager
 }
 
-func NewForecastCalculation(sr grpc.ServiceRegistrar, service service.ForecastCalculationManager) *ForecastCalculation {
-	s := &ForecastCalculation{
+func NewForecastCalculation(service service.ForecastCalculationManager) *ForecastCalculation {
+	return &ForecastCalculation{
 		service: service,
 	}
-
-	pb.RegisterForecastCalculationServiceServer(sr, s)
-
-	return s
 }
 
 func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, req *pb.CreateForecastCalculationRequest) (*pb.CreateForecastCalculationResponse, error) {

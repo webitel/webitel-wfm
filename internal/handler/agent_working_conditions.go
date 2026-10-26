@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
@@ -17,14 +15,10 @@ type AgentWorkingConditions struct {
 	service service.AgentWorkingConditionsManager
 }
 
-func NewAgentWorkingConditions(sr grpc.ServiceRegistrar, service service.AgentWorkingConditionsManager) *AgentWorkingConditions {
-	s := &AgentWorkingConditions{
+func NewAgentWorkingConditions(service service.AgentWorkingConditionsManager) *AgentWorkingConditions {
+	return &AgentWorkingConditions{
 		service: service,
 	}
-
-	pb.RegisterAgentWorkingConditionsServiceServer(sr, s)
-
-	return s
 }
 
 func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, req *pb.ReadAgentWorkingConditionsRequest) (*pb.ReadAgentWorkingConditionsResponse, error) {

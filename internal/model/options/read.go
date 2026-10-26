@@ -3,9 +3,10 @@ package options
 import (
 	"context"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 var (
@@ -24,7 +25,7 @@ type Read struct {
 func NewRead(ctx context.Context, options ...Option) (*Read, error) {
 	s := grpccontext.FromContext(ctx)
 	if s.SignedInUser == nil {
-		return nil, werror.Unauthenticated("can not find signed in user", werror.WithID("model.options.user"))
+		return nil, errors.Unauthenticated("can not find signed in user", errors.WithID("model.options.user"))
 	}
 
 	read := &Read{

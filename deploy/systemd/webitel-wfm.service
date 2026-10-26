@@ -10,6 +10,7 @@ User=webitel-svc
 Group=webitel-svc
 LogsDirectory=webitel
 
+Environment="SERVICE_ADDR=127.0.0.1:10022"
 EnvironmentFile=/etc/default/webitel-wfm
 EnvironmentFile=-/etc/default/webitel-otel
 EnvironmentFile=-/etc/default/webitel

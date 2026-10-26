@@ -3,12 +3,12 @@ package storage
 import (
 	"context"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	b "github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 type WorkingConditionManager interface {
@@ -20,10 +20,10 @@ type WorkingConditionManager interface {
 }
 
 type WorkingCondition struct {
-	db cluster.Store
+	db dbsql.Store
 }
 
-func NewWorkingCondition(db cluster.Store) *WorkingCondition {
+func NewWorkingCondition(db dbsql.Store) *WorkingCondition {
 	return &WorkingCondition{
 		db: db,
 	}
@@ -69,11 +69,11 @@ func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, read *optio
 	}
 
 	if len(items) > 1 {
-		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.working_condition.read.conflict"))
+		return nil, errors.Wrap(dbsql.ErrEntityConflict, errors.WithID("storage.working_condition.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.working_condition.read"))
+		return nil, errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.working_condition.read"))
 	}
 
 	return items[0], nil

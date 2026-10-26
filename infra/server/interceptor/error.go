@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/webitel/webitel-wfm/pkg/werror"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 )
 
 type rpcError struct {
@@ -24,15 +24,15 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		h, err := handler(ctx, req)
 		if err != nil {
-			code := httpStatusFromCode(werror.Code(err))
+			code := httpStatusFromCode(errors.Code(err))
 			e := rpcError{
-				ID:     werror.ID(err),
+				ID:     errors.ID(err),
 				Detail: err.Error(),
 				Code:   int32(code),
 				Status: http.StatusText(code),
 			}
 
-			vals := werror.Values(err)
+			vals := errors.Values(err)
 			for k, v := range vals {
 				if key, ok := k.(string); ok {
 					e.Detail += "; " + key + " = " + fmt.Sprintf("%v", v)
@@ -41,7 +41,7 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 
 			data, err := json.Marshal(e)
 			if err != nil {
-				panic(werror.New("can't marshal json error", werror.WithCause(err)))
+				panic(errors.New("can't marshal json error", errors.WithCause(err)))
 			}
 
 			return h, status.Error(codes.Code(code), string(data))

@@ -4,13 +4,12 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/webitel/webitel-wfm/infra/storage/cache"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/pkg/fields"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
 const (
@@ -18,7 +17,7 @@ const (
 	forecastCalculationView  = forecastCalculationTable + "_v"
 )
 
-var ErrForecastProcedureNotFound = werror.NotFound("requested forecast calculation procedure does not exists", werror.WithID("storage.forecast_calculation.procedure"))
+var ErrForecastProcedureNotFound = errors.NotFound("requested forecast calculation procedure does not exists", errors.WithID("storage.forecast_calculation.procedure"))
 
 type ForecastCalculationManager interface {
 	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
@@ -31,15 +30,13 @@ type ForecastCalculationManager interface {
 }
 
 type ForecastCalculation struct {
-	db         cluster.Store
-	forecastDB cluster.ForecastStore
-	cache      *cache.Scope[model.ForecastCalculation]
+	db         dbsql.Store
+	forecastDB dbsql.ForecastStore
 }
 
-func NewForecastCalculation(db cluster.Store, manager cache.Manager, forecastDB cluster.ForecastStore) *ForecastCalculation {
+func NewForecastCalculation(db dbsql.Store, forecastDB dbsql.ForecastStore) *ForecastCalculation {
 	return &ForecastCalculation{
 		db:         db,
-		cache:      cache.NewScope[model.ForecastCalculation](manager, forecastCalculationTable),
 		forecastDB: forecastDB,
 	}
 }
@@ -82,11 +79,11 @@ func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, user 
 	}
 
 	if len(items) > 1 {
-		return nil, werror.Wrap(dbsql.ErrEntityConflict, werror.WithID("storage.forecast_calculation.read.conflict"))
+		return nil, errors.Wrap(dbsql.ErrEntityConflict, errors.WithID("storage.forecast_calculation.read.conflict"))
 	}
 
 	if len(items) == 0 {
-		return nil, werror.Wrap(dbsql.ErrNoRows, werror.WithID("storage.forecast_calculation.read"))
+		return nil, errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.forecast_calculation.read"))
 	}
 
 	return items[0], nil
@@ -178,8 +175,10 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, us
 	par, args := interpolateArguments(item.Args, teamId, forecast)
 	sql := "SELECT * FROM " + item.Procedure + "(" + par + ")"
 
+	// The procedure is opaque to us and may write; a standby session is
+	// read-only. This replaces the old Alive(), which picked any healthy node.
 	var out []*model.ForecastCalculationResult
-	if err := f.forecastDB.Alive().Select(ctx, &out, sql, args...); err != nil {
+	if err := f.forecastDB.Primary().Select(ctx, &out, sql, args...); err != nil {
 		return nil, err
 	}
 
@@ -195,8 +194,8 @@ func (f *ForecastCalculation) checkProcedure(ctx context.Context, proc string) e
 	// to_regproc will return NULL rather than throwing an error if the name is not found or is ambiguous,
 	// so we need to check this and return error if received NULL
 	if exists == nil {
-		return werror.Wrap(ErrForecastProcedureNotFound, werror.WithCause(dbsql.ErrNoRows),
-			werror.WithValue("procedure", proc),
+		return errors.Wrap(ErrForecastProcedureNotFound, errors.WithCause(dbsql.ErrNoRows),
+			errors.WithValue("procedure", proc),
 		)
 	}
 

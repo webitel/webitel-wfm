@@ -3,8 +3,8 @@ package storage
 import (
 	"context"
 
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	b "github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/infra/storage/dbsql/cluster"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 )
@@ -15,10 +15,10 @@ type AgentWorkingConditionsManager interface {
 }
 
 type AgentWorkingConditions struct {
-	db cluster.Store
+	db dbsql.Store
 }
 
-func NewAgentWorkingConditions(db cluster.Store) *AgentWorkingConditions {
+func NewAgentWorkingConditions(db dbsql.Store) *AgentWorkingConditions {
 	return &AgentWorkingConditions{
 		db: db,
 	}

@@ -1,0 +1,28 @@
+# Copy to config/config.yml (ignored by git) and pass with --config_file.
+# Every key can also be set as an environment variable: postgres.dsn -> POSTGRES_DSN.
+# These values match the local stack from _context/stack/docker-compose.yml.
+
+service:
+  addr: "127.0.0.1:10031"
+  probe_addr: "127.0.0.1:10033"
+
+log:
+  level: "debug"
+  console: true
+  json: false
+
+postgres:
+  dsn: "postgres://opensips:webitel@127.0.0.1:25432/webitel?sslmode=disable"
+
+# Optional; falls back to postgres.dsn.
+forecast:
+  dsn: ""
+
+cache:
+  size: 1024
+
+consul:
+  addr: "127.0.0.1:28500"
+
+pubsub:
+  url: "amqp://webitel:webitel@127.0.0.1:25672/"

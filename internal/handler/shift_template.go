@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
@@ -17,14 +15,10 @@ type ShiftTemplate struct {
 	service service.ShiftTemplateManager
 }
 
-func NewShiftTemplate(sr grpc.ServiceRegistrar, service service.ShiftTemplateManager) *ShiftTemplate {
-	s := &ShiftTemplate{
+func NewShiftTemplate(service service.ShiftTemplateManager) *ShiftTemplate {
+	return &ShiftTemplate{
 		service: service,
 	}
-
-	pb.RegisterShiftTemplateServiceServer(sr, s)
-
-	return s
 }
 
 func (h *ShiftTemplate) CreateShiftTemplate(ctx context.Context, req *pb.CreateShiftTemplateRequest) (*pb.CreateShiftTemplateResponse, error) {

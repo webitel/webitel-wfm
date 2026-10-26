@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
@@ -17,14 +15,10 @@ type WorkingCondition struct {
 	service service.WorkingConditionManager
 }
 
-func NewWorkingCondition(sr grpc.ServiceRegistrar, service service.WorkingConditionManager) *WorkingCondition {
-	s := &WorkingCondition{
+func NewWorkingCondition(service service.WorkingConditionManager) *WorkingCondition {
+	return &WorkingCondition{
 		service: service,
 	}
-
-	pb.RegisterWorkingConditionServiceServer(sr, s)
-
-	return s
 }
 
 func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, req *pb.CreateWorkingConditionRequest) (*pb.CreateWorkingConditionResponse, error) {

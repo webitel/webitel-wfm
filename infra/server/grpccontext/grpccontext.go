@@ -10,7 +10,6 @@ type grpcContextKey struct{}
 
 type GRPCServerContext struct {
 	SignedInUser *model.SignedInUser
-	RequestId    string
 }
 
 func FromContext(ctx context.Context) *GRPCServerContext {
@@ -29,17 +28,6 @@ func SetUser(ctx context.Context, user *model.SignedInUser) context.Context {
 	}
 
 	grpcContext.SignedInUser = user
-
-	return context.WithValue(ctx, grpcContextKey{}, grpcContext)
-}
-
-func SetRequestId(ctx context.Context, requestId string) context.Context {
-	grpcContext := FromContext(ctx)
-	if grpcContext == nil {
-		grpcContext = &GRPCServerContext{}
-	}
-
-	grpcContext.RequestId = requestId
 
 	return context.WithValue(ctx, grpcContextKey{}, grpcContext)
 }

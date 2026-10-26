@@ -2,16 +2,16 @@ package interceptor
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"time"
 
-	"github.com/webitel/webitel-go-kit/logging/wlog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
 // LoggingUnaryServerInterceptor returns a new unary server interceptor for logging requests.
-func LoggingUnaryServerInterceptor(log *wlog.Logger) grpc.UnaryServerInterceptor {
+func LoggingUnaryServerInterceptor(log *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		start := time.Now()
 		ip := "<not found>"
@@ -23,10 +23,11 @@ func LoggingUnaryServerInterceptor(log *wlog.Logger) grpc.UnaryServerInterceptor
 
 		// TODO: Client errors (that do not appear as an application logic error)
 		// 	should be logged as DEBUG or INFO level.
-		log.Debug("processed request", wlog.Err(err),
-			wlog.String("client_ip", ip),
-			wlog.Any("method", info.FullMethod),
-			wlog.String("duration", time.Since(start).String()),
+		// Context-aware, so the record carries the request's trace ids.
+		log.DebugContext(ctx, "processed request", slog.Any("error", err),
+			slog.String("client_ip", ip),
+			slog.Any("method", info.FullMethod),
+			slog.String("duration", time.Since(start).String()),
 		)
 
 		return h, err

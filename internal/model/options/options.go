@@ -3,11 +3,12 @@ package options
 import (
 	"strings"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
-	"github.com/webitel/webitel-wfm/pkg/werror"
 )
 
-var ErrInsufficientRequestCapabilities = werror.InvalidArgument("insufficient request option capabilities", werror.WithID("model.options"))
+var ErrInsufficientRequestCapabilities = errors.InvalidArgument("insufficient request option capabilities", errors.WithID("model.options"))
 
 type Option func(options any) error
 
@@ -16,7 +17,7 @@ func WithID(id int64) Option {
 		v, ok := options.(interface{ WithID(int64) *Read })
 		if !ok {
 			if err := WithIDs(id)(options); err != nil {
-				return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithCause(err), werror.WithValue("option", "id"))
+				return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithCause(err), errors.WithValue("option", "id"))
 			}
 
 			return nil
@@ -38,7 +39,7 @@ func WithIDs(id ...int64) Option {
 	return func(options any) error {
 		v, ok := options.(interface{ WithIDs([]int64) })
 		if !ok {
-			return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "ids"))
+			return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithValue("option", "ids"))
 		}
 
 		v.WithIDs(id)
@@ -65,7 +66,7 @@ func WithSearch(term string) Option {
 		if term != "" {
 			v, ok := options.(interface{ WithSearch(string) })
 			if !ok {
-				return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "search"))
+				return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithValue("option", "search"))
 			}
 
 			v.WithSearch(term)
@@ -95,7 +96,7 @@ func WithPagination(page, size int32) Option {
 	return func(options any) error {
 		v, ok := options.(interface{ WithPagination(int32, int32) })
 		if !ok {
-			return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "pagination"))
+			return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithValue("option", "pagination"))
 		}
 
 		if page == 0 {
@@ -116,7 +117,7 @@ func WithPagination(page, size int32) Option {
 func processField(options any, fieldParts []string) error {
 	v, ok := options.(FieldsOption)
 	if !ok {
-		return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "fields"))
+		return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithValue("option", "fields"))
 	}
 
 	firstPart := fieldParts[0]
@@ -127,7 +128,7 @@ func processField(options any, fieldParts []string) error {
 		// Check if we need to create or traverse into a nested derived struct
 		d, ok := options.(DerivedOptions)
 		if !ok {
-			return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "derived_fields"))
+			return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithValue("option", "derived_fields"))
 		}
 
 		derived := d.DerivedByName(firstPart)
@@ -151,7 +152,7 @@ func processField(options any, fieldParts []string) error {
 func processOrderByField(options any, fieldParts []string, direction builder.OrderDirection) error {
 	v, ok := options.(OrderByOption)
 	if !ok {
-		return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "order_by"))
+		return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithValue("option", "order_by"))
 	}
 
 	// Recursive case: It's a nested field
@@ -167,7 +168,7 @@ func processOrderByField(options any, fieldParts []string, direction builder.Ord
 
 	d, ok := options.(DerivedOptions)
 	if !ok {
-		return werror.Wrap(ErrInsufficientRequestCapabilities, werror.WithValue("option", "derived_order_by"))
+		return errors.Wrap(ErrInsufficientRequestCapabilities, errors.WithValue("option", "derived_order_by"))
 	}
 
 	derived := d.DerivedByName(firstPart)

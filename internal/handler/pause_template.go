@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
@@ -17,14 +15,10 @@ type PauseTemplate struct {
 	service service.PauseTemplateManager
 }
 
-func NewPauseTemplate(sr grpc.ServiceRegistrar, service service.PauseTemplateManager) *PauseTemplate {
-	s := &PauseTemplate{
+func NewPauseTemplate(service service.PauseTemplateManager) *PauseTemplate {
+	return &PauseTemplate{
 		service: service,
 	}
-
-	pb.RegisterPauseTemplateServiceServer(sr, s)
-
-	return s
 }
 
 func (h *PauseTemplate) CreatePauseTemplate(ctx context.Context, req *pb.CreatePauseTemplateRequest) (*pb.CreatePauseTemplateResponse, error) {

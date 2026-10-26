@@ -1,7 +1,6 @@
 package dbsql
 
 import (
-	"errors"
 	"regexp"
 	"sync"
 
@@ -9,31 +8,35 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/webitel/webitel-wfm/pkg/werror"
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 )
 
 var (
-	ErrInternal = werror.Internal("internal server error", werror.WithID("dbsql.internal"))
+	ErrInternal = errors.Internal("internal server error", errors.WithID("dbsql.internal"))
 
-	ErrNoRows              = werror.NotFound("entity does not exists or you do not have enough permissions to perform the operation", werror.WithID("dbsql.query.no_rows"))
-	ErrUniqueViolation     = werror.Aborted("invalid input: entity already exists", werror.WithID("dbsql.unique_violation"))
-	ErrForeignKeyViolation = werror.Aborted("invalid input: violates foreign key constraint", werror.WithID("dbsql.foreign_key_violation"))
-	ErrCheckViolation      = werror.Aborted("invalid input: violates check constraint", werror.WithID("dbsql.check_violation"))
-	ErrNotNullViolation    = werror.Aborted("invalid input: violates not null constraint: column can not be null", werror.WithID("dbsql.not_null_violation"))
-	ErrEntityConflict      = werror.Aborted("invalid input: found more then one requested entity", werror.WithID("dbsql.conflict"))
+	ErrNoRows              = errors.NotFound("entity does not exists or you do not have enough permissions to perform the operation", errors.WithID("dbsql.query.no_rows"))
+	ErrUniqueViolation     = errors.Aborted("invalid input: entity already exists", errors.WithID("dbsql.unique_violation"))
+	ErrForeignKeyViolation = errors.Aborted("invalid input: violates foreign key constraint", errors.WithID("dbsql.foreign_key_violation"))
+	ErrCheckViolation      = errors.Aborted("invalid input: violates check constraint", errors.WithID("dbsql.check_violation"))
+	ErrNotNullViolation    = errors.Aborted("invalid input: violates not null constraint: column can not be null", errors.WithID("dbsql.not_null_violation"))
+	ErrEntityConflict      = errors.Aborted("invalid input: found more then one requested entity", errors.WithID("dbsql.conflict"))
 )
 
 func ParseError(err error) error {
+	if err == nil {
+		return nil
+	}
+
 	if errors.Is(err, pgx.ErrNoRows) {
-		return werror.Wrap(ErrNoRows, werror.WithCause(err))
+		return errors.Wrap(ErrNoRows, errors.WithCause(err))
 	}
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case pgerrcode.UniqueViolation:
-			return werror.Wrap(ErrUniqueViolation, werror.WithCause(err),
-				werror.WithValue("entity", findColumn(pgErr.Detail)+" = "+findValue(pgErr.Detail)),
+			return errors.Wrap(ErrUniqueViolation, errors.WithCause(err),
+				errors.WithValue("entity", findColumn(pgErr.Detail)+" = "+findValue(pgErr.Detail)),
 			)
 		case pgerrcode.ForeignKeyViolation:
 			msg := "value is still referenced by the parent table"
@@ -41,23 +44,25 @@ func ParseError(err error) error {
 				msg = "value isn't present in the parent table"
 			}
 
-			return werror.Wrap(ErrForeignKeyViolation, werror.WithCause(err), werror.AppendMessage(msg),
-				werror.WithValue("value", findColumn(pgErr.Detail)+" = "+findValue(pgErr.Detail)),
-				werror.WithValue("foreign_table", findForeignKeyTable(pgErr.Detail)),
+			return errors.Wrap(ErrForeignKeyViolation, errors.WithCause(err), errors.AppendMessage(msg),
+				errors.WithValue("value", findColumn(pgErr.Detail)+" = "+findValue(pgErr.Detail)),
+				errors.WithValue("foreign_table", findForeignKeyTable(pgErr.Detail)),
 			)
 		case pgerrcode.CheckViolation:
-			return werror.Wrap(ErrCheckViolation, werror.WithCause(err),
-				werror.AppendMessage(checkViolationErrorRegistry[pgErr.ConstraintName]),
-				werror.WithValue("constraint", pgErr.ConstraintName),
-			)
+			opts := []errors.Wrapper{errors.WithCause(err), errors.WithValue("constraint", pgErr.ConstraintName)}
+			if msg := constraintMessage(pgErr.ConstraintName); msg != "" {
+				opts = append(opts, errors.AppendMessage(msg))
+			}
+
+			return errors.Wrap(ErrCheckViolation, opts...)
 		case pgerrcode.NotNullViolation:
-			return werror.Wrap(ErrNotNullViolation, werror.WithCause(err),
-				werror.WithValue("column", pgErr.TableName+"."+pgErr.ColumnName),
+			return errors.Wrap(ErrNotNullViolation, errors.WithCause(err),
+				errors.WithValue("column", pgErr.TableName+"."+pgErr.ColumnName),
 			)
 		}
 	}
 
-	return werror.Wrap(ErrInternal, werror.WithCause(err))
+	return errors.Wrap(ErrInternal, errors.WithCause(err))
 }
 
 var checkViolationErrorRegistry = map[string]string{}
@@ -80,6 +85,13 @@ func RegisterConstraint(name, message string) {
 	}
 
 	checkViolationErrorRegistry[name] = message
+}
+
+func constraintMessage(name string) string {
+	constraintMu.RLock()
+	defer constraintMu.RUnlock()
+
+	return checkViolationErrorRegistry[name]
 }
 
 var columnFinder = regexp.MustCompile(`Key \((.+)\)=`)
