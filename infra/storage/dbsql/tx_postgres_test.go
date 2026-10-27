@@ -754,6 +754,7 @@ func TestPGCheckThenWriteRacesWithoutALock(t *testing.T) {
 	defer cancel()
 
 	arrived, release := make(chan struct{}, writers), make(chan struct{})
+
 	go func() {
 		for range writers {
 			<-arrived
