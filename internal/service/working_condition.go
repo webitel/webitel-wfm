@@ -31,7 +31,7 @@ func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, read *opt
 		return nil, err
 	}
 
-	return w.ReadWorkingCondition(ctx, read.WithID(id))
+	return w.ReadWorkingCondition(ctx, read.WithID(id).WithAfterWrite())
 }
 
 func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, read *options.Read) (*model.WorkingCondition, error) {
@@ -59,7 +59,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, read *opt
 		return nil, err
 	}
 
-	return w.ReadWorkingCondition(ctx, read)
+	return w.ReadWorkingCondition(ctx, read.WithAfterWrite())
 }
 
 func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, read *options.Read) (int64, error) {

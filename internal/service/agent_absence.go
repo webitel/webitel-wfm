@@ -77,6 +77,8 @@ func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, search *options
 	}
 
 	search.WithIDs(ids)
+	search.WithAfterWrite()
+
 	out, _, err := a.SearchAgentsAbsences(ctx, search)
 	if err != nil {
 		return nil, err

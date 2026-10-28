@@ -233,7 +233,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 
 	var items []*model.WorkingCondition
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := w.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := readNode(w.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 

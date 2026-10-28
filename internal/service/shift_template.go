@@ -32,7 +32,7 @@ func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, read *options.R
 		return nil, err
 	}
 
-	return s.ReadShiftTemplate(ctx, read.WithID(id))
+	return s.ReadShiftTemplate(ctx, read.WithID(id).WithAfterWrite())
 }
 
 func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Read) (*model.ShiftTemplate, error) {
@@ -60,7 +60,7 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, read *options.R
 		return nil, err
 	}
 
-	return s.ReadShiftTemplate(ctx, read)
+	return s.ReadShiftTemplate(ctx, read.WithAfterWrite())
 }
 
 func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, read *options.Read) (int64, error) {

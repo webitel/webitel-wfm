@@ -81,6 +81,8 @@ type Search struct {
 	page  int
 	size  int
 
+	afterWrite bool
+
 	// TODO: parse CEL expressions
 	//nolint:unused
 	filter map[string]any
@@ -182,9 +184,20 @@ func (s *Search) WithPagination(page, size int32) {
 	}
 }
 
+// AfterWrite reports whether the search follows the caller's own write and so
+// must see it: a lagging replica may not have the rows yet.
+func (s *Search) AfterWrite() bool {
+	return s.afterWrite
+}
+
+func (s *Search) WithAfterWrite() {
+	s.afterWrite = true
+}
+
 func (s *Search) PopulateFromRead(r *Read) *Search {
 	s.fields = r.fields
 	s.derived = r.derived
+	s.afterWrite = r.afterWrite
 
 	return s
 }

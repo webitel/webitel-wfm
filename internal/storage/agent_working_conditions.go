@@ -93,7 +93,7 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 
 	var item model.AgentWorkingConditions
 	sql, args := base.Build()
-	if err := a.db.StandbyPreferred().Get(ctx, &item, sql, args...); err != nil {
+	if err := readNode(a.db, read.AfterWrite()).Get(ctx, &item, sql, args...); err != nil {
 		return nil, err
 	}
 

@@ -248,7 +248,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, search *options
 
 	var items []*model.AgentAbsences
 	sql, args := base.Build() // TODO: add ORDER BY clauses
-	if err := a.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := readNode(a.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 

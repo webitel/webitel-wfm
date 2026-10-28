@@ -64,7 +64,8 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 		return nil, err
 	}
 
-	out, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: id})
+	// The row was just committed; a standby may not have it yet.
+	out, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{Id: id})
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,11 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 }
 
 func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) (*model.ForecastCalculation, error) {
-	items, err := f.SearchForecastCalculation(ctx, user, search)
+	return f.read(ctx, f.db.StandbyPreferred(), user, search)
+}
+
+func (f *ForecastCalculation) read(ctx context.Context, node dbsql.Node, user *model.SignedInUser, search *model.SearchItem) (*model.ForecastCalculation, error) {
+	items, err := f.search(ctx, node, user, search)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +95,10 @@ func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, user 
 }
 
 func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, error) {
+	return f.search(ctx, f.db.StandbyPreferred(), user, search)
+}
+
+func (f *ForecastCalculation) search(ctx context.Context, node dbsql.Node, user *model.SignedInUser, search *model.SearchItem) ([]*model.ForecastCalculation, error) {
 	var (
 		items   []*model.ForecastCalculation
 		columns []string
@@ -108,7 +117,7 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, use
 		Offset(int(search.Offset())).
 		Build()
 
-	if err := f.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +148,8 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 		return nil, err
 	}
 
-	out, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: in.Id})
+	// The row was just updated; a standby may still hold the old one.
+	out, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{Id: in.Id})
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +173,9 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 }
 
 func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
-	item, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: id})
+	// The Forecast block runs the procedure as it was last saved; a standby
+	// may still hold the previous one.
+	item, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{Id: id})
 	if err != nil {
 		return nil, err
 	}

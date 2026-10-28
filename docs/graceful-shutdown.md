@@ -24,7 +24,7 @@ broadly consists of three phases:
    Services impacted: Webitel services, database, pubsub connection.
 
    When all active tasks and external service shutdown calls have completed, ```webitel-wfm``` begins shutting down 
-   infrastructure resources. ```webitel-wfm``` automatically closes all open database, cache and Pub/Sub connections, 
+   infrastructure resources. ```webitel-wfm``` automatically closes all open database and Pub/Sub connections, 
    other infrastructure resources.
     
    This phase continues until all infrastructure resources have been closed or the ForceShutdown deadline

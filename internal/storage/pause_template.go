@@ -11,9 +11,6 @@ import (
 	"github.com/webitel/webitel-wfm/internal/model/options"
 )
 
-// TODO: add cache invalidation
-// TODO: dont delete all keys within prefix (add something as id range 1-10 stored in cache key)
-
 type PauseTemplateManager interface {
 	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
 	ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error)
@@ -259,7 +256,7 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 
 	var items []*model.PauseTemplate
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := p.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := readNode(p.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 

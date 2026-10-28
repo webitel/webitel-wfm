@@ -49,7 +49,7 @@ func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Contex
 		return nil, err
 	}
 
-	out, err := a.ReadAgentWorkingConditions(ctx, read)
+	out, err := a.ReadAgentWorkingConditions(ctx, read.WithAfterWrite())
 	if err != nil {
 		return nil, err
 	}

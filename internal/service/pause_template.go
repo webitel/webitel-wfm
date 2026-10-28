@@ -38,7 +38,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, read *options.R
 		return nil, err
 	}
 
-	return p.ReadPauseTemplate(ctx, read.WithID(id))
+	return p.ReadPauseTemplate(ctx, read.WithID(id).WithAfterWrite())
 }
 
 func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error) {
@@ -66,7 +66,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, read *options.R
 		return nil, err
 	}
 
-	return p.ReadPauseTemplate(ctx, read)
+	return p.ReadPauseTemplate(ctx, read.WithAfterWrite())
 }
 
 func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error) {

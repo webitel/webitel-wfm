@@ -141,8 +141,10 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		GroupBy("agent").
 		Build()
 
+	// The calendar is reread after every edit, and shift create returns its own
+	// rows through here; a standby may not have replicated them yet.
 	var items []*model.AgentWorkingSchedule
-	if err := a.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := a.db.Primary().Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
@@ -155,8 +157,10 @@ func (a *AgentWorkingSchedule) Holidays(ctx context.Context, user *model.SignedI
 		sb.Equal("working_schedule_id", search.WorkingScheduleId),
 		sb.Between("date", search.SearchItem.Date.From, search.SearchItem.Date.To)).Build()
 
+	// The view follows the schedule's calendar and dates, so it is read from the
+	// same node as the shifts it is returned with.
 	var items []*model.Holiday
-	if err := a.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := a.db.Primary().Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 

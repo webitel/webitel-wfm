@@ -180,7 +180,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 
 	var items []*model.ShiftTemplate
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := s.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := readNode(s.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
