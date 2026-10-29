@@ -98,7 +98,23 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 }
 
 func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error) {
-	sb := builder.Select("agent AS agent", "jsonb_agg(schedule.*) FILTER (WHERE date NOTNULL) AS schedule")
+	sb := builder.Select()
+
+	// The period narrows the cells aggregated for each agent, not which agents
+	// are listed: an agent with nothing in the period still comes back, empty.
+	cells := []string{sb.IsNotNull("date")}
+
+	if s := search.SearchItem.Date; s != nil {
+		if s.From.Valid {
+			cells = append(cells, sb.GreaterEqualThan("date", s.From))
+		}
+
+		if s.To.Valid {
+			cells = append(cells, sb.LessEqualThan("date", s.To))
+		}
+	}
+
+	sb.Select("agent AS agent", "jsonb_agg(schedule.*) FILTER (WHERE "+sb.And(cells...)+") AS schedule")
 	if len(search.AgentIds) > 0 {
 		in := make([]any, 0, len(search.AgentIds))
 		for _, id := range search.AgentIds {
@@ -119,19 +135,6 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		}
 
 		sb.Where(sb.In("(shift ->> 'id')::bigint", in...))
-	}
-
-	if s := search.SearchItem.Date; s != nil {
-		var and []string
-		if s.From.Valid {
-			and = append(and, sb.GreaterEqualThan("date", s.From))
-		}
-
-		if s.To.Valid {
-			and = append(and, sb.LessEqualThan("date", s.To))
-		}
-
-		sb.Or(sb.IsNull("date"), sb.And(and...))
 	}
 
 	sql, args := sb.From(agentWorkingScheduleView+" AS schedule").

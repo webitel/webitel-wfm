@@ -3,9 +3,13 @@ package service
 import (
 	"context"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
+
+var ErrForecastCalculationEmptyAgents = errors.InvalidArgument("forecast calculation procedure returned an hour without a number of agents", errors.WithID("service.forecast_calculation.empty_agents"))
 
 type ForecastCalculationManager interface {
 	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
@@ -77,6 +81,14 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, us
 	out, err := f.storage.ExecuteForecastCalculation(ctx, user, id, teamId, forecast)
 	if err != nil {
 		return nil, err
+	}
+
+	// An hour without a number of agents rejects the whole forecast: it is not
+	// taken in part.
+	for _, i := range out {
+		if i.Agents == nil {
+			return nil, errors.Wrap(ErrForecastCalculationEmptyAgents, errors.WithValue("forecast_at", i.Timestamp.Time.String()))
+		}
 	}
 
 	return out, nil
