@@ -36,8 +36,8 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 	opts := &model.CreateAgentsWorkingScheduleShifts{
 		WorkingScheduleID: req.WorkingScheduleId,
 		Date: model.FilterBetween{
-			From: model.NewTimestamp(req.Date.From),
-			To:   model.NewTimestamp(req.Date.To),
+			From: model.NewTimestamp(req.GetDate().GetFrom()),
+			To:   model.NewTimestamp(req.GetDate().GetTo()),
 		},
 		Agents: agents,
 		Shifts: shifts,
@@ -61,8 +61,8 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		SearchItem: model.SearchItem{
 			Search: req.Q,
 			Date: &model.FilterBetween{
-				From: model.NewTimestamp(req.Date.From),
-				To:   model.NewTimestamp(req.Date.To),
+				From: model.NewTimestamp(req.GetDate().GetFrom()),
+				To:   model.NewTimestamp(req.GetDate().GetTo()),
 			},
 		},
 	}
@@ -83,7 +83,7 @@ func unmarshalAgentScheduleShift(in *pb.AgentScheduleShift) *model.AgentSchedule
 	pauses := make([]*model.AgentScheduleShiftPause, 0, len(in.Pauses))
 	for _, pause := range in.Pauses {
 		p := &model.AgentScheduleShiftPause{
-			DomainRecord: model.DomainRecord{Id: in.Id},
+			DomainRecord: model.DomainRecord{Id: pause.GetId()},
 			Start:        pause.Start,
 			End:          pause.End,
 		}

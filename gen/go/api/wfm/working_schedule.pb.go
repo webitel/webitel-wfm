@@ -28,9 +28,9 @@ type WorkingScheduleState int32
 
 const (
 	WorkingScheduleState_WORKING_SCHEDULE_STATE_UNSPECIFIED WorkingScheduleState = 0
-	WorkingScheduleState_WORKING_SCHEDULE_STATE_ACTIVE      WorkingScheduleState = 1
+	WorkingScheduleState_WORKING_SCHEDULE_STATE_DRAFT       WorkingScheduleState = 1
 	WorkingScheduleState_WORKING_SCHEDULE_STATE_PENDING     WorkingScheduleState = 2
-	WorkingScheduleState_WORKING_SCHEDULE_STATE_DRAFT       WorkingScheduleState = 3
+	WorkingScheduleState_WORKING_SCHEDULE_STATE_ACTIVE      WorkingScheduleState = 3
 	WorkingScheduleState_WORKING_SCHEDULE_STATE_ARCHIVED    WorkingScheduleState = 4
 )
 
@@ -38,16 +38,16 @@ const (
 var (
 	WorkingScheduleState_name = map[int32]string{
 		0: "WORKING_SCHEDULE_STATE_UNSPECIFIED",
-		1: "WORKING_SCHEDULE_STATE_ACTIVE",
+		1: "WORKING_SCHEDULE_STATE_DRAFT",
 		2: "WORKING_SCHEDULE_STATE_PENDING",
-		3: "WORKING_SCHEDULE_STATE_DRAFT",
+		3: "WORKING_SCHEDULE_STATE_ACTIVE",
 		4: "WORKING_SCHEDULE_STATE_ARCHIVED",
 	}
 	WorkingScheduleState_value = map[string]int32{
 		"WORKING_SCHEDULE_STATE_UNSPECIFIED": 0,
-		"WORKING_SCHEDULE_STATE_ACTIVE":      1,
+		"WORKING_SCHEDULE_STATE_DRAFT":       1,
 		"WORKING_SCHEDULE_STATE_PENDING":     2,
-		"WORKING_SCHEDULE_STATE_DRAFT":       3,
+		"WORKING_SCHEDULE_STATE_ACTIVE":      3,
 		"WORKING_SCHEDULE_STATE_ARCHIVED":    4,
 	}
 )
@@ -1229,10 +1229,10 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\x06agents\x18\x11 \x03(\v2\x11.wfm.LookupEntityR\x06agents\x12!\n" +
 	"\ftotal_agents\x18\x12 \x01(\x03R\vtotalAgents*\xcc\x01\n" +
 	"\x14WorkingScheduleState\x12&\n" +
-	"\"WORKING_SCHEDULE_STATE_UNSPECIFIED\x10\x00\x12!\n" +
-	"\x1dWORKING_SCHEDULE_STATE_ACTIVE\x10\x01\x12\"\n" +
-	"\x1eWORKING_SCHEDULE_STATE_PENDING\x10\x02\x12 \n" +
-	"\x1cWORKING_SCHEDULE_STATE_DRAFT\x10\x03\x12#\n" +
+	"\"WORKING_SCHEDULE_STATE_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cWORKING_SCHEDULE_STATE_DRAFT\x10\x01\x12\"\n" +
+	"\x1eWORKING_SCHEDULE_STATE_PENDING\x10\x02\x12!\n" +
+	"\x1dWORKING_SCHEDULE_STATE_ACTIVE\x10\x03\x12#\n" +
 	"\x1fWORKING_SCHEDULE_STATE_ARCHIVED\x10\x042\xad\n" +
 	"\n" +
 	"\x16WorkingScheduleService\x12\x8d\x01\n" +
