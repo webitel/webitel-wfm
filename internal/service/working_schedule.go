@@ -40,10 +40,11 @@ type WorkingSchedule struct {
 	forecast ForecastCalculationManager
 }
 
-func NewWorkingSchedule(storage storage.WorkingScheduleManager, engine *engine.Client) *WorkingSchedule {
+func NewWorkingSchedule(storage storage.WorkingScheduleManager, engine *engine.Client, forecast ForecastCalculationManager) *WorkingSchedule {
 	return &WorkingSchedule{
-		storage: storage,
-		engine:  engine,
+		storage:  storage,
+		engine:   engine,
+		forecast: forecast,
 	}
 }
 

@@ -203,7 +203,9 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		"block_outside_activity": in.BlockOutsideActivity,
 	}
 
-	cteq.With(builder.With("schedule").As(builder.Update(builder.WorkingScheduleTable.Name(), schedule).SQL("RETURNING id")))
+	upd := builder.Update(builder.WorkingScheduleTable.Name(), schedule)
+	upd.Where(upd.Equal("domain_id", user.DomainId), upd.Equal("id", in.Id)).SQL("RETURNING id")
+	cteq.With(builder.With("schedule").As(upd))
 
 	del := builder.Delete(builder.WorkingScheduleExtraSkillTable.Name())
 	del.Where(del.Equal("domain_id", user.DomainId), del.Equal("working_schedule_id", in.Id)).SQL("RETURNING id")
@@ -224,8 +226,9 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		cteq.With(builder.With("extra_skills").As(builder.Insert(builder.WorkingScheduleExtraSkillTable.Name(), skills).SQL("RETURNING id")))
 	}
 
-	cte := cteq.Builder()
-	sql, args := builder.Select("schedule.id").Distinct().With(cte).From(cte.TableNames()...).Build()
+	// Data-modifying CTEs run whether or not they are read, so only schedule is
+	// selected: a cross join with an empty del_extra_skills would return no row.
+	sql, args := builder.Select("schedule.id").With(cteq.Builder()).From("schedule").Build()
 
 	var id int64
 	if err := w.db.Primary().Get(ctx, &id, sql, args...); err != nil {

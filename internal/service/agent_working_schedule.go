@@ -95,12 +95,26 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		return nil, nil, err
 	}
 
-	period := timeutils.NewPeriod(search.SearchItem.Date.From.Time, search.SearchItem.Date.To.Time, timeutils.IncludeAll)
+	if search.SearchItem.Date == nil {
+		search.SearchItem.Date = &model.FilterBetween{}
+	}
+
+	date := search.SearchItem.Date
+	if !date.From.Valid {
+		date.From = model.NewTimestamp(ws.StartDateAt.Time.Unix())
+	}
+
+	if !date.To.Valid {
+		date.To = model.NewTimestamp(ws.EndDateAt.Time.Unix())
+	}
+
+	period := timeutils.NewPeriod(date.From.Time, date.To.Time, timeutils.IncludeAll)
 	if !timeutils.NewPeriod(ws.StartDateAt.Time, ws.EndDateAt.Time, timeutils.IncludeAll).Contains(period) {
 		return nil, nil, ErrAgentWorkingScheduleDateFilter
 	}
 
-	if len(search.SupervisorIds) > 0 || len(search.TeamIds) > 0 || len(search.SkillIds) > 0 {
+	filtered := len(search.SupervisorIds) > 0 || len(search.TeamIds) > 0 || len(search.SkillIds) > 0
+	if filtered {
 		search.AgentIds, err = a.engine.AgentService().Agents(ctx, &model.AgentSearch{SupervisorIds: search.SupervisorIds, TeamIds: search.TeamIds, SkillIds: search.SkillIds})
 		if err != nil {
 			return nil, nil, err
@@ -109,16 +123,23 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 
 	var items []*model.AgentWorkingSchedule
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		if items, err = a.storage.SearchAgentWorkingSchedule(ctx, user, search); err != nil {
-			return err
-		}
 
-		return nil
-	})
+	// A filter that matched no agent leaves AgentIds empty, which storage reads
+	// as no filter at all: list nobody rather than everyone.
+	if !filtered || len(search.AgentIds) > 0 {
+		eg.Go(func() error {
+			var err error
+			if items, err = a.storage.SearchAgentWorkingSchedule(ctx, user, search); err != nil {
+				return err
+			}
+
+			return nil
+		})
+	}
 
 	var holidays []*model.Holiday
 	eg.Go(func() error {
+		var err error
 		if holidays, err = a.storage.Holidays(ctx, user, search); err != nil {
 			return err
 		}
