@@ -26,7 +26,7 @@ type ForecastCalculationManager interface {
 	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
-	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
+	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamID int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
 }
 
 type ForecastCalculation struct {
@@ -47,11 +47,12 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 	}
 
 	var id int64
+
 	columns := []map[string]any{
 		{
-			"domain_id":   user.DomainId,
-			"created_by":  user.Id,
-			"updated_by":  user.Id,
+			"domain_id":   user.DomainID,
+			"created_by":  user.ID,
+			"updated_by":  user.ID,
 			"name":        in.Name,
 			"description": in.Description,
 			"procedure":   in.Procedure,
@@ -65,7 +66,7 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, use
 	}
 
 	// The row was just committed; a standby may not have it yet.
-	out, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{Id: id})
+	out, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{ID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +111,7 @@ func (f *ForecastCalculation) search(ctx context.Context, node dbsql.Node, user 
 	}
 
 	sb := builder.Select(columns...).From(forecastCalculationView)
-	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId)).
+	sql, args := sb.Where(sb.Equal("domain_id", user.DomainID)).
 		AddWhereClause(&search.Where("name").WhereClause).
 		OrderBy(search.OrderBy(forecastCalculationView)).
 		Limit(int(search.Limit())).
@@ -130,7 +131,7 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 	}
 
 	columns := map[string]any{
-		"updated_by":  user.Id,
+		"updated_by":  user.ID,
 		"name":        in.Name,
 		"description": in.Description,
 		"procedure":   in.Procedure,
@@ -139,8 +140,8 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 
 	ub := builder.Update(forecastCalculationTable, columns)
 	clauses := []string{
-		ub.Equal("domain_id", user.DomainId),
-		ub.Equal("id", in.Id),
+		ub.Equal("domain_id", user.DomainID),
+		ub.Equal("id", in.ID),
 	}
 
 	sql, args := ub.Where(clauses...).Build()
@@ -149,7 +150,7 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 	}
 
 	// The row was just updated; a standby may still hold the old one.
-	out, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{Id: in.Id})
+	out, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{ID: in.ID})
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +161,7 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, use
 func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error) {
 	db := builder.Delete(forecastCalculationTable)
 	clauses := []string{
-		db.Equal("domain_id", user.DomainId),
+		db.Equal("domain_id", user.DomainID),
 		db.Equal("id", id),
 	}
 
@@ -172,10 +173,10 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 	return id, nil
 }
 
-func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamID int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
 	// The Forecast block runs the procedure as it was last saved; a standby
 	// may still hold the previous one.
-	item, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{Id: id})
+	item, err := f.read(ctx, f.db.Primary(), user, &model.SearchItem{ID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +185,7 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, us
 		return nil, err
 	}
 
-	par, args := interpolateArguments(item.Args, teamId, forecast)
+	par, args := interpolateArguments(item.Args, teamID, forecast)
 	sql := "SELECT * FROM " + item.Procedure + "(" + par + ")"
 
 	// The procedure is opaque to us and may write; a standby session is
@@ -220,12 +221,13 @@ func (f *ForecastCalculation) checkProcedure(ctx context.Context, proc string) e
 //	$__teamId() => 1
 //	$__timeFrom() => 1000000000
 //	$__timeTo() => 1000000001
-func interpolateArguments(args []string, teamId int64, forecast *model.FilterBetween) (string, []any) {
+func interpolateArguments(args []string, teamID int64, forecast *model.FilterBetween) (string, []any) {
 	if len(args) == 0 {
 		return "", nil
 	}
 
 	parameters := "$1"
+
 	out := make([]any, 0, len(args))
 	for i, a := range args {
 		if i > 0 {
@@ -234,7 +236,7 @@ func interpolateArguments(args []string, teamId int64, forecast *model.FilterBet
 
 		switch a {
 		case "$__teamId()":
-			out = append(out, teamId)
+			out = append(out, teamID)
 		case "$__timeFrom()":
 			out = append(out, forecast.From)
 		case "$__timeTo()":

@@ -22,7 +22,7 @@ func TestCreateAgentsAbsencesReturnsEveryAgent(t *testing.T) {
 
 	rows := make([]*model.AgentAbsences, options.DefaultSearchSize)
 	for i := range rows {
-		rows[i] = &model.AgentAbsences{Agent: model.LookupItem{Id: int64(i + 1)}}
+		rows[i] = &model.AgentAbsences{Agent: model.LookupItem{ID: int64(i + 1)}}
 	}
 
 	st := storagemocks.NewMockAgentAbsenceManager(t)

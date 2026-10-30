@@ -14,9 +14,10 @@ import (
 func LoggingUnaryServerInterceptor(log *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		start := time.Now()
+
 		ip := "<not found>"
 		if md, ok := metadata.FromIncomingContext(ctx); ok {
-			ip = getClientIp(md)
+			ip = getClientIP(md)
 		}
 
 		h, err := handler(ctx, req)
@@ -34,7 +35,7 @@ func LoggingUnaryServerInterceptor(log *slog.Logger) grpc.UnaryServerInterceptor
 	}
 }
 
-func getClientIp(info metadata.MD) string {
+func getClientIP(info metadata.MD) string {
 	ip := strings.Join(info.Get("x-real-ip"), ",")
 	if ip == "" {
 		ip = strings.Join(info.Get("x-forwarded-for"), ",")

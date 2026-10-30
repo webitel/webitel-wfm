@@ -17,8 +17,8 @@ func (p *PauseTemplate) MarshalProto() *pb.PauseTemplate {
 	}
 
 	out := &pb.PauseTemplate{
-		Id:          p.Id,
-		DomainId:    p.DomainId,
+		Id:          p.ID,
+		DomainId:    p.DomainID,
 		Name:        p.Name,
 		Description: p.Description,
 		Causes:      causes,

@@ -47,6 +47,7 @@ func (a *AgentWorkingConditions) read(ctx context.Context, node dbsql.Node, read
 			}
 
 			join |= linkWorkingCondition
+
 			base.JoinWithOption(
 				b.LeftJoin(workingCondition,
 					b.Equal(agentWorkingCondition.Ident("working_condition_id"), workingCondition.Ident("id")),
@@ -60,6 +61,7 @@ func (a *AgentWorkingConditions) read(ctx context.Context, node dbsql.Node, read
 			}
 
 			join |= linkPauseTemplate
+
 			base.JoinWithOption(
 				b.LeftJoin(pauseTemplate,
 					b.Equal(agentWorkingCondition.Ident("pause_template_id"), pauseTemplate.Ident("id")),
@@ -77,10 +79,12 @@ func (a *AgentWorkingConditions) read(ctx context.Context, node dbsql.Node, read
 			switch field {
 			case "working_condition":
 				joinWorkingCondition()
+
 				field = b.Alias(b.JSONBuildObject(b.Lookup(workingCondition, "id", "name")), field)
 
 			case "pause_template":
 				joinPauseTemplate()
+
 				field = b.Alias(b.JSONBuildObject(b.Lookup(pauseTemplate, "id", "name")), field)
 			}
 
@@ -90,12 +94,13 @@ func (a *AgentWorkingConditions) read(ctx context.Context, node dbsql.Node, read
 
 	{
 		base.Where(
-			base.EQ(agentWorkingCondition.Ident("domain_id"), read.User().DomainId),
+			base.EQ(agentWorkingCondition.Ident("domain_id"), read.User().DomainID),
 			base.EQ(agentWorkingCondition.Ident("agent_id"), read.ID()),
 		)
 	}
 
 	var item model.AgentWorkingConditions
+
 	sql, args := base.Build()
 	if err := node.Get(ctx, &item, sql, args...); err != nil {
 		return nil, err
@@ -107,11 +112,11 @@ func (a *AgentWorkingConditions) read(ctx context.Context, node dbsql.Node, read
 func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error) {
 	columns := []map[string]any{
 		{
-			"domain_id":            read.User().DomainId,
-			"updated_by":           read.User().Id,
+			"domain_id":            read.User().DomainID,
+			"updated_by":           read.User().ID,
 			"agent_id":             read.ID(),
-			"working_condition_id": in.WorkingCondition.Id,
-			"pause_template_id":    in.PauseTemplate.SafeId(),
+			"working_condition_id": in.WorkingCondition.ID,
+			"pause_template_id":    in.PauseTemplate.SafeID(),
 		},
 	}
 

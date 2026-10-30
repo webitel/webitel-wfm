@@ -66,22 +66,21 @@ func (a *AgentAbsence) ReadAgentAbsence(ctx context.Context, read *options.Read)
 	return items[0], nil
 }
 
-func (a *AgentAbsence) SearchAgentAbsence(ctx context.Context, search *options.Search) ([]*model.Absence, error) {
-
+func (a *AgentAbsence) SearchAgentAbsence(_ context.Context, _ *options.Search) ([]*model.Absence, error) {
 	panic("implement me")
 }
 
 func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, read *options.Read, in *model.Absence) error {
 	columns := map[string]any{
-		"updated_by":      read.User().Id,
+		"updated_by":      read.User().ID,
 		"absent_at":       in.AbsentAt,
 		"absence_type_id": in.AbsenceType,
 	}
 
 	ub := b.Update(b.AgentAbsenceTable.Name(), columns)
 	clauses := []string{
-		ub.Equal("domain_id", read.User().DomainId),
-		ub.Equal("id", in.Id),
+		ub.Equal("domain_id", read.User().DomainID),
+		ub.Equal("id", in.ID),
 		ub.Equal("agent_id", read.DerivedByName("agent").ID()),
 	}
 
@@ -96,7 +95,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, read *options.Rea
 func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, read *options.Read) error {
 	db := b.Delete(b.AgentAbsenceTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("domain_id", read.User().DomainID),
 		db.Equal("id", read.ID()),
 		db.Equal("agent_id", read.DerivedByName("agent").ID()),
 	}
@@ -113,11 +112,12 @@ func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, search *options
 	columns := make([]map[string]any, 0, len(in))
 	for _, agentAbsence := range in {
 		for _, absence := range agentAbsence.Absence {
-			columns = append(columns, a.createAgentAbsencePrepareColumns(search.User(), agentAbsence.Agent.Id, absence))
+			columns = append(columns, a.createAgentAbsencePrepareColumns(search.User(), agentAbsence.Agent.ID, absence))
 		}
 	}
 
 	var ids []int64
+
 	sql, args := a.createAgentAbsenceQuery(columns...)
 	if err := a.db.Primary().Select(ctx, &ids, sql, args...); err != nil {
 		return nil, err
@@ -155,6 +155,7 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 			}
 
 			join |= linkCreatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
 					b.Equal(agentAbsence.Ident("created_by"), createdBy.Ident("id")),
@@ -168,6 +169,7 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 			}
 
 			join |= linkUpdatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
 					b.Equal(agentAbsence.Ident("updated_by"), updatedBy.Ident("id")),
@@ -181,6 +183,7 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 			}
 
 			join |= linkAgent
+
 			base.JoinWithOption(
 				b.LeftJoin(agent,
 					b.Equal(agentAbsence.Ident("agent_id"), agent.Ident("id")),
@@ -204,6 +207,7 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 			switch field {
 			case "agent":
 				joinAgent()
+
 				field = b.Alias(b.JSONBuildObject(b.UserLookup(agentUser)), field)
 
 				// Apply GROUP BY here, because later we will use jsonb_agg()
@@ -211,6 +215,7 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 
 			case "absences": // Nested (1 -> many), apply filters or orders here
 				absencesDerived := search.DerivedByName(field)
+
 				absencesDerivedFields := absencesDerived.Fields()
 				if len(absencesDerivedFields) == 0 {
 					for _, v := range []string{"id", "created_at", "updated_at", "absent_at", "absence_type_id"} {
@@ -243,7 +248,8 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 
 	{
 		// TODO: add search by agent_id or absence id itself
-		base.Where(base.EQ(agentAbsence.Ident("domain_id"), search.User().DomainId))
+		base.Where(base.EQ(agentAbsence.Ident("domain_id"), search.User().DomainID))
+
 		if search.Query() != "" {
 			base.Where(base.ILike(agentUser.Ident("name"), search.Query()))
 		}
@@ -254,6 +260,7 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 	}
 
 	var items []*model.AgentAbsences
+
 	sql, args := base.Build() // TODO: add ORDER BY clauses
 	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
@@ -264,9 +271,9 @@ func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, searc
 
 func (a *AgentAbsence) createAgentAbsencePrepareColumns(user *model.SignedInUser, agent int64, in *model.Absence) map[string]any {
 	return map[string]any{
-		"domain_id":       user.DomainId,
-		"created_by":      user.Id,
-		"updated_by":      user.Id,
+		"domain_id":       user.DomainID,
+		"created_by":      user.ID,
+		"updated_by":      user.ID,
 		"absent_at":       in.AbsentAt,
 		"agent_id":        agent,
 		"absence_type_id": int32(in.AbsenceType),

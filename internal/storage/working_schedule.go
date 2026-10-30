@@ -37,13 +37,13 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 	cteq := builder.CTE()
 	schedule := []map[string]any{
 		{
-			"domain_id":              user.DomainId,
-			"created_by":             user.Id,
-			"updated_by":             user.Id,
+			"domain_id":              user.DomainID,
+			"created_by":             user.ID,
+			"updated_by":             user.ID,
 			"name":                   in.Name,
 			"state":                  int32(in.State),
-			"team_id":                in.Team.SafeId(),
-			"calendar_id":            in.Calendar.SafeId(),
+			"team_id":                in.Team.SafeID(),
+			"calendar_id":            in.Calendar.SafeID(),
 			"start_date_at":          in.StartDateAt,
 			"end_date_at":            in.EndDateAt,
 			"start_time_at":          in.StartTimeAt,
@@ -53,13 +53,14 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 	}
 
 	cteq.With(builder.With("schedule").As(builder.Insert(builder.WorkingScheduleTable.Name(), schedule).SQL("RETURNING id")))
+
 	if c := len(in.ExtraSkills); c > 0 {
 		skills := make([]map[string]any, 0, len(in.ExtraSkills))
 		for _, s := range in.ExtraSkills {
 			skill := map[string]any{
-				"domain_id":           user.DomainId,
+				"domain_id":           user.DomainID,
 				"working_schedule_id": builder.Format("(SELECT id FROM schedule)::bigint"),
-				"skill_id":            s.SafeId(),
+				"skill_id":            s.SafeID(),
 			}
 
 			skills = append(skills, skill)
@@ -70,11 +71,12 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 
 	if c := len(in.Agents); c > 0 {
 		agents := make([]map[string]any, 0, c)
+
 		for _, a := range in.Agents {
 			agent := map[string]any{
-				"domain_id":           user.DomainId,
+				"domain_id":           user.DomainID,
 				"working_schedule_id": builder.Format("(SELECT id FROM schedule)::bigint"),
-				"agent_id":            a.SafeId(),
+				"agent_id":            a.SafeID(),
 			}
 
 			agents = append(agents, agent)
@@ -139,7 +141,7 @@ func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *o
 	}
 
 	sb := builder.Select(columns...).From(builder.WorkingScheduleViewTable.Name())
-	sb.Where(sb.Equal("domain_id", search.User().DomainId))
+	sb.Where(sb.Equal("domain_id", search.User().DomainID))
 
 	if search.Query() != "" {
 		sb.Where(sb.ILike("name", search.Query()))
@@ -171,26 +173,26 @@ func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *o
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
 	cteq := builder.CTE()
 	schedule := map[string]any{
-		"updated_by":             user.Id,
+		"updated_by":             user.ID,
 		"name":                   in.Name,
 		"block_outside_activity": in.BlockOutsideActivity,
 	}
 
 	upd := builder.Update(builder.WorkingScheduleTable.Name(), schedule)
-	upd.Where(upd.Equal("domain_id", user.DomainId), upd.Equal("id", in.Id)).SQL("RETURNING id")
+	upd.Where(upd.Equal("domain_id", user.DomainID), upd.Equal("id", in.ID)).SQL("RETURNING id")
 	cteq.With(builder.With("schedule").As(upd))
 
 	del := builder.Delete(builder.WorkingScheduleExtraSkillTable.Name())
-	del.Where(del.Equal("domain_id", user.DomainId), del.Equal("working_schedule_id", in.Id)).SQL("RETURNING id")
+	del.Where(del.Equal("domain_id", user.DomainID), del.Equal("working_schedule_id", in.ID)).SQL("RETURNING id")
 	cteq.With(builder.With("del_extra_skills").As(del))
 
 	if c := len(in.ExtraSkills); c > 0 {
 		skills := make([]map[string]any, 0, len(in.ExtraSkills))
 		for _, s := range in.ExtraSkills {
 			skill := map[string]any{
-				"domain_id":           user.DomainId,
+				"domain_id":           user.DomainID,
 				"working_schedule_id": builder.Format("(SELECT id FROM schedule)::bigint"),
-				"skill_id":            s.SafeId(),
+				"skill_id":            s.SafeID(),
 			}
 
 			skills = append(skills, skill)
@@ -208,7 +210,7 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		return nil, err
 	}
 
-	read, err := options.NewRead(ctx, options.WithID(in.Id))
+	read, err := options.NewRead(ctx, options.WithID(in.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +221,7 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *options.Read) (int64, error) {
 	db := builder.Delete(builder.WorkingScheduleTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("domain_id", read.User().DomainID),
 		db.Equal("id", read.ID()),
 	}
 
@@ -235,7 +237,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 	columns := make([]map[string]any, 0, len(agentIDs))
 	for _, agentID := range agentIDs {
 		columns = append(columns, map[string]any{
-			"domain_id":           read.User().DomainId,
+			"domain_id":           read.User().DomainID,
 			"working_schedule_id": read.ID(),
 			"agent_id":            agentID,
 		})
@@ -257,7 +259,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, read *options.Read, agentID int64) (int64, error) {
 	db := builder.Delete(builder.WorkingScheduleAgentTable.Name())
 	sql, args := db.Where(
-		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("domain_id", read.User().DomainID),
 		db.Equal("working_schedule_id", read.ID()),
 		db.Equal("agent_id", agentID),
 	).Build()

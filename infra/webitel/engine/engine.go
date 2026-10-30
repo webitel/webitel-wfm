@@ -31,7 +31,7 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Client) HealthCheck(ctx context.Context) error {
+func (c *Client) HealthCheck(_ context.Context) error {
 	state := c.conn.GetState()
 	if state != connectivity.Idle && state != connectivity.Ready {
 		return errors.New("service is not ready", errors.WithValue("state", state.String()))

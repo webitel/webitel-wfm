@@ -20,7 +20,7 @@ type ForecastCalculationManager interface {
 	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
-	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
+	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamID int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
 }
 type ForecastCalculation struct {
 	storage storage.ForecastCalculationManager
@@ -79,8 +79,8 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 	return out, nil
 }
 
-func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
-	out, err := f.storage.ExecuteForecastCalculation(ctx, user, id, teamId, forecast)
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamID int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
+	out, err := f.storage.ExecuteForecastCalculation(ctx, user, id, teamID, forecast)
 	if err != nil {
 		return nil, err
 	}

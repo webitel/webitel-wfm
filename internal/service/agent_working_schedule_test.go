@@ -25,8 +25,8 @@ type scheduleStore struct {
 
 func (scheduleStore) ReadWorkingSchedule(_ context.Context, read *options.Read) (*model.WorkingSchedule, error) {
 	return &model.WorkingSchedule{
-		DomainRecord: model.DomainRecord{Id: read.ID()},
-		Team:         model.LookupItem{Id: 5},
+		DomainRecord: model.DomainRecord{ID: read.ID()},
+		Team:         model.LookupItem{ID: 5},
 		StartDateAt:  pgtype.Date{Time: periodStart, Valid: true},
 		EndDateAt:    pgtype.Date{Time: periodEnd, Valid: true},
 	}, nil
@@ -53,7 +53,7 @@ func (s *shiftStore) Holidays(context.Context, *model.SignedInUser, *model.Agent
 }
 
 func signedIn() (context.Context, *model.SignedInUser) {
-	user := &model.SignedInUser{Id: 1, DomainId: 2, Token: "token"}
+	user := &model.SignedInUser{ID: 1, DomainID: 2, Token: "token"}
 
 	return grpccontext.SetUser(context.Background(), user), user
 }
@@ -63,15 +63,15 @@ func signedIn() (context.Context, *model.SignedInUser) {
 func TestSearchAgentsWorkingScheduleFilterMatchingNoAgent(t *testing.T) {
 	ctx, user := signedIn()
 	shifts := &shiftStore{
-		agents:   []*model.AgentWorkingSchedule{{Agent: model.LookupItem{Id: 10}}, {Agent: model.LookupItem{Id: 11}}},
+		agents:   []*model.AgentWorkingSchedule{{Agent: model.LookupItem{ID: 10}}, {Agent: model.LookupItem{ID: 11}}},
 		holidays: []*model.Holiday{{Name: "holiday"}},
 	}
 
 	svc := NewAgentWorkingSchedule(shifts, scheduleStore{}, newEngine(t, &fakeEngine{}))
 
 	items, holidays, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
-		WorkingScheduleId: 7,
-		TeamIds:           []int64{99},
+		WorkingScheduleID: 7,
+		TeamIDs:           []int64{99},
 		SearchItem:        model.SearchItem{Date: &model.FilterBetween{}},
 	})
 	if err != nil {
@@ -96,7 +96,7 @@ func TestSearchAgentsWorkingScheduleParallelReads(t *testing.T) {
 	svc := NewAgentWorkingSchedule(shifts, scheduleStore{}, nil)
 	for range 20 {
 		if _, _, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
-			WorkingScheduleId: 7,
+			WorkingScheduleID: 7,
 			SearchItem:        model.SearchItem{Date: &model.FilterBetween{}},
 		}); err != nil {
 			t.Fatal(err)
@@ -123,7 +123,7 @@ func TestSearchAgentsWorkingScheduleWithoutPeriod(t *testing.T) {
 
 			svc := NewAgentWorkingSchedule(shifts, scheduleStore{}, nil)
 			if _, _, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
-				WorkingScheduleId: 7,
+				WorkingScheduleID: 7,
 				SearchItem:        model.SearchItem{Date: tc.date},
 			}); err != nil {
 				t.Fatal(err)

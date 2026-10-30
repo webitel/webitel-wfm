@@ -17,11 +17,11 @@ func TestSearchAgentWorkingScheduleAppliesPeriod(t *testing.T) {
 	from := model.NewTimestamp(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).Unix())
 	to := model.NewTimestamp(time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC).Unix())
 	search := &model.AgentWorkingScheduleSearch{
-		WorkingScheduleId: 7,
+		WorkingScheduleID: 7,
 		SearchItem:        model.SearchItem{Date: &model.FilterBetween{From: from, To: to}},
 	}
 
-	if _, err := a.SearchAgentWorkingSchedule(userCtx(2, 1), &model.SignedInUser{Id: 1, DomainId: 2}, search); err != nil {
+	if _, err := a.SearchAgentWorkingSchedule(userCtx(2, 1), &model.SignedInUser{ID: 1, DomainID: 2}, search); err != nil {
 		t.Fatal(err)
 	}
 

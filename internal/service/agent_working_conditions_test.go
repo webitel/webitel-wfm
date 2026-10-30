@@ -20,7 +20,7 @@ func TestUpdateAgentWorkingConditionsChecksTheAgentOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{Id: 5}}
+	want := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{ID: 5}}
 
 	st := storagemocks.NewMockAgentWorkingConditionsManager(t)
 	st.EXPECT().UpdateAgentWorkingConditions(mock.Anything, read, want).Return(want, nil)

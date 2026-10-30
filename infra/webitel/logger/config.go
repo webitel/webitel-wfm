@@ -3,9 +3,10 @@ package logger
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	gogrpc "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
 	pb "buf.build/gen/go/webitel/logger/protocolbuffers/go"
-	"google.golang.org/grpc"
 )
 
 type ConfigService struct {
@@ -16,10 +17,10 @@ func newConfigServiceClient(conn *grpc.ClientConn) *ConfigService {
 	return &ConfigService{cli: gogrpc.NewConfigServiceClient(conn)}
 }
 
-func (c *ConfigService) Active(ctx context.Context, domainId int64, object string) (bool, error) {
+func (c *ConfigService) Active(ctx context.Context, domainID int64, object string) (bool, error) {
 	req := &pb.CheckConfigStatusRequest{
 		ObjectName: object,
-		DomainId:   domainId,
+		DomainId:   domainID,
 	}
 
 	out, err := c.cli.CheckConfigStatus(ctx, req)
@@ -27,5 +28,5 @@ func (c *ConfigService) Active(ctx context.Context, domainId int64, object strin
 		return false, err
 	}
 
-	return out.IsEnabled, nil
+	return out.GetIsEnabled(), nil
 }

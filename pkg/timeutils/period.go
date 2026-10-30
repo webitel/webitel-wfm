@@ -29,7 +29,7 @@ func NewPeriod(startDate, endDate time.Time, boundaryType boundaryType) Period {
 	}
 }
 
-func (p Period) GenerateSeries(years int, months int, days int) []time.Time {
+func (p Period) GenerateSeries(years, months, days int) []time.Time {
 	var series []time.Time
 	for d := p.startDate; !d.After(p.endDate); d = d.AddDate(years, months, days) {
 		series = append(series, d)
@@ -71,13 +71,13 @@ func (p Period) containsInterval(other Period) bool {
 	}
 
 	if p.startDate.Equal(other.startDate) {
-		return (p.boundaryType[0] == other.boundaryType[0] || "[" == p.boundaryType[0:1]) && p.containsDatePoint(
+		return (p.boundaryType[0] == other.boundaryType[0] || p.boundaryType[0:1] == "[") && p.containsDatePoint(
 			p.startDate.Add(other.dateInterval()), p.boundaryType,
 		)
 	}
 
 	if p.endDate.Equal(other.endDate) {
-		return (p.boundaryType[1] == other.boundaryType[1] || "]" == p.boundaryType[1:2]) && p.containsDatePoint(
+		return (p.boundaryType[1] == other.boundaryType[1] || p.boundaryType[1:2] == "]") && p.containsDatePoint(
 			p.endDate.Add(-other.dateInterval()), p.boundaryType,
 		)
 	}

@@ -31,11 +31,12 @@ func NewWorkingCondition(db dbsql.Store) *WorkingCondition {
 
 func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error) {
 	var id int64
+
 	columns := []map[string]any{
 		{
-			"domain_id":          user.DomainId,
-			"created_by":         user.Id,
-			"updated_by":         user.Id,
+			"domain_id":          user.DomainID,
+			"created_by":         user.ID,
+			"updated_by":         user.ID,
 			"name":               in.Name,
 			"description":        in.Description,
 			"workday_hours":      in.WorkdayHours,
@@ -44,8 +45,8 @@ func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *mod
 			"sick_leaves":        in.SickLeaves,
 			"days_off":           in.DaysOff,
 			"pause_duration":     in.PauseDuration,
-			"pause_template_id":  in.PauseTemplate.Id,
-			"shift_template_id":  in.ShiftTemplate.SafeId(),
+			"pause_template_id":  in.PauseTemplate.ID,
+			"shift_template_id":  in.ShiftTemplate.SafeID(),
 		},
 	}
 
@@ -116,6 +117,7 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 			}
 
 			join |= linkCreatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
 					b.Equal(workingCondition.Ident("created_by"), createdBy.Ident("id")),
@@ -129,6 +131,7 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 			}
 
 			join |= linkUpdatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
 					b.Equal(workingCondition.Ident("updated_by"), updatedBy.Ident("id")),
@@ -142,6 +145,7 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 			}
 
 			join |= linkPauseTemplate
+
 			base.JoinWithOption(
 				b.LeftJoin(pauseTemplate,
 					b.Equal(workingCondition.Ident("pause_template_id"), pauseTemplate.Ident("id")),
@@ -155,6 +159,7 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 			}
 
 			join |= linkShiftTemplate
+
 			base.JoinWithOption(
 				b.LeftJoin(shiftTemplate,
 					b.Equal(workingCondition.Ident("shift_template_id"), shiftTemplate.Ident("id")),
@@ -183,18 +188,22 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 
 			case "created_by":
 				joinCreatedBy()
+
 				field = b.Alias(b.JSONBuildObject(b.UserLookup(createdBy)), field)
 
 			case "updated_by":
 				joinUpdatedBy()
+
 				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
 
 			case "pause_template":
 				joinPauseTemplate()
+
 				field = b.Alias(b.JSONBuildObject(b.Lookup(pauseTemplate, "id", "name")), field)
 
 			case "shift_template":
 				joinShiftTemplate()
+
 				field = b.Alias(b.JSONBuildObject(b.Lookup(shiftTemplate, "id", "name")), field)
 			}
 
@@ -203,7 +212,8 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 	}
 
 	{
-		base.Where(base.EQ(workingCondition.Ident("domain_id"), search.User().DomainId))
+		base.Where(base.EQ(workingCondition.Ident("domain_id"), search.User().DomainID))
+
 		if search.Query() != "" {
 			base.Where(base.ILike(workingCondition.Ident("name"), search.Query()))
 		}
@@ -226,18 +236,22 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 
 			case "created_by":
 				joinCreatedBy()
+
 				field = b.OrderBy(createdBy.Ident("name"), direction)
 
 			case "updated_by":
 				joinUpdatedBy()
+
 				field = b.OrderBy(updatedBy.Ident("name"), direction)
 
 			case "pause_template":
 				joinPauseTemplate()
+
 				field = b.OrderBy(pauseTemplate.Ident("name"), direction)
 
 			case "shift_template":
 				joinShiftTemplate()
+
 				field = b.OrderBy(shiftTemplate.Ident("name"), direction)
 			}
 
@@ -246,6 +260,7 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 	}
 
 	var items []*model.WorkingCondition
+
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
 	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
@@ -256,7 +271,7 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 
 func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error) {
 	columns := map[string]any{
-		"updated_by":         user.Id,
+		"updated_by":         user.ID,
 		"name":               in.Name,
 		"description":        in.Description,
 		"workday_hours":      in.WorkdayHours,
@@ -265,14 +280,14 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 		"sick_leaves":        in.SickLeaves,
 		"days_off":           in.DaysOff,
 		"pause_duration":     in.PauseDuration,
-		"pause_template_id":  in.PauseTemplate.Id,
-		"shift_template_id":  in.ShiftTemplate.SafeId(),
+		"pause_template_id":  in.PauseTemplate.ID,
+		"shift_template_id":  in.ShiftTemplate.SafeID(),
 	}
 
 	ub := b.Update(b.WorkingConditionTable.Name(), columns)
 	clauses := []string{
-		ub.Equal("domain_id", user.DomainId),
-		ub.Equal("id", in.Id),
+		ub.Equal("domain_id", user.DomainID),
+		ub.Equal("id", in.ID),
 	}
 
 	sql, args := ub.Where(clauses...).Build()
@@ -280,7 +295,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 		return nil, err
 	}
 
-	read, err := options.NewRead(ctx, options.WithID(in.Id))
+	read, err := options.NewRead(ctx, options.WithID(in.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +307,7 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, read *options.Read) (int64, error) {
 	db := b.Delete(b.WorkingConditionTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("domain_id", read.User().DomainID),
 		db.Equal("id", read.ID()),
 	}
 

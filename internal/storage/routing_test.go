@@ -156,11 +156,11 @@ func assertAsked(t *testing.T, asked []string, want ...string) {
 }
 
 func userCtx(domain, user int64) context.Context {
-	return grpccontext.SetUser(context.Background(), &model.SignedInUser{Id: user, DomainId: domain})
+	return grpccontext.SetUser(context.Background(), &model.SignedInUser{ID: user, DomainID: domain})
 }
 
 func schedule(id int64, name string) []*model.WorkingSchedule {
-	return []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{Id: id}, Name: name}}
+	return []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{ID: id}, Name: name}}
 }
 
 // A row read straight after a write must come from the primary: a standby may
@@ -172,9 +172,9 @@ func TestUpdateWorkingScheduleReadsBackFromPrimary(t *testing.T) {
 	ws, tr := newProbe(t, &primary, &standby, 7)
 	ctx := userCtx(1, 1)
 
-	in := &model.WorkingSchedule{DomainRecord: model.DomainRecord{Id: 7}, Name: "renamed"}
+	in := &model.WorkingSchedule{DomainRecord: model.DomainRecord{ID: 7}, Name: "renamed"}
 
-	out, err := ws.UpdateWorkingSchedule(ctx, &model.SignedInUser{Id: 1, DomainId: 1}, in)
+	out, err := ws.UpdateWorkingSchedule(ctx, &model.SignedInUser{ID: 1, DomainID: 1}, in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestCreateWorkingScheduleReadsBackFromPrimary(t *testing.T) {
 
 	in := &model.WorkingSchedule{Name: "created"}
 
-	out, err := ws.CreateWorkingSchedule(ctx, &model.SignedInUser{Id: 1, DomainId: 1}, in)
+	out, err := ws.CreateWorkingSchedule(ctx, &model.SignedInUser{ID: 1, DomainID: 1}, in)
 	if err != nil {
 		t.Fatalf("create of a committed row failed: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestCreateWorkingScheduleReadsBackFromPrimary(t *testing.T) {
 }
 
 func TestUpdateWorkingScheduleAddAgentsReadsBackFromPrimary(t *testing.T) {
-	primary := []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{Id: 7}, Agents: []*model.LookupItem{{Id: 3}}}}
+	primary := []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{ID: 7}, Agents: []*model.LookupItem{{ID: 3}}}}
 	standby := schedule(7, "stale") // the agent row is not replicated yet
 
 	ws, tr := newProbe(t, &primary, &standby, 7)
@@ -227,7 +227,7 @@ func TestUpdateWorkingScheduleAddAgentsReadsBackFromPrimary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(out) != 1 || out[0].Id != 3 {
+	if len(out) != 1 || out[0].ID != 3 {
 		t.Errorf("add agents returned %+v, want the agent just added: the read-back went to a lagging standby", out)
 	}
 
@@ -293,7 +293,7 @@ func TestReadWorkingScheduleScopesByDomainAndID(t *testing.T) {
 }
 
 func TestReadWorkingScheduleFieldMaskSelectsOnlyThoseColumns(t *testing.T) {
-	rows := []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{Id: 7}}}
+	rows := []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{ID: 7}}}
 
 	ws, tr := newProbe(t, &rows, &rows, 7)
 	ctx := userCtx(1, 1)
@@ -308,8 +308,8 @@ func TestReadWorkingScheduleFieldMaskSelectsOnlyThoseColumns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out.Id != 7 {
-		t.Errorf("masked read returned id %d, want 7", out.Id)
+	if out.ID != 7 {
+		t.Errorf("masked read returned id %d, want 7", out.ID)
 	}
 
 	if sql := tr.calls[0].sql; !strings.HasPrefix(sql, "SELECT id FROM") {
@@ -326,8 +326,8 @@ func TestReadWorkingScheduleErrors(t *testing.T) {
 	}{
 		"duplicate rows": {
 			rows: []*model.WorkingSchedule{
-				{DomainRecord: model.DomainRecord{Id: 7}, Name: "one"},
-				{DomainRecord: model.DomainRecord{Id: 7}, Name: "two"},
+				{DomainRecord: model.DomainRecord{ID: 7}, Name: "one"},
+				{DomainRecord: model.DomainRecord{ID: 7}, Name: "two"},
 			},
 			want: dbsql.ErrEntityConflict,
 		},
@@ -419,9 +419,9 @@ func TestWorkingScheduleWritesRunOnPrimary(t *testing.T) {
 // The calendar content, shifts and the holidays returned with them, is reread
 // after every edit.
 func TestCalendarReadsFromPrimary(t *testing.T) {
-	user := &model.SignedInUser{Id: 1, DomainId: 1}
+	user := &model.SignedInUser{ID: 1, DomainID: 1}
 	search := &model.AgentWorkingScheduleSearch{
-		WorkingScheduleId: 7,
+		WorkingScheduleID: 7,
 		SearchItem:        model.SearchItem{Date: &model.FilterBetween{}},
 	}
 
@@ -456,14 +456,14 @@ func TestCreateAgentsWorkingScheduleShiftsRereadsTheRowsItWrote(t *testing.T) {
 	aws, tr := newCalendarProbe(t, 11, 12)
 
 	in := []*model.AgentWorkingSchedule{{
-		Agent: model.LookupItem{Id: 3},
+		Agent: model.LookupItem{ID: 3},
 		Schedule: []*model.AgentSchedule{
 			{Shift: &model.AgentScheduleShift{Start: 540, End: 1080}},
 			{Shift: &model.AgentScheduleShift{Start: 600, End: 900}},
 		},
 	}}
 
-	if _, err := aws.CreateAgentsWorkingScheduleShifts(context.Background(), &model.SignedInUser{Id: 1, DomainId: 1}, 7, in); err != nil {
+	if _, err := aws.CreateAgentsWorkingScheduleShifts(context.Background(), &model.SignedInUser{ID: 1, DomainID: 1}, 7, in); err != nil {
 		t.Fatal(err)
 	}
 
@@ -524,12 +524,12 @@ func assertReadsBackFromPrimary[T any](t *testing.T, saved, stale *T, write func
 // the primary: a standby may not have it yet, or may still hold the old one.
 func TestLookupWritesReadBackFromPrimary(t *testing.T) {
 	ctx := userCtx(1, 1)
-	user := &model.SignedInUser{Id: 1, DomainId: 1}
-	updated := model.DomainRecord{Id: 7}
+	user := &model.SignedInUser{ID: 1, DomainID: 1}
+	updated := model.DomainRecord{ID: 7}
 
 	t.Run("pause template", func(t *testing.T) {
 		saved, stale := &model.PauseTemplate{Name: "saved"}, &model.PauseTemplate{Name: "stale"}
-		causes := []model.PauseTemplateCause{{Cause: &model.LookupItem{Id: 3}}}
+		causes := []model.PauseTemplateCause{{Cause: &model.LookupItem{ID: 3}}}
 
 		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.PauseTemplate, error) {
 			return (&PauseTemplate{db: db}).CreatePauseTemplate(ctx, user, &model.PauseTemplate{Causes: causes})
@@ -565,8 +565,8 @@ func TestLookupWritesReadBackFromPrimary(t *testing.T) {
 	})
 
 	t.Run("agent working conditions", func(t *testing.T) {
-		saved := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{Id: 5}}
-		stale := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{Id: 4}}
+		saved := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{ID: 5}}
+		stale := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{ID: 4}}
 
 		read, err := options.NewRead(ctx, options.WithID(7))
 		if err != nil {
@@ -584,7 +584,7 @@ func TestLookupWritesReadBackFromPrimary(t *testing.T) {
 func TestCreateAgentsAbsencesRereadsTheRowsItWrote(t *testing.T) {
 	ctx := userCtx(1, 1)
 
-	primary := []*model.AgentAbsences{{Agent: model.LookupItem{Id: 3}}}
+	primary := []*model.AgentAbsences{{Agent: model.LookupItem{ID: 3}}}
 
 	var standby []*model.AgentAbsences // not replicated yet
 
@@ -595,14 +595,14 @@ func TestCreateAgentsAbsencesRereadsTheRowsItWrote(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	in := []*model.AgentAbsences{{Agent: model.LookupItem{Id: 3}, Absence: []*model.Absence{{}, {}}}}
+	in := []*model.AgentAbsences{{Agent: model.LookupItem{ID: 3}, Absence: []*model.Absence{{}, {}}}}
 
 	out, err := (&AgentAbsence{db: db}).CreateAgentsAbsences(ctx, search, in)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(out) != 1 || out[0].Agent.Id != 3 {
+	if len(out) != 1 || out[0].Agent.ID != 3 {
 		t.Errorf("create returned %+v, want the absences just written: the read-back went to a lagging standby", out)
 	}
 
@@ -724,7 +724,7 @@ func TestLookupReadsStayOnStandby(t *testing.T) {
 // lookup's own read and list RPCs stay on the standby.
 func TestForecastCalculationRouting(t *testing.T) {
 	ctx := context.Background()
-	user := &model.SignedInUser{Id: 1, DomainId: 1}
+	user := &model.SignedInUser{ID: 1, DomainID: 1}
 
 	cases := map[string]struct {
 		run func(f *ForecastCalculation, tr *trace) (string, error)
@@ -747,7 +747,7 @@ func TestForecastCalculationRouting(t *testing.T) {
 		},
 		"update reads back": {
 			run: func(f *ForecastCalculation, _ *trace) (string, error) {
-				out, err := f.UpdateForecastCalculation(ctx, user, &model.ForecastCalculation{DomainRecord: model.DomainRecord{Id: 7}, Procedure: "proc"})
+				out, err := f.UpdateForecastCalculation(ctx, user, &model.ForecastCalculation{DomainRecord: model.DomainRecord{ID: 7}, Procedure: "proc"})
 				if err != nil {
 					return "", err
 				}
@@ -770,7 +770,7 @@ func TestForecastCalculationRouting(t *testing.T) {
 		},
 		"read": {
 			run: func(f *ForecastCalculation, _ *trace) (string, error) {
-				out, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{Id: 7})
+				out, err := f.ReadForecastCalculation(ctx, user, &model.SearchItem{ID: 7})
 				if err != nil {
 					return "", err
 				}
@@ -792,8 +792,8 @@ func TestForecastCalculationRouting(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			primary := []*model.ForecastCalculation{{DomainRecord: model.DomainRecord{Id: 7}, Procedure: "proc"}}
-			standby := []*model.ForecastCalculation{{DomainRecord: model.DomainRecord{Id: 7}, Procedure: "stale"}}
+			primary := []*model.ForecastCalculation{{DomainRecord: model.DomainRecord{ID: 7}, Procedure: "proc"}}
+			standby := []*model.ForecastCalculation{{DomainRecord: model.DomainRecord{ID: 7}, Procedure: "stale"}}
 
 			db, tr := newProbeStore(&primary, &standby, 7)
 			f := &ForecastCalculation{db: db, forecastDB: db}

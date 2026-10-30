@@ -15,25 +15,26 @@ const (
 )
 
 type RequiredFields struct {
-	UserId     int64  `json:"userId,omitempty"`
-	UserIp     string `json:"userIp,omitempty"`
+	UserID     int64  `json:"userId,omitempty"` //nolint:tagliatelle // the audit wire format
+	UserIP     string `json:"userIp,omitempty"` //nolint:tagliatelle // the audit wire format
 	Action     Action `json:"action,omitempty"`
 	Date       int64  `json:"date,omitempty"`
-	DomainId   int64
+	DomainId   int64  //nolint:revive // untagged: the field name is the key in the audit message
 	ObjectName string
 }
 
 type Record struct {
-	Id       int64  `json:"id,omitempty"`
-	NewState []byte `json:"newState,omitempty"`
+	ID       int64  `json:"id,omitempty"`
+	NewState []byte `json:"newState,omitempty"` //nolint:tagliatelle // the audit wire format
 }
 
 type Message struct {
-	Records        []Record `json:"records,omitempty"`
-	RequiredFields `json:"requiredFields"`
+	RequiredFields `json:"requiredFields"` //nolint:tagliatelle // the audit wire format
+
+	Records []Record `json:"records,omitempty"`
 }
 
-func (m *Message) ToJson() []byte {
+func (m *Message) ToJSON() []byte {
 	data, _ := json.Marshal(m)
 
 	return data

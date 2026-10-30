@@ -19,8 +19,8 @@ type WorkingCondition struct {
 
 func (w *WorkingCondition) MarshalProto() *pb.WorkingCondition {
 	out := &pb.WorkingCondition{
-		Id:               w.Id,
-		DomainId:         w.DomainId,
+		Id:               w.ID,
+		DomainId:         w.DomainID,
 		CreatedBy:        w.CreatedBy.MarshalProto(),
 		UpdatedBy:        w.UpdatedBy.MarshalProto(),
 		Name:             w.Name,
@@ -32,14 +32,14 @@ func (w *WorkingCondition) MarshalProto() *pb.WorkingCondition {
 		DaysOff:          w.DaysOff,
 		PauseDuration:    w.PauseDuration,
 		PauseTemplate: &pb.LookupEntity{
-			Id:   w.PauseTemplate.Id,
+			Id:   w.PauseTemplate.ID,
 			Name: w.PauseTemplate.Name,
 		},
 	}
 
 	if w.ShiftTemplate != nil {
 		out.ShiftTemplate = &pb.LookupEntity{
-			Id:   w.ShiftTemplate.Id,
+			Id:   w.ShiftTemplate.ID,
 			Name: w.ShiftTemplate.Name,
 		}
 	}

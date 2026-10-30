@@ -31,9 +31,9 @@ func NewPauseTemplate(db dbsql.Store) *PauseTemplate {
 func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error) {
 	template := []map[string]any{
 		{
-			"domain_id":   user.DomainId,
-			"created_by":  user.Id,
-			"updated_by":  user.Id,
+			"domain_id":   user.DomainID,
+			"created_by":  user.ID,
+			"updated_by":  user.ID,
 			"name":        in.Name,
 			"description": in.Description,
 		},
@@ -42,10 +42,10 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	causes := make([]map[string]any, 0, len(in.Causes))
 	for _, cause := range in.Causes {
 		columns := map[string]any{
-			"domain_id":         user.DomainId,
+			"domain_id":         user.DomainID,
 			"pause_template_id": b.Format("(SELECT id FROM pause_template)::bigint"), // get created pause template id from CTE
 			"duration":          cause.Duration,
-			"pause_cause_id":    cause.Cause.SafeId(),
+			"pause_cause_id":    cause.Cause.SafeID(),
 		}
 
 		causes = append(causes, columns)
@@ -67,6 +67,7 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	).Builder()
 
 	var id int64
+
 	sql, args := b.Select("distinct pause_template.id").With(cte).From("pause_template", "causes").Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		return nil, err
@@ -130,6 +131,7 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 			}
 
 			join |= linkCreatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
 					b.Equal(pauseTemplate.Ident("created_by"), createdBy.Ident("id")),
@@ -143,6 +145,7 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 			}
 
 			join |= linkUpdatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
 					b.Equal(pauseTemplate.Ident("updated_by"), updatedBy.Ident("id")),
@@ -169,15 +172,18 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 
 			case "created_by":
 				joinCreatedBy()
+
 				field = b.Alias(b.JSONBuildObject(b.UserLookup(createdBy)), field)
 
 			case "updated_by":
 				joinUpdatedBy()
+
 				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
 
 			case "causes":
 				{
 					causesDerived := search.DerivedByName(field)
+
 					causesDerivedFields := causesDerived.Fields()
 					if len(causesDerivedFields) == 0 {
 						for _, v := range []string{"id", "duration", "cause"} {
@@ -193,17 +199,21 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 					)
 
 					causes.Where(b.Equal(pauseTemplate.Ident("id"), pauseTemplateCause.Ident("pause_template_id")).String())
+
 					for _, causesDerivedField := range causesDerivedFields {
 						switch causesDerivedField {
 						case "id", "duration":
 							causes.SelectMore(pauseTemplateCause.Ident(causesDerivedField))
+
 							if _, d, ok := causesDerived.OrderByField(causesDerivedField); ok {
 								causes.OrderBy(b.OrderBy(pauseTemplateCause.Ident(causesDerivedField), d))
 							}
 
 						case "cause":
-							var pauseCause = b.PauseCauseTable
+							pauseCause := b.PauseCauseTable
+
 							causeDerived := causesDerived.DerivedByName(causesDerivedField)
+
 							causeDerivedFields := causeDerived.Fields()
 							if len(causeDerivedFields) == 0 {
 								for _, v := range []string{"id", "name"} {
@@ -234,7 +244,8 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 	}
 
 	{
-		base.Where(base.EQ(pauseTemplate.Ident("domain_id"), search.User().DomainId))
+		base.Where(base.EQ(pauseTemplate.Ident("domain_id"), search.User().DomainID))
+
 		if search.Query() != "" {
 			base.Where(base.ILike(pauseTemplate.Ident("name"), search.Query()))
 		}
@@ -257,10 +268,12 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 
 			case "created_by":
 				joinCreatedBy()
+
 				field = b.OrderBy(createdBy.Ident("name"), direction)
 
 			case "updated_by":
 				joinUpdatedBy()
+
 				field = b.OrderBy(updatedBy.Ident("name"), direction)
 			}
 
@@ -269,6 +282,7 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 	}
 
 	var items []*model.PauseTemplate
+
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
 	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
@@ -279,33 +293,33 @@ func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *opt
 
 func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error) {
 	template := map[string]any{
-		"updated_by":  user.Id,
+		"updated_by":  user.ID,
 		"name":        in.Name,
 		"description": in.Description,
 	}
 
 	updateTemplate := b.Update(b.PauseTemplateTable.Name(), template)
 	clauses := []string{
-		updateTemplate.Equal("domain_id", user.DomainId),
-		updateTemplate.Equal("id", in.Id),
+		updateTemplate.Equal("domain_id", user.DomainID),
+		updateTemplate.Equal("id", in.ID),
 	}
 
 	updateTemplate.Where(clauses...).SQL("RETURNING id")
 
-	templateId := b.Format("(SELECT id FROM pause_template)::bigint") // get created pause template id from CTE
+	templateID := b.Format("(SELECT id FROM pause_template)::bigint") // get created pause template id from CTE
 	deleteCauses := b.Delete(b.PauseTemplateCauseTable.Name())
 	deleteCauses.Where(
-		deleteCauses.Equal("domain_id", user.DomainId),
-		deleteCauses.Equal("pause_template_id", templateId),
+		deleteCauses.Equal("domain_id", user.DomainID),
+		deleteCauses.Equal("pause_template_id", templateID),
 	).SQL("RETURNING id")
 
 	causes := make([]map[string]any, 0, len(in.Causes))
 	for _, cause := range in.Causes {
 		columns := map[string]any{
-			"domain_id":         user.DomainId,
-			"pause_template_id": templateId,
+			"domain_id":         user.DomainID,
+			"pause_template_id": templateID,
 			"duration":          cause.Duration,
-			"pause_cause_id":    cause.Cause.SafeId(),
+			"pause_cause_id":    cause.Cause.SafeID(),
 		}
 
 		causes = append(causes, columns)
@@ -334,6 +348,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	).Builder()
 
 	var id int64
+
 	sql, args := b.Select("distinct pause_template.id").From("pause_template", "del_causes", "ins_causes").With(cte).Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		if errors.Is(err, dbsql.ErrNoRows) {
@@ -343,7 +358,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 		return nil, err
 	}
 
-	read, err := options.NewRead(ctx, options.WithID(in.Id))
+	read, err := options.NewRead(ctx, options.WithID(in.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +370,7 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error) {
 	db := b.Delete(b.PauseTemplateTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("domain_id", read.User().DomainID),
 		db.Equal("id", read.ID()),
 	}
 

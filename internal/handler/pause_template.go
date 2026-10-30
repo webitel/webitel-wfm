@@ -71,7 +71,7 @@ func (h *PauseTemplate) SearchPauseTemplate(ctx context.Context, req *pb.SearchP
 }
 
 func (h *PauseTemplate) UpdatePauseTemplate(ctx context.Context, req *pb.UpdatePauseTemplateRequest) (*pb.UpdatePauseTemplateResponse, error) {
-	read, err := options.NewRead(ctx, options.WithID(req.Item.Id))
+	read, err := options.NewRead(ctx, options.WithID(req.GetItem().GetId()))
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +108,13 @@ func marshalPauseTemplateBulkProto(in []*model.PauseTemplate) []*pb.PauseTemplat
 }
 
 func unmarshalPauseTemplateProto(in *pb.PauseTemplate) *model.PauseTemplate {
-	causes := make([]model.PauseTemplateCause, 0, len(in.Causes))
-	for _, cause := range in.Causes {
+	causes := make([]model.PauseTemplateCause, 0, len(in.GetCauses()))
+	for _, cause := range in.GetCauses() {
 		causes = append(causes, unmarshalPauseTemplateCauseProto(cause))
 	}
 
 	return &model.PauseTemplate{
-		DomainRecord: model.DomainRecord{Id: in.Id},
+		DomainRecord: model.DomainRecord{ID: in.GetId()},
 		Name:         in.GetName(),
 		Description:  in.Description,
 		Causes:       causes,
@@ -123,11 +123,11 @@ func unmarshalPauseTemplateProto(in *pb.PauseTemplate) *model.PauseTemplate {
 
 func unmarshalPauseTemplateCauseProto(cause *pb.PauseTemplateCause) model.PauseTemplateCause {
 	out := model.PauseTemplateCause{
-		Duration: cause.Duration,
+		Duration: cause.GetDuration(),
 	}
 
-	if cause.Cause != nil {
-		out.Cause = &model.LookupItem{Id: cause.Cause.Id}
+	if cause.GetCause() != nil {
+		out.Cause = &model.LookupItem{ID: cause.GetCause().GetId()}
 	}
 
 	return out

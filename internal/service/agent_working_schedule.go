@@ -54,6 +54,7 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 	}
 
 	series := period.GenerateSeries(0, 0, 1)
+
 	schedules := make([]*model.AgentSchedule, 0, len(in.Shifts))
 	for _, time := range series {
 		if v, ok := in.Shifts[int64(time.Weekday())]; ok {
@@ -76,7 +77,7 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 		})
 	}
 
-	out, err := a.storage.CreateAgentsWorkingScheduleShifts(ctx, user, ws.Id, agents)
+	out, err := a.storage.CreateAgentsWorkingScheduleShifts(ctx, user, ws.ID, agents)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +86,7 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 }
 
 func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error) {
-	read, err := options.NewRead(ctx, options.WithID(search.WorkingScheduleId))
+	read, err := options.NewRead(ctx, options.WithID(search.WorkingScheduleID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -113,20 +114,21 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		return nil, nil, ErrAgentWorkingScheduleDateFilter
 	}
 
-	filtered := len(search.SupervisorIds) > 0 || len(search.TeamIds) > 0 || len(search.SkillIds) > 0
+	filtered := len(search.SupervisorIDs) > 0 || len(search.TeamIDs) > 0 || len(search.SkillIDs) > 0
 	if filtered {
-		search.AgentIds, err = a.engine.AgentService().Agents(ctx, &model.AgentSearch{SupervisorIds: search.SupervisorIds, TeamIds: search.TeamIds, SkillIds: search.SkillIds})
+		search.AgentIDs, err = a.engine.AgentService().Agents(ctx, &model.AgentSearch{SupervisorIDs: search.SupervisorIDs, TeamIDs: search.TeamIDs, SkillIDs: search.SkillIDs})
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
 	var items []*model.AgentWorkingSchedule
+
 	eg, ctx := errgroup.WithContext(ctx)
 
 	// A filter that matched no agent leaves AgentIds empty, which storage reads
 	// as no filter at all: list nobody rather than everyone.
-	if !filtered || len(search.AgentIds) > 0 {
+	if !filtered || len(search.AgentIDs) > 0 {
 		eg.Go(func() error {
 			var err error
 			if items, err = a.storage.SearchAgentWorkingSchedule(ctx, user, search); err != nil {
@@ -138,6 +140,7 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 	}
 
 	var holidays []*model.Holiday
+
 	eg.Go(func() error {
 		var err error
 		if holidays, err = a.storage.Holidays(ctx, user, search); err != nil {
