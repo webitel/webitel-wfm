@@ -19,7 +19,7 @@ type AgentAbsenceManager interface {
 	UpdateAgentAbsence(ctx context.Context, read *options.Read, in *model.Absence) error
 	DeleteAgentAbsence(ctx context.Context, read *options.Read) error
 
-	CreateAgentsAbsences(ctx context.Context, search *options.Search, in []*model.AgentAbsences) ([]int64, error)
+	CreateAgentsAbsences(ctx context.Context, search *options.Search, in []*model.AgentAbsences) ([]*model.AgentAbsences, error)
 	SearchAgentsAbsences(ctx context.Context, search *options.Search) ([]*model.AgentAbsences, error)
 }
 
@@ -109,7 +109,7 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, read *options.Rea
 	return nil
 }
 
-func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, search *options.Search, in []*model.AgentAbsences) ([]int64, error) {
+func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, search *options.Search, in []*model.AgentAbsences) ([]*model.AgentAbsences, error) {
 	columns := make([]map[string]any, 0, len(in))
 	for _, agentAbsence := range in {
 		for _, absence := range agentAbsence.Absence {
@@ -123,10 +123,17 @@ func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, search *options
 		return nil, err
 	}
 
-	return ids, nil
+	search.WithIDs(ids)
+
+	// The rows were just committed; a standby may not have them yet.
+	return a.searchByAgent(ctx, a.db.Primary(), search)
 }
 
 func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, search *options.Search) ([]*model.AgentAbsences, error) {
+	return a.searchByAgent(ctx, a.db.StandbyPreferred(), search)
+}
+
+func (a *AgentAbsence) searchByAgent(ctx context.Context, node dbsql.Node, search *options.Search) ([]*model.AgentAbsences, error) {
 	const (
 		linkCreatedBy = 1 << iota
 		linkUpdatedBy
@@ -248,7 +255,7 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, search *options
 
 	var items []*model.AgentAbsences
 	sql, args := base.Build() // TODO: add ORDER BY clauses
-	if err := readNode(a.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
+	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 

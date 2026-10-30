@@ -33,12 +33,12 @@ func NewPauseTemplate(storage storage.PauseTemplateManager) *PauseTemplate {
 }
 
 func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, read *options.Read, in *model.PauseTemplate) (*model.PauseTemplate, error) {
-	id, err := p.storage.CreatePauseTemplate(ctx, read.User(), in)
+	out, err := p.storage.CreatePauseTemplate(ctx, read.User(), in)
 	if err != nil {
 		return nil, err
 	}
 
-	return p.ReadPauseTemplate(ctx, read.WithID(id).WithAfterWrite())
+	return out, nil
 }
 
 func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error) {
@@ -62,11 +62,12 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 }
 
 func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, read *options.Read, in *model.PauseTemplate) (*model.PauseTemplate, error) {
-	if err := p.storage.UpdatePauseTemplate(ctx, read.User(), in); err != nil {
+	out, err := p.storage.UpdatePauseTemplate(ctx, read.User(), in)
+	if err != nil {
 		return nil, err
 	}
 
-	return p.ReadPauseTemplate(ctx, read.WithAfterWrite())
+	return out, nil
 }
 
 func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error) {

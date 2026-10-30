@@ -12,10 +12,10 @@ import (
 )
 
 type PauseTemplateManager interface {
-	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error)
+	CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error)
 	ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error)
 	SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, error)
-	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error
+	UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error)
 	DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error)
 }
 type PauseTemplate struct {
@@ -28,7 +28,7 @@ func NewPauseTemplate(db dbsql.Store) *PauseTemplate {
 	}
 }
 
-func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error) {
+func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error) {
 	template := []map[string]any{
 		{
 			"domain_id":   user.DomainId,
@@ -69,19 +69,29 @@ func (p *PauseTemplate) CreatePauseTemplate(ctx context.Context, user *model.Sig
 	var id int64
 	sql, args := b.Select("distinct pause_template.id").With(cte).From("pause_template", "causes").Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return id, nil
+	read, err := options.NewRead(ctx, options.WithID(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just committed; a standby may not have it yet.
+	return p.read(ctx, p.db.Primary(), read)
 }
 
 func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Read) (*model.PauseTemplate, error) {
+	return p.read(ctx, p.db.StandbyPreferred(), read)
+}
+
+func (p *PauseTemplate) read(ctx context.Context, node dbsql.Node, read *options.Read) (*model.PauseTemplate, error) {
 	search, err := options.NewSearch(ctx, options.WithID(read.ID()))
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := p.SearchPauseTemplate(ctx, search.PopulateFromRead(read))
+	items, err := p.search(ctx, node, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +108,10 @@ func (p *PauseTemplate) ReadPauseTemplate(ctx context.Context, read *options.Rea
 }
 
 func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options.Search) ([]*model.PauseTemplate, error) {
+	return p.search(ctx, p.db.StandbyPreferred(), search)
+}
+
+func (p *PauseTemplate) search(ctx context.Context, node dbsql.Node, search *options.Search) ([]*model.PauseTemplate, error) {
 	const (
 		linkCreatedBy = 1 << iota
 		linkUpdatedBy
@@ -256,14 +270,14 @@ func (p *PauseTemplate) SearchPauseTemplate(ctx context.Context, search *options
 
 	var items []*model.PauseTemplate
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := readNode(p.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
+	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
 	return items, nil
 }
 
-func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error {
+func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error) {
 	template := map[string]any{
 		"updated_by":  user.Id,
 		"name":        in.Name,
@@ -323,13 +337,19 @@ func (p *PauseTemplate) UpdatePauseTemplate(ctx context.Context, user *model.Sig
 	sql, args := b.Select("distinct pause_template.id").From("pause_template", "del_causes", "ins_causes").With(cte).Build()
 	if err := p.db.Primary().Get(ctx, &id, sql, args...); err != nil {
 		if errors.Is(err, dbsql.ErrNoRows) {
-			return errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.pause_template.update"), errors.WithCause(err))
+			return nil, errors.Wrap(dbsql.ErrNoRows, errors.WithID("storage.pause_template.update"), errors.WithCause(err))
 		}
 
-		return err
+		return nil, err
 	}
 
-	return nil
+	read, err := options.NewRead(ctx, options.WithID(in.Id))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just updated; a standby may still hold the old one.
+	return p.read(ctx, p.db.Primary(), read)
 }
 
 func (p *PauseTemplate) DeletePauseTemplate(ctx context.Context, read *options.Read) (int64, error) {

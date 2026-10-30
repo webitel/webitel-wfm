@@ -45,11 +45,7 @@ func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Contex
 		return nil, err
 	}
 
-	if err := a.storage.UpdateAgentWorkingConditions(ctx, read, in); err != nil {
-		return nil, err
-	}
-
-	out, err := a.ReadAgentWorkingConditions(ctx, read.WithAfterWrite())
+	out, err := a.storage.UpdateAgentWorkingConditions(ctx, read, in)
 	if err != nil {
 		return nil, err
 	}

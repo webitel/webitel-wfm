@@ -12,10 +12,10 @@ import (
 )
 
 type ShiftTemplateManager interface {
-	CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error)
+	CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error)
 	ReadShiftTemplate(ctx context.Context, read *options.Read) (*model.ShiftTemplate, error)
 	SearchShiftTemplate(ctx context.Context, search *options.Search) ([]*model.ShiftTemplate, error)
-	UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error
+	UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error)
 	DeleteShiftTemplate(ctx context.Context, read *options.Read) (int64, error)
 }
 
@@ -29,7 +29,7 @@ func NewShiftTemplate(db dbsql.Store) *ShiftTemplate {
 	}
 }
 
-func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error) {
+func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
 	var id int64
 	columns := []map[string]any{
 		{
@@ -44,19 +44,29 @@ func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.Sig
 
 	sql, args := b.Insert(b.ShiftTemplateTable.Name(), columns).SQL("RETURNING id").Build()
 	if err := s.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return id, nil
+	read, err := options.NewRead(ctx, options.WithID(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just committed; a standby may not have it yet.
+	return s.read(ctx, s.db.Primary(), read)
 }
 
 func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Read) (*model.ShiftTemplate, error) {
+	return s.read(ctx, s.db.StandbyPreferred(), read)
+}
+
+func (s *ShiftTemplate) read(ctx context.Context, node dbsql.Node, read *options.Read) (*model.ShiftTemplate, error) {
 	search, err := options.NewSearch(ctx, options.WithID(read.ID()))
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := s.SearchShiftTemplate(ctx, search.PopulateFromRead(read))
+	items, err := s.search(ctx, node, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +83,10 @@ func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Rea
 }
 
 func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options.Search) ([]*model.ShiftTemplate, error) {
+	return s.search(ctx, s.db.StandbyPreferred(), search)
+}
+
+func (s *ShiftTemplate) search(ctx context.Context, node dbsql.Node, search *options.Search) ([]*model.ShiftTemplate, error) {
 	const (
 		linkCreatedBy = 1 << iota
 		linkUpdatedBy
@@ -180,14 +194,14 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 
 	var items []*model.ShiftTemplate
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := readNode(s.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
+	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
 	return items, nil
 }
 
-func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error {
+func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
 	columns := map[string]any{
 		"updated_by":  user.Id,
 		"name":        in.Name,
@@ -203,10 +217,16 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.Sig
 
 	sql, args := ub.Where(clauses...).Build()
 	if err := s.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	read, err := options.NewRead(ctx, options.WithID(in.Id))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just updated; a standby may still hold the old one.
+	return s.read(ctx, s.db.Primary(), read)
 }
 
 func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, read *options.Read) (int64, error) {

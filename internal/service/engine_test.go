@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"google.golang.org/grpc"
@@ -23,6 +24,14 @@ type fakeEngine struct {
 
 	agents []int64
 	team   *enginepb.AgentTeam
+
+	agentReads atomic.Int32
+}
+
+func (f *fakeEngine) ReadAgent(_ context.Context, in *enginepb.ReadAgentRequest) (*enginepb.Agent, error) {
+	f.agentReads.Add(1)
+
+	return &enginepb.Agent{Id: in.GetId()}, nil
 }
 
 func (f *fakeEngine) SearchAgent(context.Context, *enginepb.SearchAgentRequest) (*enginepb.ListAgent, error) {

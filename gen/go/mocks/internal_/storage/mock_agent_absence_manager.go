@@ -83,23 +83,23 @@ func (_c *MockAgentAbsenceManager_CreateAgentAbsence_Call) RunAndReturn(run func
 }
 
 // CreateAgentsAbsences provides a mock function with given fields: ctx, search, in
-func (_m *MockAgentAbsenceManager) CreateAgentsAbsences(ctx context.Context, search *options.Search, in []*model.AgentAbsences) ([]int64, error) {
+func (_m *MockAgentAbsenceManager) CreateAgentsAbsences(ctx context.Context, search *options.Search, in []*model.AgentAbsences) ([]*model.AgentAbsences, error) {
 	ret := _m.Called(ctx, search, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateAgentsAbsences")
 	}
 
-	var r0 []int64
+	var r0 []*model.AgentAbsences
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *options.Search, []*model.AgentAbsences) ([]int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *options.Search, []*model.AgentAbsences) ([]*model.AgentAbsences, error)); ok {
 		return rf(ctx, search, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *options.Search, []*model.AgentAbsences) []int64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *options.Search, []*model.AgentAbsences) []*model.AgentAbsences); ok {
 		r0 = rf(ctx, search, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]int64)
+			r0 = ret.Get(0).([]*model.AgentAbsences)
 		}
 	}
 
@@ -132,12 +132,12 @@ func (_c *MockAgentAbsenceManager_CreateAgentsAbsences_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockAgentAbsenceManager_CreateAgentsAbsences_Call) Return(_a0 []int64, _a1 error) *MockAgentAbsenceManager_CreateAgentsAbsences_Call {
+func (_c *MockAgentAbsenceManager_CreateAgentsAbsences_Call) Return(_a0 []*model.AgentAbsences, _a1 error) *MockAgentAbsenceManager_CreateAgentsAbsences_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockAgentAbsenceManager_CreateAgentsAbsences_Call) RunAndReturn(run func(context.Context, *options.Search, []*model.AgentAbsences) ([]int64, error)) *MockAgentAbsenceManager_CreateAgentsAbsences_Call {
+func (_c *MockAgentAbsenceManager_CreateAgentsAbsences_Call) RunAndReturn(run func(context.Context, *options.Search, []*model.AgentAbsences) ([]*model.AgentAbsences, error)) *MockAgentAbsenceManager_CreateAgentsAbsences_Call {
 	_c.Call.Return(run)
 	return _c
 }

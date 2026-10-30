@@ -27,12 +27,12 @@ func NewShiftTemplate(storage storage.ShiftTemplateManager) *ShiftTemplate {
 }
 
 func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, read *options.Read, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
-	id, err := s.storage.CreateShiftTemplate(ctx, read.User(), in)
+	out, err := s.storage.CreateShiftTemplate(ctx, read.User(), in)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.ReadShiftTemplate(ctx, read.WithID(id).WithAfterWrite())
+	return out, nil
 }
 
 func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Read) (*model.ShiftTemplate, error) {
@@ -56,11 +56,12 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 }
 
 func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, read *options.Read, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
-	if err := s.storage.UpdateShiftTemplate(ctx, read.User(), in); err != nil {
+	out, err := s.storage.UpdateShiftTemplate(ctx, read.User(), in)
+	if err != nil {
 		return nil, err
 	}
 
-	return s.ReadShiftTemplate(ctx, read.WithAfterWrite())
+	return out, nil
 }
 
 func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, read *options.Read) (int64, error) {

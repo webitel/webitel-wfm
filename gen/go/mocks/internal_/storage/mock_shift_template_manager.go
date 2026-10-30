@@ -25,22 +25,24 @@ func (_m *MockShiftTemplateManager) EXPECT() *MockShiftTemplateManager_Expecter 
 }
 
 // CreateShiftTemplate provides a mock function with given fields: ctx, user, in
-func (_m *MockShiftTemplateManager) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error) {
+func (_m *MockShiftTemplateManager) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
 	ret := _m.Called(ctx, user, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateShiftTemplate")
 	}
 
-	var r0 int64
+	var r0 *model.ShiftTemplate
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) (*model.ShiftTemplate, error)); ok {
 		return rf(ctx, user, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) int64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) *model.ShiftTemplate); ok {
 		r0 = rf(ctx, user, in)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.ShiftTemplate)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) error); ok {
@@ -72,12 +74,12 @@ func (_c *MockShiftTemplateManager_CreateShiftTemplate_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockShiftTemplateManager_CreateShiftTemplate_Call) Return(_a0 int64, _a1 error) *MockShiftTemplateManager_CreateShiftTemplate_Call {
+func (_c *MockShiftTemplateManager_CreateShiftTemplate_Call) Return(_a0 *model.ShiftTemplate, _a1 error) *MockShiftTemplateManager_CreateShiftTemplate_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockShiftTemplateManager_CreateShiftTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.ShiftTemplate) (int64, error)) *MockShiftTemplateManager_CreateShiftTemplate_Call {
+func (_c *MockShiftTemplateManager_CreateShiftTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.ShiftTemplate) (*model.ShiftTemplate, error)) *MockShiftTemplateManager_CreateShiftTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -258,21 +260,33 @@ func (_c *MockShiftTemplateManager_SearchShiftTemplate_Call) RunAndReturn(run fu
 }
 
 // UpdateShiftTemplate provides a mock function with given fields: ctx, user, in
-func (_m *MockShiftTemplateManager) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error {
+func (_m *MockShiftTemplateManager) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
 	ret := _m.Called(ctx, user, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateShiftTemplate")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) error); ok {
+	var r0 *model.ShiftTemplate
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) (*model.ShiftTemplate, error)); ok {
+		return rf(ctx, user, in)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) *model.ShiftTemplate); ok {
 		r0 = rf(ctx, user, in)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.ShiftTemplate)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *model.SignedInUser, *model.ShiftTemplate) error); ok {
+		r1 = rf(ctx, user, in)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockShiftTemplateManager_UpdateShiftTemplate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateShiftTemplate'
@@ -295,12 +309,12 @@ func (_c *MockShiftTemplateManager_UpdateShiftTemplate_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockShiftTemplateManager_UpdateShiftTemplate_Call) Return(_a0 error) *MockShiftTemplateManager_UpdateShiftTemplate_Call {
-	_c.Call.Return(_a0)
+func (_c *MockShiftTemplateManager_UpdateShiftTemplate_Call) Return(_a0 *model.ShiftTemplate, _a1 error) *MockShiftTemplateManager_UpdateShiftTemplate_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockShiftTemplateManager_UpdateShiftTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.ShiftTemplate) error) *MockShiftTemplateManager_UpdateShiftTemplate_Call {
+func (_c *MockShiftTemplateManager_UpdateShiftTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.ShiftTemplate) (*model.ShiftTemplate, error)) *MockShiftTemplateManager_UpdateShiftTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }

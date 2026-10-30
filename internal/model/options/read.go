@@ -18,9 +18,8 @@ type Read struct {
 	fields
 	derived
 
-	user       *model.SignedInUser
-	id         int64
-	afterWrite bool
+	user *model.SignedInUser
+	id   int64
 }
 
 func NewRead(ctx context.Context, options ...Option) (*Read, error) {
@@ -54,18 +53,6 @@ func (r *Read) ID() int64 {
 
 func (r *Read) WithID(id int64) *Read {
 	r.id = id
-
-	return r
-}
-
-// AfterWrite reports whether the read follows the caller's own write and so
-// must see it: a lagging replica may not have the row yet.
-func (r *Read) AfterWrite() bool {
-	return r.afterWrite
-}
-
-func (r *Read) WithAfterWrite() *Read {
-	r.afterWrite = true
 
 	return r
 }

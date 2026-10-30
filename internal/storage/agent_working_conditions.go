@@ -11,7 +11,7 @@ import (
 
 type AgentWorkingConditionsManager interface {
 	ReadAgentWorkingConditions(ctx context.Context, read *options.Read) (*model.AgentWorkingConditions, error)
-	UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) error
+	UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error)
 }
 
 type AgentWorkingConditions struct {
@@ -25,6 +25,10 @@ func NewAgentWorkingConditions(db dbsql.Store) *AgentWorkingConditions {
 }
 
 func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context, read *options.Read) (*model.AgentWorkingConditions, error) {
+	return a.read(ctx, a.db.StandbyPreferred(), read)
+}
+
+func (a *AgentWorkingConditions) read(ctx context.Context, node dbsql.Node, read *options.Read) (*model.AgentWorkingConditions, error) {
 	const (
 		linkWorkingCondition = 1 << iota
 		linkPauseTemplate
@@ -93,14 +97,14 @@ func (a *AgentWorkingConditions) ReadAgentWorkingConditions(ctx context.Context,
 
 	var item model.AgentWorkingConditions
 	sql, args := base.Build()
-	if err := readNode(a.db, read.AfterWrite()).Get(ctx, &item, sql, args...); err != nil {
+	if err := node.Get(ctx, &item, sql, args...); err != nil {
 		return nil, err
 	}
 
 	return &item, nil
 }
 
-func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) error {
+func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error) {
 	columns := []map[string]any{
 		{
 			"domain_id":            read.User().DomainId,
@@ -113,8 +117,9 @@ func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Contex
 
 	sql, args := b.Insert(b.AgentWorkingConditionTable.Name(), columns).Build()
 	if err := a.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	// The row was just committed; a standby may not have it yet.
+	return a.read(ctx, a.db.Primary(), read)
 }

@@ -12,10 +12,10 @@ import (
 )
 
 type WorkingConditionManager interface {
-	CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error)
+	CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error)
 	ReadWorkingCondition(ctx context.Context, read *options.Read) (*model.WorkingCondition, error)
 	SearchWorkingCondition(ctx context.Context, search *options.Search) ([]*model.WorkingCondition, error)
-	UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error
+	UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error)
 	DeleteWorkingCondition(ctx context.Context, read *options.Read) (int64, error)
 }
 
@@ -29,7 +29,7 @@ func NewWorkingCondition(db dbsql.Store) *WorkingCondition {
 	}
 }
 
-func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error) {
+func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error) {
 	var id int64
 	columns := []map[string]any{
 		{
@@ -51,19 +51,29 @@ func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, user *mod
 
 	sql, args := b.Insert(b.WorkingConditionTable.Name(), columns).SQL("RETURNING id").Build()
 	if err := w.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return id, nil
+	read, err := options.NewRead(ctx, options.WithID(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just committed; a standby may not have it yet.
+	return w.read(ctx, w.db.Primary(), read)
 }
 
 func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, read *options.Read) (*model.WorkingCondition, error) {
+	return w.read(ctx, w.db.StandbyPreferred(), read)
+}
+
+func (w *WorkingCondition) read(ctx context.Context, node dbsql.Node, read *options.Read) (*model.WorkingCondition, error) {
 	search, err := options.NewSearch(ctx, options.WithID(read.ID()))
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := w.SearchWorkingCondition(ctx, search.PopulateFromRead(read))
+	items, err := w.search(ctx, node, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +90,10 @@ func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, read *optio
 }
 
 func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *options.Search) ([]*model.WorkingCondition, error) {
+	return w.search(ctx, w.db.StandbyPreferred(), search)
+}
+
+func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *options.Search) ([]*model.WorkingCondition, error) {
 	const (
 		linkCreatedBy = 1 << iota
 		linkUpdatedBy
@@ -233,14 +247,14 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 
 	var items []*model.WorkingCondition
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := readNode(w.db, search.AfterWrite()).Select(ctx, &items, sql, args...); err != nil {
+	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
 	return items, nil
 }
 
-func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error {
+func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error) {
 	columns := map[string]any{
 		"updated_by":         user.Id,
 		"name":               in.Name,
@@ -263,10 +277,16 @@ func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, user *mod
 
 	sql, args := ub.Where(clauses...).Build()
 	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	read, err := options.NewRead(ctx, options.WithID(in.Id))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just updated; a standby may still hold the old one.
+	return w.read(ctx, w.db.Primary(), read)
 }
 
 func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, read *options.Read) (int64, error) {

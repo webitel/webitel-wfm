@@ -25,22 +25,24 @@ func (_m *MockWorkingConditionManager) EXPECT() *MockWorkingConditionManager_Exp
 }
 
 // CreateWorkingCondition provides a mock function with given fields: ctx, user, in
-func (_m *MockWorkingConditionManager) CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (int64, error) {
+func (_m *MockWorkingConditionManager) CreateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error) {
 	ret := _m.Called(ctx, user, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateWorkingCondition")
 	}
 
-	var r0 int64
+	var r0 *model.WorkingCondition
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) (*model.WorkingCondition, error)); ok {
 		return rf(ctx, user, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) int64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) *model.WorkingCondition); ok {
 		r0 = rf(ctx, user, in)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.WorkingCondition)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) error); ok {
@@ -72,12 +74,12 @@ func (_c *MockWorkingConditionManager_CreateWorkingCondition_Call) Run(run func(
 	return _c
 }
 
-func (_c *MockWorkingConditionManager_CreateWorkingCondition_Call) Return(_a0 int64, _a1 error) *MockWorkingConditionManager_CreateWorkingCondition_Call {
+func (_c *MockWorkingConditionManager_CreateWorkingCondition_Call) Return(_a0 *model.WorkingCondition, _a1 error) *MockWorkingConditionManager_CreateWorkingCondition_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockWorkingConditionManager_CreateWorkingCondition_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.WorkingCondition) (int64, error)) *MockWorkingConditionManager_CreateWorkingCondition_Call {
+func (_c *MockWorkingConditionManager_CreateWorkingCondition_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.WorkingCondition) (*model.WorkingCondition, error)) *MockWorkingConditionManager_CreateWorkingCondition_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -258,21 +260,33 @@ func (_c *MockWorkingConditionManager_SearchWorkingCondition_Call) RunAndReturn(
 }
 
 // UpdateWorkingCondition provides a mock function with given fields: ctx, user, in
-func (_m *MockWorkingConditionManager) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) error {
+func (_m *MockWorkingConditionManager) UpdateWorkingCondition(ctx context.Context, user *model.SignedInUser, in *model.WorkingCondition) (*model.WorkingCondition, error) {
 	ret := _m.Called(ctx, user, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateWorkingCondition")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) error); ok {
+	var r0 *model.WorkingCondition
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) (*model.WorkingCondition, error)); ok {
+		return rf(ctx, user, in)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) *model.WorkingCondition); ok {
 		r0 = rf(ctx, user, in)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.WorkingCondition)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *model.SignedInUser, *model.WorkingCondition) error); ok {
+		r1 = rf(ctx, user, in)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockWorkingConditionManager_UpdateWorkingCondition_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateWorkingCondition'
@@ -295,12 +309,12 @@ func (_c *MockWorkingConditionManager_UpdateWorkingCondition_Call) Run(run func(
 	return _c
 }
 
-func (_c *MockWorkingConditionManager_UpdateWorkingCondition_Call) Return(_a0 error) *MockWorkingConditionManager_UpdateWorkingCondition_Call {
-	_c.Call.Return(_a0)
+func (_c *MockWorkingConditionManager_UpdateWorkingCondition_Call) Return(_a0 *model.WorkingCondition, _a1 error) *MockWorkingConditionManager_UpdateWorkingCondition_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockWorkingConditionManager_UpdateWorkingCondition_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.WorkingCondition) error) *MockWorkingConditionManager_UpdateWorkingCondition_Call {
+func (_c *MockWorkingConditionManager_UpdateWorkingCondition_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.WorkingCondition) (*model.WorkingCondition, error)) *MockWorkingConditionManager_UpdateWorkingCondition_Call {
 	_c.Call.Return(run)
 	return _c
 }

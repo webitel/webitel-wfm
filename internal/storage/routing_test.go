@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -35,7 +36,7 @@ type probeNode[T any] struct {
 	role string
 	rows *[]*T
 	id   int64
-	ids  []int64 // what a batch on this node returns
+	ids  []int64 // what a batch or a multi-row INSERT on this node returns
 	tr   *trace
 }
 
@@ -43,8 +44,13 @@ func (p probeNode[T]) Select(_ context.Context, dest any, sql string, args ...an
 	p.tr.asked = append(p.tr.asked, p.role)
 	p.tr.calls = append(p.tr.calls, call{sql: sql, args: args})
 
-	if out, ok := dest.(*[]*T); ok && p.rows != nil {
-		*out = *p.rows
+	switch out := dest.(type) {
+	case *[]*T:
+		if p.rows != nil {
+			*out = *p.rows
+		}
+	case *[]int64: // a multi-row INSERT ... RETURNING id
+		*out = append(*out, p.ids...)
 	}
 
 	return nil
@@ -113,8 +119,8 @@ func (p *probeStore[T]) Primary() dbsql.Node          { return p.primary }
 func (p *probeStore[T]) StandbyPreferred() dbsql.Node { return p.standby }
 
 // newProbeStore wires nodes onto canned rows. primaryRows and standbyRows are
-// separate so a test can simulate replication lag; batchIDs is what a batch
-// on either node returns.
+// separate so a test can simulate replication lag; batchIDs is what a batch or
+// a multi-row INSERT on either node returns.
 func newProbeStore[T any](primaryRows, standbyRows *[]*T, id int64, batchIDs ...int64) (*probeStore[T], *trace) {
 	tr := &trace{}
 	db := &probeStore[T]{
@@ -484,13 +490,155 @@ func TestCreateAgentsWorkingScheduleShiftsRereadsTheRowsItWrote(t *testing.T) {
 	}
 }
 
-// A lookup's plain reads and lists stay on the standby. A read that carries
-// the after-write intent, which the service sets on the read-back after its
-// own write, goes to the primary.
-func TestLookupReadsHonourAfterWrite(t *testing.T) {
+// assertReadsBackFromPrimary runs a lookup write against a primary holding the
+// saved row and a standby still holding a stale one. The write must answer with
+// the saved row, read by the id it wrote.
+func assertReadsBackFromPrimary[T any](t *testing.T, saved, stale *T, write func(db dbsql.Store) (*T, error)) {
+	t.Helper()
+
+	primary, standby := []*T{saved}, []*T{stale}
+	db, tr := newProbeStore(&primary, &standby, 7)
+
+	out, err := write(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(out, saved) {
+		t.Errorf("write returned %+v, want %+v: the read-back went to a lagging standby", out, saved)
+	}
+
+	// The write, then the read-back.
+	assertAsked(t, tr.asked, "primary", "primary")
+
+	if len(tr.calls) != 2 {
+		t.Fatalf("%d queries, want 2", len(tr.calls))
+	}
+
+	if back := tr.calls[1]; !slices.Contains(back.args, any(int64(7))) {
+		t.Errorf("read-back is not filtered by the id written: %s %v", back.sql, back.args)
+	}
+}
+
+// A lookup's create and update answer with the row they wrote, read back from
+// the primary: a standby may not have it yet, or may still hold the old one.
+func TestLookupWritesReadBackFromPrimary(t *testing.T) {
+	ctx := userCtx(1, 1)
+	user := &model.SignedInUser{Id: 1, DomainId: 1}
+	updated := model.DomainRecord{Id: 7}
+
+	t.Run("pause template", func(t *testing.T) {
+		saved, stale := &model.PauseTemplate{Name: "saved"}, &model.PauseTemplate{Name: "stale"}
+		causes := []model.PauseTemplateCause{{Cause: &model.LookupItem{Id: 3}}}
+
+		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.PauseTemplate, error) {
+			return (&PauseTemplate{db: db}).CreatePauseTemplate(ctx, user, &model.PauseTemplate{Causes: causes})
+		})
+
+		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.PauseTemplate, error) {
+			return (&PauseTemplate{db: db}).UpdatePauseTemplate(ctx, user, &model.PauseTemplate{DomainRecord: updated, Causes: causes})
+		})
+	})
+
+	t.Run("shift template", func(t *testing.T) {
+		saved, stale := &model.ShiftTemplate{Name: "saved"}, &model.ShiftTemplate{Name: "stale"}
+
+		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.ShiftTemplate, error) {
+			return (&ShiftTemplate{db: db}).CreateShiftTemplate(ctx, user, &model.ShiftTemplate{})
+		})
+
+		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.ShiftTemplate, error) {
+			return (&ShiftTemplate{db: db}).UpdateShiftTemplate(ctx, user, &model.ShiftTemplate{DomainRecord: updated})
+		})
+	})
+
+	t.Run("working condition", func(t *testing.T) {
+		saved, stale := &model.WorkingCondition{Name: "saved"}, &model.WorkingCondition{Name: "stale"}
+
+		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.WorkingCondition, error) {
+			return (&WorkingCondition{db: db}).CreateWorkingCondition(ctx, user, &model.WorkingCondition{})
+		})
+
+		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.WorkingCondition, error) {
+			return (&WorkingCondition{db: db}).UpdateWorkingCondition(ctx, user, &model.WorkingCondition{DomainRecord: updated})
+		})
+	})
+
+	t.Run("agent working conditions", func(t *testing.T) {
+		saved := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{Id: 5}}
+		stale := &model.AgentWorkingConditions{WorkingCondition: model.LookupItem{Id: 4}}
+
+		read, err := options.NewRead(ctx, options.WithID(7))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assertReadsBackFromPrimary(t, saved, stale, func(db dbsql.Store) (*model.AgentWorkingConditions, error) {
+			return (&AgentWorkingConditions{db: db}).UpdateAgentWorkingConditions(ctx, read, saved)
+		})
+	})
+}
+
+// Bulk absence create writes one row per absence and rereads exactly the rows
+// it wrote, from the primary.
+func TestCreateAgentsAbsencesRereadsTheRowsItWrote(t *testing.T) {
 	ctx := userCtx(1, 1)
 
-	newRead := func(t *testing.T, afterWrite bool) *options.Read {
+	primary := []*model.AgentAbsences{{Agent: model.LookupItem{Id: 3}}}
+
+	var standby []*model.AgentAbsences // not replicated yet
+
+	db, tr := newProbeStore(&primary, &standby, 0, 11, 12)
+
+	search, err := options.NewSearch(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in := []*model.AgentAbsences{{Agent: model.LookupItem{Id: 3}, Absence: []*model.Absence{{}, {}}}}
+
+	out, err := (&AgentAbsence{db: db}).CreateAgentsAbsences(ctx, search, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(out) != 1 || out[0].Agent.Id != 3 {
+		t.Errorf("create returned %+v, want the absences just written: the read-back went to a lagging standby", out)
+	}
+
+	// The INSERT, then the read-back.
+	assertAsked(t, tr.asked, "primary", "primary")
+
+	if len(tr.calls) != 2 {
+		t.Fatalf("%d queries, want 2", len(tr.calls))
+	}
+
+	back := tr.calls[1]
+	for _, id := range []int64{11, 12} {
+		if !slices.Contains(back.args, any(id)) {
+			t.Errorf("read-back args %v lack id %d returned by the insert", back.args, id)
+		}
+	}
+}
+
+func assertStaysOnStandby[T any](t *testing.T, read func(db dbsql.Store) error) {
+	t.Helper()
+
+	rows := []*T{new(T)}
+	db, tr := newProbeStore(&rows, &rows, 7)
+
+	if err := read(db); err != nil {
+		t.Fatal(err)
+	}
+
+	assertAsked(t, tr.asked, "standby")
+}
+
+// A lookup's plain reads and lists stay on the standby.
+func TestLookupReadsStayOnStandby(t *testing.T) {
+	ctx := userCtx(1, 1)
+
+	newRead := func(t *testing.T) *options.Read {
 		t.Helper()
 
 		read, err := options.NewRead(ctx, options.WithID(7))
@@ -498,14 +646,10 @@ func TestLookupReadsHonourAfterWrite(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if afterWrite {
-			read.WithAfterWrite()
-		}
-
 		return read
 	}
 
-	newSearch := func(t *testing.T, afterWrite bool) *options.Search {
+	newSearch := func(t *testing.T) *options.Search {
 		t.Helper()
 
 		search, err := options.NewSearch(ctx, options.WithID(7))
@@ -513,77 +657,66 @@ func TestLookupReadsHonourAfterWrite(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if afterWrite {
-			search.WithAfterWrite()
-		}
-
 		return search
 	}
 
-	lookups := map[string]func(t *testing.T, afterWrite bool) (*trace, error){
-		"pause template": func(t *testing.T, afterWrite bool) (*trace, error) {
-			t.Helper()
+	t.Run("pause template", func(t *testing.T) {
+		assertStaysOnStandby[model.PauseTemplate](t, func(db dbsql.Store) error {
+			_, err := (&PauseTemplate{db: db}).ReadPauseTemplate(ctx, newRead(t))
 
-			rows := []*model.PauseTemplate{{}}
-			db, tr := newProbeStore(&rows, &rows, 7)
-			_, err := (&PauseTemplate{db: db}).ReadPauseTemplate(ctx, newRead(t, afterWrite))
-
-			return tr, err
-		},
-		"shift template": func(t *testing.T, afterWrite bool) (*trace, error) {
-			t.Helper()
-
-			rows := []*model.ShiftTemplate{{}}
-			db, tr := newProbeStore(&rows, &rows, 7)
-			_, err := (&ShiftTemplate{db: db}).ReadShiftTemplate(ctx, newRead(t, afterWrite))
-
-			return tr, err
-		},
-		"working condition": func(t *testing.T, afterWrite bool) (*trace, error) {
-			t.Helper()
-
-			rows := []*model.WorkingCondition{{}}
-			db, tr := newProbeStore(&rows, &rows, 7)
-			_, err := (&WorkingCondition{db: db}).ReadWorkingCondition(ctx, newRead(t, afterWrite))
-
-			return tr, err
-		},
-		"agent working conditions": func(t *testing.T, afterWrite bool) (*trace, error) {
-			t.Helper()
-
-			rows := []*model.AgentWorkingConditions{{}}
-			db, tr := newProbeStore(&rows, &rows, 7)
-			_, err := (&AgentWorkingConditions{db: db}).ReadAgentWorkingConditions(ctx, newRead(t, afterWrite))
-
-			return tr, err
-		},
-		"agents absences": func(t *testing.T, afterWrite bool) (*trace, error) {
-			t.Helper()
-
-			db, tr := newProbeStore[model.AgentAbsences](nil, nil, 7)
-			_, err := (&AgentAbsence{db: db}).SearchAgentsAbsences(ctx, newSearch(t, afterWrite))
-
-			return tr, err
-		},
-	}
-
-	for name, read := range lookups {
-		t.Run(name, func(t *testing.T) {
-			for _, afterWrite := range []bool{false, true} {
-				tr, err := read(t, afterWrite)
-				if err != nil {
-					t.Fatalf("after write %v: %v", afterWrite, err)
-				}
-
-				want := "standby"
-				if afterWrite {
-					want = "primary"
-				}
-
-				assertAsked(t, tr.asked, want)
-			}
+			return err
 		})
-	}
+
+		assertStaysOnStandby[model.PauseTemplate](t, func(db dbsql.Store) error {
+			_, err := (&PauseTemplate{db: db}).SearchPauseTemplate(ctx, newSearch(t))
+
+			return err
+		})
+	})
+
+	t.Run("shift template", func(t *testing.T) {
+		assertStaysOnStandby[model.ShiftTemplate](t, func(db dbsql.Store) error {
+			_, err := (&ShiftTemplate{db: db}).ReadShiftTemplate(ctx, newRead(t))
+
+			return err
+		})
+
+		assertStaysOnStandby[model.ShiftTemplate](t, func(db dbsql.Store) error {
+			_, err := (&ShiftTemplate{db: db}).SearchShiftTemplate(ctx, newSearch(t))
+
+			return err
+		})
+	})
+
+	t.Run("working condition", func(t *testing.T) {
+		assertStaysOnStandby[model.WorkingCondition](t, func(db dbsql.Store) error {
+			_, err := (&WorkingCondition{db: db}).ReadWorkingCondition(ctx, newRead(t))
+
+			return err
+		})
+
+		assertStaysOnStandby[model.WorkingCondition](t, func(db dbsql.Store) error {
+			_, err := (&WorkingCondition{db: db}).SearchWorkingCondition(ctx, newSearch(t))
+
+			return err
+		})
+	})
+
+	t.Run("agent working conditions", func(t *testing.T) {
+		assertStaysOnStandby[model.AgentWorkingConditions](t, func(db dbsql.Store) error {
+			_, err := (&AgentWorkingConditions{db: db}).ReadAgentWorkingConditions(ctx, newRead(t))
+
+			return err
+		})
+	})
+
+	t.Run("agents absences", func(t *testing.T) {
+		assertStaysOnStandby[model.AgentAbsences](t, func(db dbsql.Store) error {
+			_, err := (&AgentAbsence{db: db}).SearchAgentsAbsences(ctx, newSearch(t))
+
+			return err
+		})
+	})
 }
 
 // The forecast-calculation store reads its own writes back from the primary
