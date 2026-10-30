@@ -53,6 +53,8 @@ func (p probeNode) Exec(_ context.Context, _ string, _ ...any) error {
 }
 
 type probeStore struct {
+	dbsql.Store
+
 	primary probeNode
 	standby probeNode
 }

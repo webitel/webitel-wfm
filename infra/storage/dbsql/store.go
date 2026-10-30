@@ -32,6 +32,11 @@ type BatchNode interface {
 type Store interface {
 	Primary() Node
 	StandbyPreferred() Node
+
+	// InTx runs fn in one READ COMMITTED transaction on the primary: nil commits,
+	// an error or panic rolls back. Inside fn use only tx, from one goroutine;
+	// InTx on tx joins the transaction, the root Store runs outside it.
+	InTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
 }
 
 // ForecastStore is the same contract bound to the forecast database.
