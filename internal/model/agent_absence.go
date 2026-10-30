@@ -28,8 +28,8 @@ type Absence struct {
 
 func (a *Absence) MarshalProto() *pb.Absence {
 	return &pb.Absence{
-		Id:        a.Id,
-		DomainId:  a.DomainId,
+		Id:        a.ID,
+		DomainId:  a.DomainID,
 		TypeId:    pb.AbsenceType(a.AbsenceType),
 		AbsentAt:  a.AbsentAt.Time.UnixMilli(),
 		CreatedAt: a.CreatedAt.Time.UnixMilli(),

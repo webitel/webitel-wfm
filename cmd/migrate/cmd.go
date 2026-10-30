@@ -74,12 +74,14 @@ func run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	goose.SetLogger(newLogger(log))
 	goose.SetVerbose(true)
+
 	store, err := database.NewStore(database.DialectPostgres, "wfm_schema_version")
 	if err != nil {
 		return err
 	}
 
 	noopDialect := goose.Dialect("")
+
 	provider, err := goose.NewProvider(noopDialect, db, migrations.Embed, goose.WithStore(store))
 	if err != nil {
 		return err
@@ -124,10 +126,10 @@ func newLogger(log *slog.Logger) *migrateLogger {
 	return &migrateLogger{log: log}
 }
 
-func (l *migrateLogger) Printf(format string, args ...interface{}) {
+func (l *migrateLogger) Printf(format string, args ...any) {
 	l.log.Info(fmt.Sprintf(format, args...))
 }
 
-func (l *migrateLogger) Fatalf(format string, args ...interface{}) {
+func (l *migrateLogger) Fatalf(format string, args ...any) {
 	l.log.Error(fmt.Sprintf(format, args...))
 }

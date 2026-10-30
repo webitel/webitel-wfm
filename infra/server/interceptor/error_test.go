@@ -39,7 +39,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 
 	t.Run("nil err received", func(t *testing.T) {
 		_, err := interceptor(context.Background(), nil, info, func(context.Context, any) (any, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // a handler that succeeds with an empty response
 		})
 
 		require.NoError(t, err)

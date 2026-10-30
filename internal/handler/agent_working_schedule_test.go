@@ -26,7 +26,7 @@ func (s *searchRecorder) SearchAgentsWorkingSchedule(_ context.Context, _ *model
 // reach the service as an unset period rather than a zero one.
 func TestSearchAgentsWorkingScheduleWithoutPeriod(t *testing.T) {
 	svc := &searchRecorder{}
-	ctx := grpccontext.SetUser(context.Background(), &model.SignedInUser{Id: 1, DomainId: 2})
+	ctx := grpccontext.SetUser(context.Background(), &model.SignedInUser{ID: 1, DomainID: 2})
 
 	if _, err := NewAgentWorkingSchedule(svc).SearchAgentsWorkingSchedule(ctx, &pb.SearchAgentsWorkingScheduleRequest{WorkingScheduleId: 7}); err != nil {
 		t.Fatal(err)
@@ -43,7 +43,7 @@ func TestUnmarshalAgentScheduleShiftKeepsPauseID(t *testing.T) {
 		Pauses: []*pb.AgentScheduleShiftPause{{Id: 20}},
 	})
 
-	if got := shift.Pauses[0].Id; got != 20 {
+	if got := shift.Pauses[0].ID; got != 20 {
 		t.Errorf("pause id = %d, want its own id 20, not the shift's", got)
 	}
 }

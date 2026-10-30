@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/webitel/webitel-go-kit/pkg/cache"
-
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/internal/model"
 )
@@ -26,7 +24,7 @@ func (n sqlNode) Select(_ context.Context, dest any, sql string, args ...any) er
 	*n.args = append(*n.args, args)
 
 	if out, ok := dest.(*[]*model.WorkingSchedule); ok {
-		*out = []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{Id: 7}}}
+		*out = []*model.WorkingSchedule{{DomainRecord: model.DomainRecord{ID: 7}}}
 	}
 
 	return nil
@@ -63,14 +61,14 @@ func newSQLStore() (*sqlStore, *[]string, *[][]any) {
 func TestUpdateWorkingScheduleIsScopedToOneRow(t *testing.T) {
 	for name, skills := range map[string][]*model.LookupItem{
 		"without extra skills": nil,
-		"with extra skills":    {{Id: 3}},
+		"with extra skills":    {{ID: 3}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			db, sql, args := newSQLStore()
-			w := &WorkingSchedule{db: db, items: cache.Noop[string, model.WorkingSchedule]()}
+			w := &WorkingSchedule{db: db}
 
-			user := &model.SignedInUser{Id: 1, DomainId: 2}
-			in := &model.WorkingSchedule{DomainRecord: model.DomainRecord{Id: 7}, ExtraSkills: skills}
+			user := &model.SignedInUser{ID: 1, DomainID: 2}
+			in := &model.WorkingSchedule{DomainRecord: model.DomainRecord{ID: 7}, ExtraSkills: skills}
 
 			if _, err := w.UpdateWorkingSchedule(userCtx(2, 1), user, in); err != nil {
 				t.Fatal(err)

@@ -17,8 +17,8 @@ func (s *ShiftTemplate) MarshalProto() *pb.ShiftTemplate {
 	}
 
 	out := &pb.ShiftTemplate{
-		Id:          s.Id,
-		DomainId:    s.DomainId,
+		Id:          s.ID,
+		DomainId:    s.DomainID,
 		Name:        s.Name,
 		Description: s.Description,
 		Times:       times,

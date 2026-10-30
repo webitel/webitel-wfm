@@ -49,14 +49,14 @@ func NewWorkingSchedule(storage storage.WorkingScheduleManager, engine *engine.C
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
-	agentIDs, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{TeamIds: []int64{in.Team.Id}})
+	agentIDs, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{TeamIDs: []int64{in.Team.ID}})
 	if err != nil {
 		return nil, err
 	}
 
 	agents := make([]*model.LookupItem, 0, len(agentIDs))
 	for _, a := range agentIDs {
-		agents = append(agents, &model.LookupItem{Id: a})
+		agents = append(agents, &model.LookupItem{ID: a})
 	}
 
 	in.Agents = agents
@@ -97,13 +97,13 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, read 
 		return nil, ErrAgentWorkingScheduleDateFilter
 	}
 
-	team, err := w.engine.TeamService().Team(ctx, ws.Team.Id)
+	team, err := w.engine.TeamService().Team(ctx, ws.Team.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	if team.ForecastCalculation == nil || team.ForecastCalculation.Id == 0 {
-		return nil, errors.Wrap(ErrEmptyForecastCalculation, errors.WithValue("team", team.Name))
+	if team.GetForecastCalculation() == nil || team.GetForecastCalculation().GetId() == 0 {
+		return nil, errors.Wrap(ErrEmptyForecastCalculation, errors.WithValue("team", team.GetName()))
 	}
 
 	forecast, err := w.forecast.ExecuteForecastCalculation(ctx, read.User(), team.GetForecastCalculation().GetId(), team.GetId(), date)
@@ -126,7 +126,7 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, search *opt
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
-	read, err := options.NewRead(ctx, options.WithID(in.Id))
+	read, err := options.NewRead(ctx, options.WithID(in.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		return nil, errors.Wrap(ErrWorkingScheduleUpdateDraft, errors.WithValue("state", item.State.String()))
 	}
 
-	if item.Team.Id != in.Team.Id || item.Calendar.Id != in.Calendar.Id {
+	if item.Team.ID != in.Team.ID || item.Calendar.ID != in.Calendar.ID {
 		if _, err := w.DeleteWorkingSchedule(ctx, read); err != nil {
 			return nil, err
 		}
@@ -171,7 +171,7 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *optio
 }
 
 func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, read *options.Read, agentIDs []int64) ([]*model.LookupItem, error) {
-	agents, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{Ids: agentIDs})
+	agents, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{IDs: agentIDs})
 	if err != nil {
 		return nil, err
 	}

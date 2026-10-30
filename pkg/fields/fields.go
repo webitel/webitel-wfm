@@ -33,12 +33,13 @@ func Wildcard(v any) string {
 	}
 
 	n := len(",") * (len(elems) - 1)
-	for i := 0; i < len(elems); i++ {
+	for i := range elems {
 		n += len(elems[i])
 	}
 
 	var b strings.Builder
 	b.Grow(n)
+
 	for n, s := range elems {
 		if n != 0 {
 			b.WriteString(`,`)
@@ -50,11 +51,13 @@ func Wildcard(v any) string {
 
 		// Alias any field containing a dot to avoid output column ambiguity,
 		// as required by scany to handle nested structs.
-		if strings.ContainsRune(s, '.') {
-			b.WriteString(` as "`)
-			b.WriteString(s)
-			b.WriteString(`"`)
+		if !strings.ContainsRune(s, '.') {
+			continue
 		}
+
+		b.WriteString(` as "`)
+		b.WriteString(s)
+		b.WriteString(`"`)
 	}
 
 	return b.String()
@@ -72,7 +75,7 @@ type lru struct {
 var wildcardsCache = &lru{
 	cap: 1000, // Likely high enough for most applications, but low enough to mitigate a memory leak.
 
-	m: map[reflect.Type]*list.Element{},
+	m: make(map[reflect.Type]*list.Element),
 	l: list.New(),
 }
 
@@ -88,7 +91,7 @@ func Fields(v any) []string {
 	}
 
 	var rv reflect.Type
-	if reflect.TypeOf(v).Kind() == reflect.Ptr {
+	if reflect.TypeOf(v).Kind() == reflect.Pointer {
 		rv = reflect.TypeOf(v).Elem()
 	} else {
 		rv = reflect.Indirect(reflect.ValueOf(v)).Type()
@@ -106,18 +109,19 @@ func Fields(v any) []string {
 	// Keep the map and linked list of the LRU cache up-to-date.
 	if cache, ok := wildcardsCache.m[rv]; ok {
 		wildcardsCache.l.MoveToFront(cache)
-		return cache.Value.(field).v
+
+		return cache.Value.(field).v //nolint:errcheck // the list only holds field values
 	}
 
 	// If we don't have the data cached yet, continue.
 	if wildcardsCache.l.Len() == wildcardsCache.cap {
 		oldest := wildcardsCache.l.Back()
 		wildcardsCache.l.Remove(oldest)
-		delete(wildcardsCache.m, oldest.Value.(field).t)
+		delete(wildcardsCache.m, oldest.Value.(field).t) //nolint:errcheck // the list only holds field values
 	}
 
 	// Get the columns, cache, and return it.
-	columns := fields(rv)
+	columns := structColumns(rv)
 	wildcardsCache.m[rv] = wildcardsCache.l.PushFront(field{
 		t: rv,
 		v: columns,
@@ -126,15 +130,17 @@ func Fields(v any) []string {
 	return columns
 }
 
-func fields(rv reflect.Type) []string {
+func structColumns(rv reflect.Type) []string {
 	// Column is used to make it possible to sort the columns by index.
 	type column struct {
 		indices []int
 		name    string
 	}
 
-	var cs []column
-	for name, i := range GetColumnToFieldIndexMap(rv) {
+	indices := GetColumnToFieldIndexMap(rv)
+
+	cs := make([]column, 0, len(indices))
+	for name, i := range indices {
 		cs = append(cs, column{
 			indices: i,
 			name:    name,
@@ -158,11 +164,12 @@ func fields(rv reflect.Type) []string {
 			case a[0] > b[0]:
 				return false
 			}
+
 			a, b = a[1:], b[1:]
 		}
 	})
 
-	var columns []string
+	columns := make([]string, 0, len(cs))
 	for _, column := range cs {
 		columns = append(columns, column.name)
 	}

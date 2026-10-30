@@ -21,7 +21,7 @@ type rpcError struct {
 }
 
 func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		h, err := handler(ctx, req)
 		if err != nil {
 			code := httpStatusFromCode(errors.Code(err))

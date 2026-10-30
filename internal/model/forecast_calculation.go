@@ -17,8 +17,8 @@ type ForecastCalculation struct {
 
 func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
 	out := &pb.ForecastCalculation{
-		Id:          p.Id,
-		DomainId:    p.DomainId,
+		Id:          p.ID,
+		DomainId:    p.DomainID,
 		Name:        p.Name,
 		Description: p.Description,
 		Procedure:   p.Procedure,

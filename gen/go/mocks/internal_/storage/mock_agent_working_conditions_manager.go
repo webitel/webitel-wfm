@@ -84,21 +84,33 @@ func (_c *MockAgentWorkingConditionsManager_ReadAgentWorkingConditions_Call) Run
 }
 
 // UpdateAgentWorkingConditions provides a mock function with given fields: ctx, read, in
-func (_m *MockAgentWorkingConditionsManager) UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) error {
+func (_m *MockAgentWorkingConditionsManager) UpdateAgentWorkingConditions(ctx context.Context, read *options.Read, in *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error) {
 	ret := _m.Called(ctx, read, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateAgentWorkingConditions")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *options.Read, *model.AgentWorkingConditions) error); ok {
+	var r0 *model.AgentWorkingConditions
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *options.Read, *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error)); ok {
+		return rf(ctx, read, in)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *options.Read, *model.AgentWorkingConditions) *model.AgentWorkingConditions); ok {
 		r0 = rf(ctx, read, in)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.AgentWorkingConditions)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *options.Read, *model.AgentWorkingConditions) error); ok {
+		r1 = rf(ctx, read, in)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAgentWorkingConditions'
@@ -121,12 +133,12 @@ func (_c *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call) R
 	return _c
 }
 
-func (_c *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call) Return(_a0 error) *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call {
-	_c.Call.Return(_a0)
+func (_c *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call) Return(_a0 *model.AgentWorkingConditions, _a1 error) *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call) RunAndReturn(run func(context.Context, *options.Read, *model.AgentWorkingConditions) error) *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call {
+func (_c *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call) RunAndReturn(run func(context.Context, *options.Read, *model.AgentWorkingConditions) (*model.AgentWorkingConditions, error)) *MockAgentWorkingConditionsManager_UpdateAgentWorkingConditions_Call {
 	_c.Call.Return(run)
 	return _c
 }

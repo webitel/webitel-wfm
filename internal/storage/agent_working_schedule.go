@@ -35,13 +35,14 @@ func NewAgentWorkingSchedule(db dbsql.Store) *AgentWorkingSchedule {
 
 func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, workingScheduleID int64, in []*model.AgentWorkingSchedule) ([]*model.AgentWorkingSchedule, error) {
 	batch := a.db.Primary().Batch()
+
 	for _, agent := range in {
 		for _, shift := range agent.Schedule {
 			columns := []map[string]any{
 				{
-					"domain_id":                 user.DomainId,
-					"created_by":                user.Id,
-					"working_schedule_agent_id": builder.Format("(SELECT id::bigint FROM wfm.working_schedule_agent WHERE domain_id = $? AND working_schedule_id = $? AND agent_id = $?)", user.DomainId, workingScheduleID, agent.Agent.Id),
+					"domain_id":                 user.DomainID,
+					"created_by":                user.ID,
+					"working_schedule_agent_id": builder.Format("(SELECT id::bigint FROM wfm.working_schedule_agent WHERE domain_id = $? AND working_schedule_id = $? AND agent_id = $?)", user.DomainID, workingScheduleID, agent.Agent.ID),
 					"schedule_at":               shift.Date,
 					"start_min":                 shift.Shift.Start,
 					"end_min":                   shift.Shift.End,
@@ -49,14 +50,15 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 			}
 
 			cte := builder.CTE(builder.With("schedule").As(builder.Insert(agentWorkingScheduleTable, columns).SQL("RETURNING id")))
+
 			if l := len(shift.Shift.Pauses); l > 0 {
-				pauses := make([]map[string]any, l)
+				pauses := make([]map[string]any, 0, l)
 				for _, pause := range shift.Shift.Pauses {
 					pauses = append(pauses, map[string]any{
-						"domain_id":                 user.DomainId,
-						"created_by":                user.Id,
+						"domain_id":                 user.DomainID,
+						"created_by":                user.ID,
 						"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM schedule)"),
-						"pause_cause_id":            pause.Cause.SafeId(),
+						"pause_cause_id":            pause.Cause.SafeID(),
 						"start_min":                 pause.Start,
 						"end_min":                   pause.End,
 					})
@@ -66,12 +68,12 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 			}
 
 			if l := len(shift.Shift.Skills); l > 0 {
-				skills := make([]map[string]any, l)
+				skills := make([]map[string]any, 0, l)
 				for _, skill := range shift.Shift.Skills {
 					skills = append(skills, map[string]any{
-						"domain_id":                 user.DomainId,
+						"domain_id":                 user.DomainID,
 						"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM schedule)"),
-						"skill_id":                  skill.Skill.Id,
+						"skill_id":                  skill.Skill.ID,
 						"capacity":                  skill.Capacity,
 					})
 				}
@@ -89,7 +91,7 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 		return nil, err
 	}
 
-	out, err := a.SearchAgentWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{WorkingScheduleId: workingScheduleID, Ids: ids})
+	out, err := a.SearchAgentWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{WorkingScheduleID: workingScheduleID, IDs: ids})
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +117,10 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 	}
 
 	sb.Select("agent AS agent", "jsonb_agg(schedule.*) FILTER (WHERE "+sb.And(cells...)+") AS schedule")
-	if len(search.AgentIds) > 0 {
-		in := make([]any, 0, len(search.AgentIds))
-		for _, id := range search.AgentIds {
+
+	if len(search.AgentIDs) > 0 {
+		in := make([]any, 0, len(search.AgentIDs))
+		for _, id := range search.AgentIDs {
 			in = append(in, id)
 		}
 
@@ -128,9 +131,9 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		sb.Where(sb.ILike("(agent ->> 'name')::text", search.SearchItem.SearchBy()))
 	}
 
-	if len(search.Ids) > 0 {
-		in := make([]any, 0, len(search.Ids))
-		for _, id := range search.Ids {
+	if len(search.IDs) > 0 {
+		in := make([]any, 0, len(search.IDs))
+		for _, id := range search.IDs {
 			in = append(in, id)
 		}
 
@@ -138,14 +141,16 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 	}
 
 	sql, args := sb.From(agentWorkingScheduleView+" AS schedule").
-		Where(sb.Equal("domain_id", user.DomainId),
-			sb.Equal("working_schedule_id", search.WorkingScheduleId),
+		Where(sb.Equal("domain_id", user.DomainID),
+			sb.Equal("working_schedule_id", search.WorkingScheduleID),
 		).
 		GroupBy("agent").
 		Build()
 
+	// The calendar is reread after every edit, and shift create returns its own
+	// rows through here; a standby may not have replicated them yet.
 	var items []*model.AgentWorkingSchedule
-	if err := a.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := a.db.Primary().Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
@@ -154,12 +159,14 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 
 func (a *AgentWorkingSchedule) Holidays(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.Holiday, error) {
 	sb := builder.Select("date", "name").From(agentWorkingScheduleHolidaysView)
-	sql, args := sb.Where(sb.Equal("domain_id", user.DomainId),
-		sb.Equal("working_schedule_id", search.WorkingScheduleId),
+	sql, args := sb.Where(sb.Equal("domain_id", user.DomainID),
+		sb.Equal("working_schedule_id", search.WorkingScheduleID),
 		sb.Between("date", search.SearchItem.Date.From, search.SearchItem.Date.To)).Build()
 
+	// The view follows the schedule's calendar and dates, so it is read from the
+	// same node as the shifts it is returned with.
 	var items []*model.Holiday
-	if err := a.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := a.db.Primary().Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 

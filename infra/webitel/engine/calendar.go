@@ -18,18 +18,19 @@ func newCalendarServiceClient(cli *Client) *CalendarService {
 	return &CalendarService{cli: gogrpc.NewCalendarServiceClient(cli.conn)}
 }
 
-func (c *CalendarService) Holidays(ctx context.Context, calendarId int64) ([]*model.Holiday, error) {
-	calendar, err := c.cli.ReadCalendar(ctx, &pb.ReadCalendarRequest{Id: calendarId})
+func (c *CalendarService) Holidays(ctx context.Context, calendarID int64) ([]*model.Holiday, error) {
+	calendar, err := c.cli.ReadCalendar(ctx, &pb.ReadCalendarRequest{Id: calendarID})
 	if err != nil {
 		return nil, webitel.ParseError(err)
 	}
 
 	var excepts []*model.Holiday
-	for _, e := range calendar.Excepts {
-		if !e.Disabled {
+
+	for _, e := range calendar.GetExcepts() {
+		if !e.GetDisabled() {
 			excepts = append(excepts, &model.Holiday{
-				Date: model.NewDate(e.Date),
-				Name: e.Name,
+				Date: model.NewDate(e.GetDate()),
+				Name: e.GetName(),
 			})
 		}
 	}

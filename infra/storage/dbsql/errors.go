@@ -65,8 +65,10 @@ func ParseError(err error) error {
 	return errors.Wrap(ErrInternal, errors.WithCause(err))
 }
 
-var checkViolationErrorRegistry = map[string]string{}
-var constraintMu sync.RWMutex
+var (
+	checkViolationErrorRegistry = make(map[string]string)
+	constraintMu                sync.RWMutex
+)
 
 // RegisterConstraint register custom database check constraint (like "CHECK
 // balance > 0").
@@ -80,6 +82,7 @@ var constraintMu sync.RWMutex
 func RegisterConstraint(name, message string) {
 	constraintMu.Lock()
 	defer constraintMu.Unlock()
+
 	if _, dup := checkViolationErrorRegistry[name]; dup {
 		panic("register constraint called twice for name " + name)
 	}
@@ -105,9 +108,9 @@ func findColumn(detail string) string {
 	results := columnFinder.FindStringSubmatch(detail)
 	if len(results) < 2 {
 		return ""
-	} else {
-		return results[1]
 	}
+
+	return results[1]
 }
 
 var valueFinder = regexp.MustCompile(`Key \(.+\)=\((.+)\)`)
@@ -138,5 +141,6 @@ func findForeignKeyTable(detail string) string {
 	if len(results) < 2 {
 		return ""
 	}
+
 	return results[1]
 }

@@ -11,7 +11,7 @@ import (
 )
 
 type SearchItem struct {
-	Id int64 `json:"id" db:"id"`
+	ID int64 `json:"id" db:"id"`
 
 	Page   int32   `json:"page,omitempty" db:"page"`
 	Size   int32   `json:"size,omitempty" db:"size"`
@@ -56,6 +56,7 @@ func (s *SearchItem) Offset() int32 {
 
 func (s *SearchItem) OrderBy(table string) string {
 	order := "created_at ASC"
+
 	if s.Sort != nil {
 		o, field := orderBy(*s.Sort)
 		order = fmt.Sprintf(`CASE WHEN NOT call_center.cc_is_lookup(%[1]s, %[2]s) THEN %[4]s END %[3]s, CASE WHEN call_center.cc_is_lookup(%[1]s, %[2]s) THEN CAST((CAST(%[2]s AS text)) AS json) ->> 'name' END %[3]s`,
@@ -74,8 +75,8 @@ func (s *SearchItem) Where(searchField string) *builder.WhereClause {
 	}
 
 	wb := builder.Where()
-	if s.Id != 0 {
-		wb.AddWhereExpr(wb.Args, wb.Equal("id", s.Id))
+	if s.ID != 0 {
+		wb.AddWhereExpr(wb.Args, wb.Equal("id", s.ID))
 	}
 
 	if s.Search != nil {
@@ -86,7 +87,7 @@ func (s *SearchItem) Where(searchField string) *builder.WhereClause {
 }
 
 func (s *SearchItem) SearchBy() string {
-	return strings.Replace(*s.Search, "*", "%", -1)
+	return strings.ReplaceAll(*s.Search, "*", "%")
 }
 
 func ListResult[C any](s int32, items []C) (bool, []C) {
@@ -97,7 +98,7 @@ func ListResult[C any](s int32, items []C) (bool, []C) {
 	return false, items
 }
 
-func orderBy(s string) (sort string, field string) {
+func orderBy(s string) (sort, field string) {
 	if s[0] == '+' || s[0] == 32 {
 		return "ASC", s[1:]
 	}
@@ -128,7 +129,7 @@ func quoteLiteral(literal string) string {
 	// https://git.postgresql.org/gitweb/?p=postgresql.git;a=blob;f=src/interfaces/libpq/fe-exec.c
 	//
 	// substitute any single-quotes (') with two single-quotes ('')
-	literal = strings.Replace(literal, `'`, `''`, -1)
+	literal = strings.ReplaceAll(literal, `'`, `''`)
 
 	// determine if the string has any backslashes (\) in it.
 	// if it does, replace any backslashes (\) with two backslashes (\\)
@@ -136,7 +137,7 @@ func quoteLiteral(literal string) string {
 	// C-style escape. Per how "PQEscapeStringInternal" handles this case, we
 	// also add a space before the "E"
 	if strings.Contains(literal, `\`) {
-		literal = strings.Replace(literal, `\`, `\\`, -1)
+		literal = strings.ReplaceAll(literal, `\`, `\\`)
 		literal = ` E'` + literal + `'`
 	} else {
 		// otherwise, we can just wrap the literal with a pair of single quotes

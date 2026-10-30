@@ -20,7 +20,6 @@ type Config struct {
 	Log      appconfig.Log      `mapstructure:"log"`
 	Postgres appconfig.Postgres `mapstructure:"postgres"`
 	Forecast appconfig.Postgres `mapstructure:"forecast"`
-	Cache    Cache              `mapstructure:"cache"`
 	Consul   appconfig.Consul   `mapstructure:"consul"`
 	Pubsub   appconfig.Pubsub   `mapstructure:"pubsub"`
 }
@@ -29,10 +28,6 @@ type Service struct {
 	NodeID    string `mapstructure:"node_id"`
 	Addr      string `mapstructure:"addr"`
 	ProbeAddr string `mapstructure:"probe_addr"`
-}
-
-type Cache struct {
-	Size int `mapstructure:"size"`
 }
 
 // LoadServerConfig loads the full configuration required by the gRPC server.
@@ -107,7 +102,6 @@ func registerServiceFlags(fs *pflag.FlagSet) {
 	fs.String("service.probe_addr", "127.0.0.1:10033", "address serving /livez, /readyz and /healthz; empty disables them")
 	fs.String("service.node_id", defaultNodeID(), "instance id registered in service discovery")
 	fs.String("forecast.dsn", "", "PostgreSQL DSN for forecast calculation queries; defaults to postgres.dsn")
-	fs.Int("cache.size", 1024, "maximum number of entries per in-memory cache")
 }
 
 func defaultNodeID() string {

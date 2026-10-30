@@ -1,8 +1,6 @@
 package builder
 
-var (
-	UserTable = Table{name: "directory.wbt_user", alias: "wu"}
-)
+var UserTable = Table{name: "directory.wbt_user", alias: "wu"}
 
 var (
 	PauseCauseTable = Table{name: "call_center.cc_pause_cause", alias: "cpc"}

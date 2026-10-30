@@ -71,7 +71,7 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, req *pb.S
 }
 
 func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, req *pb.UpdateWorkingConditionRequest) (*pb.UpdateWorkingConditionResponse, error) {
-	read, err := options.NewRead(ctx, options.WithID(req.Item.Id))
+	read, err := options.NewRead(ctx, options.WithID(req.GetItem().GetId()))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func marshalWorkingConditionBulkProto(items []*model.WorkingCondition) []*pb.Wor
 
 func unmarshalWorkingConditionProto(item *pb.WorkingCondition) *model.WorkingCondition {
 	out := &model.WorkingCondition{
-		DomainRecord:     model.DomainRecord{Id: item.Id},
+		DomainRecord:     model.DomainRecord{ID: item.GetId()},
 		Name:             item.GetName(),
 		Description:      item.Description,
 		WorkdayHours:     item.WorkdayHours,
@@ -119,13 +119,13 @@ func unmarshalWorkingConditionProto(item *pb.WorkingCondition) *model.WorkingCon
 		DaysOff:          item.DaysOff,
 		PauseDuration:    item.PauseDuration,
 		PauseTemplate: model.LookupItem{
-			Id: item.PauseTemplate.Id,
+			ID: item.GetPauseTemplate().GetId(),
 		},
 	}
 
-	if item.ShiftTemplate != nil {
+	if item.GetShiftTemplate() != nil {
 		out.ShiftTemplate = &model.LookupItem{
-			Id: item.ShiftTemplate.Id,
+			ID: item.GetShiftTemplate().GetId(),
 		}
 	}
 
