@@ -14,6 +14,7 @@ import (
 
 type batch struct {
 	pool  *pgw.Pool
+	tx    pgx.Tx
 	batch pgx.Batch
 }
 
@@ -23,12 +24,24 @@ func (b *batch) Queue(query string, args ...any) {
 
 // Select runs the queued queries and appends every result set to dest.
 func (b *batch) Select(ctx context.Context, dest any) error {
+	if b.tx != nil {
+		return b.send(ctx, b.tx, dest)
+	}
+
 	conn, err := b.pool.Acquire(ctx)
 	if err != nil {
 		return ParseError(err)
 	}
 	defer conn.Release()
 
+	return b.send(ctx, conn, dest)
+}
+
+type batchSender interface {
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+}
+
+func (b *batch) send(ctx context.Context, conn batchSender, dest any) error {
 	res := conn.SendBatch(ctx, &b.batch)
 	for range b.batch.Len() {
 		rows, err := res.Query()
