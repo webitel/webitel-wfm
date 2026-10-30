@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"google.golang.org/grpc/codes"
 
 	enginepb "buf.build/gen/go/webitel/engine/protocolbuffers/go"
+
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
@@ -72,6 +74,11 @@ func TestForecastWithEmptyAgentsIsRejected(t *testing.T) {
 		_, err := NewForecastCalculation(forecastStore{rows: rows}).ExecuteForecastCalculation(ctx, user, 3, 5, &model.FilterBetween{})
 		if !errors.Is(err, ErrForecastCalculationEmptyAgents) {
 			t.Errorf("err = %v, want %v", err, ErrForecastCalculationEmptyAgents)
+		}
+
+		// The team's procedure is at fault, not the request.
+		if got := errors.Code(err); got != codes.FailedPrecondition {
+			t.Errorf("code = %s, want %s", got, codes.FailedPrecondition)
 		}
 	})
 

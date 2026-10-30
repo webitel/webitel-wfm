@@ -43,7 +43,11 @@ func (n sqlNode) Get(_ context.Context, dest any, sql string, args ...any) error
 	return nil
 }
 
-type sqlStore struct{ node sqlNode }
+type sqlStore struct {
+	dbsql.Store
+
+	node sqlNode
+}
 
 func (s *sqlStore) Primary() dbsql.Node          { return s.node }
 func (s *sqlStore) StandbyPreferred() dbsql.Node { return s.node }

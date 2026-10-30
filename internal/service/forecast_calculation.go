@@ -3,13 +3,15 @@ package service
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
+
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
-var ErrForecastCalculationEmptyAgents = errors.InvalidArgument("forecast calculation procedure returned an hour without a number of agents", errors.WithID("service.forecast_calculation.empty_agents"))
+var ErrForecastCalculationEmptyAgents = errors.New("forecast calculation procedure returned an hour without a number of agents", errors.WithCode(codes.FailedPrecondition), errors.WithID("service.forecast_calculation.empty_agents"))
 
 type ForecastCalculationManager interface {
 	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
