@@ -3,6 +3,9 @@ package handler
 import (
 	"context"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+	"github.com/webitel/webitel-go-kit/pkg/etag"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -10,6 +13,10 @@ import (
 	"github.com/webitel/webitel-wfm/internal/service"
 	"github.com/webitel/webitel-wfm/pkg/timeutils"
 )
+
+// ErrWorkingScheduleEtag: a missing, malformed or foreign etag carries no usable
+// version, so it is a bad request, not the version conflict.
+var ErrWorkingScheduleEtag = errors.InvalidArgument("invalid input: item.etag of this working schedule is required", errors.WithID("handler.working_schedule.etag"))
 
 type WorkingSchedule struct {
 	pb.UnimplementedWorkingScheduleServiceServer
@@ -107,8 +114,17 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.Sea
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.UpdateWorkingScheduleRequest) (*pb.UpdateWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
+	in := unmarshalWorkingScheduleProto(req.GetItem())
 
-	out, err := w.service.UpdateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
+	// Required here, not in the contract: the message is shared with create.
+	tag, err := etag.ExpectEtag(etag.EtagWorkingSchedule, req.GetItem().GetEtag())
+	if err != nil || tag.GetOid() != in.ID {
+		return nil, errors.Wrap(ErrWorkingScheduleEtag, errors.WithCause(err))
+	}
+
+	in.Ver = tag.GetVer()
+
+	out, err := w.service.UpdateWorkingSchedule(ctx, s.SignedInUser, in)
 	if err != nil {
 		return nil, err
 	}

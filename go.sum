@@ -309,6 +309,8 @@ github.com/webitel/webitel-go-kit/infra/transport v0.0.0-20260901092450-f7cbb06a
 github.com/webitel/webitel-go-kit/infra/transport v0.0.0-20260901092450-f7cbb06aceb5/go.mod h1:pDNLCygkIoDlz0m9pj9p9961FqtNqINLXJq1vtUDs2k=
 github.com/webitel/webitel-go-kit/pkg/errors v0.1.0 h1:0fQuPpEHO/Xll7R7CzarjkRbLv06g32Ltu/XY3SQRCI=
 github.com/webitel/webitel-go-kit/pkg/errors v0.1.0/go.mod h1:v6cQFLuiwx6vHJuRo+TNi7qMEg3iymI1isoG0eKLW1E=
+github.com/webitel/webitel-go-kit/pkg/etag v0.3.0 h1:58xHCVcQa56hfYuBb5e/VsDGLFETMuaxXEgloGTMmUE=
+github.com/webitel/webitel-go-kit/pkg/etag v0.3.0/go.mod h1:jECs1S0f31Wjc0ziRFnqoHLZW659QVsz1UFcxgS+8CE=
 github.com/webitel/webitel-go-kit/pkg/interceptors v0.1.1 h1:as1D+Wqe+8GTP5JK4jWVDtHwwMwH891sw2RSYq8sac4=
 github.com/webitel/webitel-go-kit/pkg/interceptors v0.1.1/go.mod h1:J4A9OUbmO5Lsjdt0aNhNgek0Xy4x0NGJLo+OJz16ikE=
 github.com/webitel/webitel-go-kit/pkg/safemap v0.1.1-0.20260617101709-72b6b829c7ef h1:fQ7a4mqj2jXz/6AnBU6yfCxMVn7XJcTryQCwz+nAD0Y=

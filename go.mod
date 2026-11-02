@@ -91,6 +91,7 @@ require (
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/webitel/webitel-go-kit/pkg/etag v0.3.0
 	github.com/webitel/webitel-go-kit/pkg/safemap v0.1.1-0.20260617101709-72b6b829c7ef // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

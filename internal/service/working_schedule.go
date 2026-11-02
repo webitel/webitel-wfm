@@ -136,6 +136,12 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		return nil, err
 	}
 
+	// Before the team/calendar branch, which never reaches the storage guard, and
+	// before the state check, so a stale client rereads and sees the true state.
+	if item.Ver != in.Ver {
+		return nil, storage.ErrWorkingScheduleVersionConflict
+	}
+
 	if item.State != model.WorkingScheduleStateDraft {
 		return nil, errors.Wrap(ErrWorkingScheduleUpdateDraft, errors.WithValue("state", item.State.String()))
 	}

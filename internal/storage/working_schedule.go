@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"slices"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 
@@ -11,6 +12,10 @@ import (
 	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/pkg/fields"
 )
+
+// ErrWorkingScheduleVersionConflict: unique and foreign-key violations are 409
+// too, so the id, not the status, is what tells a client to reread.
+var ErrWorkingScheduleVersionConflict = errors.Aborted("working schedule was changed concurrently", errors.WithID("storage.working_schedule.version_conflict"))
 
 type WorkingScheduleManager interface {
 	CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
@@ -137,7 +142,7 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, search *opt
 func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *options.Search) ([]*model.WorkingSchedule, error) {
 	columns := []string{fields.Wildcard(model.WorkingSchedule{})}
 	if f := search.Fields(); len(f) > 0 {
-		columns = f
+		columns = workingScheduleColumns(f)
 	}
 
 	sb := builder.Select(columns...).From(builder.WorkingScheduleViewTable.Name())
@@ -170,49 +175,77 @@ func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *o
 	return items, nil
 }
 
+// workingScheduleColumns turns a field mask into view columns: etag is built
+// from id and ver, and scany rejects a column selected twice.
+func workingScheduleColumns(mask []string) []string {
+	columns := make([]string, 0, len(mask)+1)
+	for _, f := range mask {
+		if f == "etag" {
+			columns = append(columns, "id", "ver")
+		} else {
+			columns = append(columns, f)
+		}
+	}
+
+	slices.Sort(columns)
+
+	return slices.Compact(columns)
+}
+
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
 	cteq := builder.CTE()
 	schedule := map[string]any{
 		"updated_by":             user.ID,
 		"name":                   in.Name,
 		"block_outside_activity": in.BlockOutsideActivity,
+		"ver":                    builder.Format("ver + 1"),
 	}
 
+	// The skills CTEs start from what the guarded schedule CTE returned, so a
+	// stale version writes nothing; by in.ID they would wipe the skills and, as
+	// working_schedule_id is nullable, commit orphans.
 	upd := builder.Update(builder.WorkingScheduleTable.Name(), schedule)
-	upd.Where(upd.Equal("domain_id", user.DomainID), upd.Equal("id", in.ID)).SQL("RETURNING id")
+	upd.Where(upd.Equal("domain_id", user.DomainID), upd.Equal("id", in.ID), upd.Equal("ver", in.Ver)).SQL("RETURNING id, domain_id")
 	cteq.With(builder.With("schedule").As(upd))
 
 	del := builder.Delete(builder.WorkingScheduleExtraSkillTable.Name())
-	del.Where(del.Equal("domain_id", user.DomainID), del.Equal("working_schedule_id", in.ID)).SQL("RETURNING id")
+	del.Where(del.Equal("domain_id", user.DomainID), "working_schedule_id IN (SELECT id FROM schedule)").SQL("RETURNING id")
 	cteq.With(builder.With("del_extra_skills").As(del))
 
 	if c := len(in.ExtraSkills); c > 0 {
-		skills := make([]map[string]any, 0, len(in.ExtraSkills))
+		skills := make([]*int64, 0, c)
 		for _, s := range in.ExtraSkills {
-			skill := map[string]any{
-				"domain_id":           user.DomainID,
-				"working_schedule_id": builder.Format("(SELECT id FROM schedule)::bigint"),
-				"skill_id":            s.SafeID(),
-			}
-
-			skills = append(skills, skill)
+			skills = append(skills, s.SafeID())
 		}
 
-		cteq.With(builder.With("extra_skills").As(builder.Insert(builder.WorkingScheduleExtraSkillTable.Name(), skills).SQL("RETURNING id")))
+		ins := builder.Insert(builder.WorkingScheduleExtraSkillTable.Name(), nil).Cols("domain_id", "working_schedule_id", "skill_id").Returning("id")
+		sel := ins.Select("schedule.domain_id", "schedule.id", "skill_id")
+		sel.From("schedule", "unnest("+sel.Var(skills)+"::bigint[]) AS skill_id")
+		cteq.With(builder.With("extra_skills").As(ins))
 	}
 
 	// Data-modifying CTEs run whether or not they are read, so only schedule is
 	// selected: a cross join with an empty del_extra_skills would return no row.
 	sql, args := builder.Select("schedule.id").With(cteq.Builder()).From("schedule").Build()
 
-	var id int64
-	if err := w.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		return nil, err
-	}
-
 	read, err := options.NewRead(ctx, options.WithID(in.ID))
 	if err != nil {
 		return nil, err
+	}
+
+	var id int64
+	if err := w.db.Primary().Get(ctx, &id, sql, args...); err != nil {
+		if !errors.Is(err, dbsql.ErrNoRows) {
+			return nil, err
+		}
+
+		// Zero rows is ambiguous: the read tells a gone row (NotFound, also for
+		// another domain) from one at another version.
+		if _, err := w.read(ctx, w.db.Primary(), read); err != nil {
+			return nil, err
+		}
+
+		return nil, ErrWorkingScheduleVersionConflict
 	}
 
 	return w.read(ctx, w.db.Primary(), read)
