@@ -1971,6 +1971,11 @@ components:
                         $ref: '#/components/schemas/LookupEntity'
                 totalAgents:
                     type: string
+                etag:
+                    type: string
+                    description: |-
+                        Version of the row, returned by every read. UpdateWorkingSchedule requires
+                         it and refuses with Aborted when the schedule has changed since.
         WorkingScheduleForecast:
             type: object
             properties:
