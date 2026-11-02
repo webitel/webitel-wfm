@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 
@@ -17,6 +18,7 @@ var (
 	ErrWorkingScheduleUpdateDraft = errors.InvalidArgument("working schedule can only be updated in a draft state", errors.WithID("service.working_schedule.state"))
 	ErrAgentNotAllowed            = errors.Forbidden("you haven't read access to a desired set of agents")
 	ErrEmptyForecastCalculation   = errors.InvalidArgument("attached team doesn't have configured forecast calculation procedure", errors.WithID("service.working_schedule.empty_forecast_calculation"))
+	ErrAgentDeactivated           = errors.InvalidArgument("agents of deactivated users can't be added to a working schedule", errors.WithID("service.working_schedule.agent_deactivated"))
 )
 
 type WorkingScheduleManager interface {
@@ -53,8 +55,16 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 		return nil, err
 	}
 
+	deactivated, err := w.storage.DeactivatedAgents(ctx, user.DomainId, agentIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	agents := make([]*model.LookupItem, 0, len(agentIDs))
 	for _, a := range agentIDs {
+		if slices.Contains(deactivated, a) {
+			continue
+		}
 		agents = append(agents, &model.LookupItem{Id: a})
 	}
 
@@ -178,6 +188,14 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 	// Checks if signed user has read access to a desired set of agents.
 	if ok := compare.ElementsMatch(agents, agentIDs); !ok {
 		return nil, errors.Wrap(ErrAgentNotAllowed, errors.WithID("service.working_schedule.check_agents"))
+	}
+
+	deactivated, err := w.storage.DeactivatedAgents(ctx, read.User().DomainId, agentIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(deactivated) > 0 {
+		return nil, errors.Wrap(ErrAgentDeactivated, errors.WithValue("agents", deactivated))
 	}
 
 	out, err := w.storage.UpdateWorkingScheduleAddAgents(ctx, read, agentIDs)
