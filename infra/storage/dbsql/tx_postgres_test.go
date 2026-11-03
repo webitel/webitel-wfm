@@ -966,7 +966,7 @@ func TestPGLockTakesKeysInOneOrder(t *testing.T) {
 		"one by one in the given order": {
 			take: func(ctx context.Context, tx Tx, keys ...LockKey) error {
 				for _, k := range keys {
-					if err := tx.Primary().Exec(ctx, lockSQL, k.class, int32(k.id)); err != nil {
+					if err := tx.Primary().Exec(ctx, lockSQL, k.class, k.id); err != nil {
 						return err
 					}
 				}

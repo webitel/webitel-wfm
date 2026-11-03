@@ -54,7 +54,7 @@ func (s txStore) Lock(ctx context.Context, keys ...LockKey) error {
 
 	b := &pgx.Batch{}
 	for _, k := range sorted {
-		b.Queue(lockSQL, k.class, int32(k.id))
+		b.Queue(lockSQL, k.class, k.id)
 	}
 
 	return ParseError(s.tx.SendBatch(ctx, b).Close())

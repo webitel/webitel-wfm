@@ -304,7 +304,7 @@ func TestLockTakesKeysInOneOrder(t *testing.T) {
 	}
 
 	want := [][]any{
-		{teamLockClass, int32(1)}, {teamLockClass, int32(9)}, {operatorLockClass, int32(2)}, {operatorLockClass, int32(5)},
+		{teamLockClass, int64(1)}, {teamLockClass, int64(9)}, {operatorLockClass, int64(2)}, {operatorLockClass, int64(5)},
 	}
 	if len(stub.sent.QueuedQueries) != len(want) {
 		t.Fatalf("queued %d locks, want %d", len(stub.sent.QueuedQueries), len(want))
