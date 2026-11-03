@@ -35,8 +35,18 @@ type Store interface {
 
 	// InTx runs fn in one READ COMMITTED transaction on the primary: nil commits,
 	// an error or panic rolls back. Inside fn use only tx, from one goroutine;
-	// InTx on tx joins the transaction, the root Store runs outside it.
-	InTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
+	// InTx on tx joins the transaction, the root Store runs outside it. Only tx
+	// can Lock: outside a transaction an advisory lock would release at once.
+	InTx(ctx context.Context, fn func(ctx context.Context, tx Tx) error) error
+}
+
+// Tx is a Store bound to one transaction, handed out only by InTx.
+type Tx interface {
+	Store
+
+	// Lock waits for transaction-scoped advisory locks on keys; they release with the transaction.
+	// Take every key in one call, before the check they guard: the order holds only within one call.
+	Lock(ctx context.Context, keys ...LockKey) error
 }
 
 // ForecastStore is the same contract bound to the forecast database.

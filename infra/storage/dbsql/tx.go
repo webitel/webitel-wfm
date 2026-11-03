@@ -17,10 +17,10 @@ type txBeginner interface {
 
 var (
 	_ Store = (*DB)(nil)
-	_ Store = txStore{}
+	_ Tx    = txStore{}
 )
 
-func (d *DB) InTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
+func (d *DB) InTx(ctx context.Context, fn func(ctx context.Context, tx Tx) error) error {
 	pool, err := d.pm.Primary()
 	if err != nil {
 		return errNode{err: err}.fail()
@@ -35,7 +35,7 @@ func (d *DB) InTx(ctx context.Context, fn func(ctx context.Context, tx Store) er
 	return inTx(ctx, conn, fn)
 }
 
-func inTx(ctx context.Context, db txBeginner, fn func(ctx context.Context, tx Store) error) error {
+func inTx(ctx context.Context, db txBeginner, fn func(ctx context.Context, tx Tx) error) error {
 	tx, err := db.BeginTx(ctx, txOptions)
 	if err != nil {
 		return ParseError(err)
@@ -74,7 +74,7 @@ type txStore struct {
 func (s txStore) Primary() Node          { return txNode(s) }
 func (s txStore) StandbyPreferred() Node { return txNode(s) }
 
-func (s txStore) InTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
+func (s txStore) InTx(ctx context.Context, fn func(ctx context.Context, tx Tx) error) error {
 	return fn(ctx, s)
 }
 

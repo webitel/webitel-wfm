@@ -132,19 +132,19 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 
 	tests := map[string]struct {
 		seed     string
-		fn       func(ctx context.Context, tx Store) error
+		fn       func(ctx context.Context, tx Tx) error
 		table    string
 		wantErr  error
 		sqlState string
 		wantRows int64
 	}{
 		"nil commits every step": {
-			fn:       func(ctx context.Context, tx Store) error { return insert(ctx, tx, 1, 2, 3) },
+			fn:       func(ctx context.Context, tx Tx) error { return insert(ctx, tx, 1, 2, 3) },
 			table:    "item",
 			wantRows: 3,
 		},
 		"an error from fn undoes earlier steps": {
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				if err := insert(ctx, tx, 1, 2); err != nil {
 					return err
 				}
@@ -155,13 +155,13 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 			wantErr: errRefused,
 		},
 		"a failing statement undoes earlier steps": {
-			fn:       func(ctx context.Context, tx Store) error { return insert(ctx, tx, 1, 2, 1) },
+			fn:       func(ctx context.Context, tx Tx) error { return insert(ctx, tx, 1, 2, 1) },
 			table:    "item",
 			wantErr:  ErrUniqueViolation,
 			sqlState: pgerrcode.UniqueViolation,
 		},
 		"a batch stays inside the transaction": {
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				b := tx.Primary().Batch()
 				for id := range 3 {
 					b.Queue("INSERT INTO item (id) VALUES ($1) RETURNING id", id)
@@ -178,7 +178,7 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 			wantErr: errRefused,
 		},
 		"a failing statement inside a batch undoes earlier steps": {
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				if err := insert(ctx, tx, 1); err != nil {
 					return err
 				}
@@ -197,7 +197,7 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 			sqlState: pgerrcode.UniqueViolation,
 		},
 		"a conditional update that matches no row undoes earlier steps": {
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				if err := insert(ctx, tx, 1); err != nil {
 					return err
 				}
@@ -210,7 +210,7 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 			wantErr: ErrNoRows,
 		},
 		"a failing select undoes earlier steps": {
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				if err := insert(ctx, tx, 1); err != nil {
 					return err
 				}
@@ -224,7 +224,7 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 			sqlState: pgerrcode.UniqueViolation,
 		},
 		"a failed statement poisons the transaction even when fn swallows it": {
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				if err := insert(ctx, tx, 1); err != nil {
 					return err
 				}
@@ -238,7 +238,7 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 		},
 		"deleting existing rows is undone too": {
 			seed: "INSERT INTO item (id) VALUES (1), (2), (3)",
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				if err := tx.Primary().Exec(ctx, "DELETE FROM item"); err != nil {
 					return err
 				}
@@ -254,7 +254,7 @@ func TestPGInTxIsAllOrNothing(t *testing.T) {
 			wantRows: 3,
 		},
 		"a constraint checked at COMMIT fails the whole transaction": {
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				if err := tx.Primary().Exec(ctx, "INSERT INTO deferred_item (id) VALUES (1), (2)"); err != nil {
 					return err
 				}
@@ -318,7 +318,7 @@ func TestPGInTxIsReadCommitted(t *testing.T) {
 		t.Fatalf("outside InTx: level = %q (%v), want the serializable default to be in effect", level, err)
 	}
 
-	err := db.InTx(ctx, func(ctx context.Context, tx Store) error {
+	err := db.InTx(ctx, func(ctx context.Context, tx Tx) error {
 		if err := tx.Primary().Get(ctx, &level, "SHOW transaction_isolation"); err != nil {
 			return err
 		}
@@ -386,7 +386,7 @@ func TestPGInTxRunsOnThePrimaryOnly(t *testing.T) {
 		t.Fatalf("a write through the standby = %v, want 25006; without it this test proves nothing", err)
 	}
 
-	err = db.InTx(ctx, func(ctx context.Context, tx Store) error {
+	err = db.InTx(ctx, func(ctx context.Context, tx Tx) error {
 		for id, node := range []Node{tx.Primary(), tx.StandbyPreferred()} {
 			if err := node.Exec(ctx, "INSERT INTO item (id) VALUES ($1)", id+1); err != nil {
 				return err
@@ -432,7 +432,7 @@ func TestPGInTxJoins(t *testing.T) {
 
 		var outer, standby, inner, batched []int64
 
-		err := db.InTx(context.Background(), func(ctx context.Context, tx Store) error {
+		err := db.InTx(context.Background(), func(ctx context.Context, tx Tx) error {
 			if err := tx.Primary().Select(ctx, &outer, "SELECT txid_current()"); err != nil {
 				return err
 			}
@@ -441,7 +441,7 @@ func TestPGInTxJoins(t *testing.T) {
 				return err
 			}
 
-			return tx.InTx(ctx, func(ctx context.Context, tx Store) error {
+			return tx.InTx(ctx, func(ctx context.Context, tx Tx) error {
 				if err := tx.StandbyPreferred().Select(ctx, &standby, "SELECT txid_current()"); err != nil {
 					return err
 				}
@@ -479,8 +479,8 @@ func TestPGInTxJoins(t *testing.T) {
 	t.Run("a callee's nil is not a commit", func(t *testing.T) {
 		truncate(t)
 
-		err := db.InTx(context.Background(), func(ctx context.Context, tx Store) error {
-			err := tx.InTx(ctx, func(ctx context.Context, tx Store) error {
+		err := db.InTx(context.Background(), func(ctx context.Context, tx Tx) error {
+			err := tx.InTx(ctx, func(ctx context.Context, tx Tx) error {
 				return tx.Primary().Exec(ctx, "INSERT INTO item (id) VALUES (1)")
 			})
 			if err != nil {
@@ -501,12 +501,12 @@ func TestPGInTxJoins(t *testing.T) {
 	t.Run("a swallowed callee error does not undo the callee's writes", func(t *testing.T) {
 		truncate(t)
 
-		err := db.InTx(context.Background(), func(ctx context.Context, tx Store) error {
+		err := db.InTx(context.Background(), func(ctx context.Context, tx Tx) error {
 			if err := tx.Primary().Exec(ctx, "INSERT INTO item (id) VALUES (1)"); err != nil {
 				return err
 			}
 
-			_ = tx.InTx(ctx, func(ctx context.Context, tx Store) error {
+			_ = tx.InTx(ctx, func(ctx context.Context, tx Tx) error {
 				if err := tx.Primary().Exec(ctx, "INSERT INTO item (id) VALUES (2)"); err != nil {
 					return err
 				}
@@ -534,7 +534,7 @@ func TestPGInTxKeepsThePoolHealthy(t *testing.T) {
 		before := backendPID(t, db.Primary())
 		ctx, cancel := context.WithCancel(context.Background())
 
-		err := db.InTx(ctx, func(ctx context.Context, tx Store) error {
+		err := db.InTx(ctx, func(ctx context.Context, tx Tx) error {
 			if err := tx.Primary().Exec(ctx, "INSERT INTO item (id) VALUES (1)"); err != nil {
 				return err
 			}
@@ -560,7 +560,7 @@ func TestPGInTxKeepsThePoolHealthy(t *testing.T) {
 		before := backendPID(t, db.Primary())
 		ctx, cancel := context.WithCancel(context.Background())
 
-		err := db.InTx(ctx, func(ctx context.Context, tx Store) error {
+		err := db.InTx(ctx, func(ctx context.Context, tx Tx) error {
 			if err := tx.Primary().Exec(ctx, "INSERT INTO item (id) VALUES (2)"); err != nil {
 				return err
 			}
@@ -588,7 +588,7 @@ func TestPGInTxKeepsThePoolHealthy(t *testing.T) {
 
 		start := time.Now()
 
-		err := db.InTx(ctx, func(ctx context.Context, tx Store) error {
+		err := db.InTx(ctx, func(ctx context.Context, tx Tx) error {
 			if err := tx.Primary().Exec(ctx, "INSERT INTO item (id) VALUES (3)"); err != nil {
 				return err
 			}
@@ -617,7 +617,7 @@ func TestPGInTxKeepsThePoolHealthy(t *testing.T) {
 		func() {
 			defer func() { _ = recover() }()
 
-			_ = db.InTx(ctx, func(ctx context.Context, tx Store) error {
+			_ = db.InTx(ctx, func(ctx context.Context, tx Tx) error {
 				if err := tx.Primary().Exec(ctx, "INSERT INTO item (id) VALUES (4)"); err != nil {
 					return err
 				}
@@ -640,7 +640,7 @@ func TestPGInTxKeepsThePoolHealthy(t *testing.T) {
 		held, release, holder := make(chan struct{}), make(chan struct{}), make(chan error, 1)
 
 		go func() {
-			holder <- db.InTx(context.Background(), func(context.Context, Store) error {
+			holder <- db.InTx(context.Background(), func(context.Context, Tx) error {
 				close(held)
 				<-release
 
@@ -656,7 +656,7 @@ func TestPGInTxKeepsThePoolHealthy(t *testing.T) {
 		called, waiter := false, make(chan error, 1)
 
 		go func() {
-			waiter <- db.InTx(ctx, func(context.Context, Store) error {
+			waiter <- db.InTx(ctx, func(context.Context, Tx) error {
 				called = true
 
 				return nil
@@ -687,8 +687,6 @@ const (
 		start_at timestamptz NOT NULL,
 		end_at   timestamptz NOT NULL
 	)`
-
-	shiftLockClass = 80
 )
 
 var errOverlap = errors.New("the shift overlaps another shift of the operator", errors.WithCode(codes.FailedPrecondition))
@@ -697,9 +695,9 @@ var errOverlap = errors.New("the shift overlaps another shift of the operator", 
 func book(ctx context.Context, db Store, agent int, start time.Time, lock bool, gap func(context.Context) error) error {
 	end := start.Add(8 * time.Hour)
 
-	return db.InTx(ctx, func(ctx context.Context, tx Store) error {
+	return db.InTx(ctx, func(ctx context.Context, tx Tx) error {
 		if lock {
-			if err := tx.Primary().Exec(ctx, "SELECT pg_advisory_xact_lock($1, $2)", shiftLockClass, agent); err != nil {
+			if err := tx.Lock(ctx, OperatorLock(int64(agent))); err != nil {
 				return err
 			}
 		}
@@ -863,5 +861,257 @@ func TestPGInTxSerializesWritersUnderAnAdvisoryLock(t *testing.T) {
 		if n != 1 {
 			t.Errorf("operator %d has %d shifts, want 1", agent, n)
 		}
+	}
+}
+
+type lockRun struct {
+	pid  chan int64
+	held chan struct{}
+	done chan error
+}
+
+// lockIn runs take in a transaction, then keeps the keys until release closes or ctx ends.
+func lockIn(ctx context.Context, db Store, release <-chan struct{}, take func(context.Context, Tx) error) lockRun {
+	r := lockRun{pid: make(chan int64, 1), held: make(chan struct{}), done: make(chan error, 1)}
+
+	go func() {
+		r.done <- db.InTx(ctx, func(ctx context.Context, tx Tx) error {
+			var pid int64
+			if err := tx.Primary().Get(ctx, &pid, "SELECT pg_backend_pid()"); err != nil {
+				return err
+			}
+
+			r.pid <- pid
+
+			if err := take(ctx, tx); err != nil {
+				return err
+			}
+
+			close(r.held)
+
+			select {
+			case <-release:
+			case <-ctx.Done():
+			}
+
+			return nil
+		})
+	}()
+
+	return r
+}
+
+func waitHeld(t *testing.T, r lockRun) {
+	t.Helper()
+
+	select {
+	case <-r.held:
+	case err := <-r.done:
+		t.Fatalf("the locker ended before it held its keys: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the locker never held its keys")
+	}
+}
+
+func waitBlocked(t *testing.T, db Store, r lockRun) {
+	t.Helper()
+
+	var pid int64
+
+	select {
+	case pid = <-r.pid:
+	case err := <-r.done:
+		t.Fatalf("the locker ended before it locked: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the locker never started")
+	}
+
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		var blocked bool
+
+		err := db.Primary().Get(context.Background(), &blocked,
+			"SELECT EXISTS (SELECT 1 FROM pg_locks WHERE pid = $1 AND locktype = 'advisory' AND NOT granted)", pid)
+		if err != nil {
+			t.Fatalf("pg_locks: %v", err)
+		}
+
+		if blocked {
+			return
+		}
+	}
+
+	t.Fatalf("backend %d never waited for an advisory lock", pid)
+}
+
+func finish(t *testing.T, r lockRun, within time.Duration) error {
+	t.Helper()
+
+	select {
+	case err := <-r.done:
+		return err
+	case <-time.After(within):
+		t.Fatalf("the locker did not finish within %v", within)
+
+		return nil
+	}
+}
+
+func TestPGLockTakesKeysInOneOrder(t *testing.T) {
+	dsn := pgSchema(t)
+
+	tests := map[string]struct {
+		take         func(ctx context.Context, tx Tx, keys ...LockKey) error
+		wantDeadlock int
+	}{
+		"one by one in the given order": {
+			take: func(ctx context.Context, tx Tx, keys ...LockKey) error {
+				for _, k := range keys {
+					if err := tx.Primary().Exec(ctx, lockSQL, k.class, int32(k.id)); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			},
+			wantDeadlock: 1,
+		},
+		// Without the sort in lockOrder this reproduces the control and fails.
+		"through Lock": {
+			take: func(ctx context.Context, tx Tx, keys ...LockKey) error { return tx.Lock(ctx, keys...) },
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			db := connect(t, dsn, 8)
+			base := rand.Int64N(1 << 30)
+			op1, op2 := OperatorLock(base), OperatorLock(base+1)
+			release, closed := make(chan struct{}), make(chan struct{})
+			hold := func(k LockKey) func(context.Context, Tx) error {
+				return func(ctx context.Context, tx Tx) error { return tx.Lock(ctx, k) }
+			}
+			take := func(keys ...LockKey) func(context.Context, Tx) error {
+				return func(ctx context.Context, tx Tx) error { return tt.take(ctx, tx, keys...) }
+			}
+
+			close(closed)
+
+			h1, h2 := lockIn(ctx, db, release, hold(op1)), lockIn(ctx, db, release, hold(op2))
+			waitHeld(t, h1)
+			waitHeld(t, h2)
+
+			a, b := lockIn(ctx, db, closed, take(op1, op2)), lockIn(ctx, db, closed, take(op2, op1))
+			waitBlocked(t, db, a)
+			waitBlocked(t, db, b)
+			close(release)
+
+			deadlocks := 0
+
+			for _, r := range []lockRun{a, b} {
+				var pgErr *pgconn.PgError
+
+				switch err := finish(t, r, 20*time.Second); {
+				case err == nil:
+				case errors.As(err, &pgErr) && pgErr.Code == pgerrcode.DeadlockDetected:
+					deadlocks++
+				default:
+					t.Errorf("locker = %v, want nil or a deadlock", err)
+				}
+			}
+
+			if deadlocks != tt.wantDeadlock {
+				t.Errorf("%d lockers deadlocked, want %d", deadlocks, tt.wantDeadlock)
+			}
+
+			for _, h := range []lockRun{h1, h2} {
+				if err := finish(t, h, 5*time.Second); err != nil {
+					t.Errorf("holder = %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestPGLockSerializesTeamAndOperatorLockers(t *testing.T) {
+	dsn := pgSchema(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+	defer cancel()
+
+	db := connect(t, dsn, 8)
+	team, opA, opB := rand.Int64N(1<<30), rand.Int64N(1<<30), rand.Int64N(1<<30)
+	release, closed := make(chan struct{}), make(chan struct{})
+
+	close(closed)
+
+	x := lockIn(ctx, db, release, func(ctx context.Context, tx Tx) error {
+		return tx.Lock(ctx, TeamLock(team), OperatorLock(opA), OperatorLock(opB))
+	})
+	waitHeld(t, x)
+
+	// The same number as the team, in the operator class: the class keeps the kinds apart.
+	z := lockIn(ctx, db, closed, func(ctx context.Context, tx Tx) error { return tx.Lock(ctx, OperatorLock(team)) })
+	if err := finish(t, z, 3*time.Second); err != nil {
+		t.Errorf("OperatorLock(team) waited on TeamLock(team): %v", err)
+	}
+
+	y := lockIn(ctx, db, closed, func(ctx context.Context, tx Tx) error { return tx.Lock(ctx, OperatorLock(opB)) })
+	waitBlocked(t, db, y)
+
+	// A second activator of the same team queues behind the first.
+	w := lockIn(ctx, db, closed, func(ctx context.Context, tx Tx) error { return tx.Lock(ctx, TeamLock(team)) })
+	waitBlocked(t, db, w)
+	close(release)
+
+	for name, r := range map[string]lockRun{"team locker": x, "operator locker": y, "second team locker": w} {
+		if err := finish(t, r, 5*time.Second); err != nil {
+			t.Errorf("%s = %v", name, err)
+		}
+	}
+}
+
+func TestPGLockWaiterLeavesWhenCtxEnds(t *testing.T) {
+	dsn := pgSchema(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+	defer cancel()
+
+	db, wdb := connect(t, dsn, 4), connect(t, dsn, 1)
+	opA := rand.Int64N(1 << 30)
+	opB := opA + 1 // sorts after a, so W holds a while it waits on b
+	release, closed := make(chan struct{}), make(chan struct{})
+
+	close(closed)
+
+	h := lockIn(ctx, db, release, func(ctx context.Context, tx Tx) error { return tx.Lock(ctx, OperatorLock(opB)) })
+	waitHeld(t, h)
+
+	wctx, wcancel := context.WithCancel(ctx)
+	defer wcancel()
+
+	w := lockIn(wctx, wdb, closed, func(ctx context.Context, tx Tx) error { return tx.Lock(ctx, OperatorLock(opA), OperatorLock(opB)) })
+	waitBlocked(t, db, w)
+	wcancel()
+
+	if err := finish(t, w, 2*time.Second); !errors.Is(err, ErrInternal) || !errors.Is(err, context.Canceled) {
+		t.Errorf("waiter = %v, want ErrInternal caused by context.Canceled", err)
+	}
+
+	vctx, vcancel := context.WithTimeout(ctx, 3*time.Second)
+	defer vcancel()
+
+	v := lockIn(vctx, db, closed, func(ctx context.Context, tx Tx) error { return tx.Lock(ctx, OperatorLock(opA)) })
+	if err := finish(t, v, 4*time.Second); err != nil {
+		t.Errorf("OperatorLock(a) stayed locked after its waiter left: %v", err)
+	}
+
+	// A canceled wait replaces the connection, so only check that the pool still serves.
+	backendPID(t, wdb.Primary())
+	close(release)
+
+	if err := finish(t, h, 5*time.Second); err != nil {
+		t.Errorf("holder = %v", err)
 	}
 }
