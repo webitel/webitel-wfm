@@ -25,7 +25,6 @@ func MainModule(cfg *config.Config) fx.Option {
 			ProvideDiscovery,
 			ProvideStorage,
 			ProvideForecastStorage,
-			ProvideCache,
 			ProvideAuth,
 			ProvideEngine,
 			ProvideLoggerClient,

@@ -31,7 +31,6 @@ require (
 	github.com/webitel/webitel-go-kit/infra/pgw v0.0.0-20260901092450-f7cbb06aceb5
 	github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq v0.0.0-20260901092450-f7cbb06aceb5
 	github.com/webitel/webitel-go-kit/infra/transport v0.0.0-20260901092450-f7cbb06aceb5
-	github.com/webitel/webitel-go-kit/pkg/cache v0.0.0-20260901092450-f7cbb06aceb5
 	github.com/webitel/webitel-go-kit/pkg/errors v0.1.0
 	github.com/webitel/webitel-go-kit/pkg/interceptors v0.1.1
 	go.opentelemetry.io/contrib/bridges/otelslog v0.17.0
@@ -55,9 +54,6 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
-	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -86,7 +82,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rabbitmq/amqp091-go v1.14.0 // indirect
-	github.com/redis/go-redis/v9 v9.18.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
@@ -114,7 +109,6 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.19.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.46.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect

@@ -82,11 +82,14 @@ func UserLookup(table Table) JSONBuildObjectFields {
 // JSONBuildObject generates a SQL json_build_object expression.
 func JSONBuildObject(fields JSONBuildObjectFields) string {
 	keys := slices.Sorted(maps.Keys(fields))
+
 	parts := make([]string, 0, len(fields))
 	for _, key := range keys {
 		switch v := fields[key].(type) {
-		case map[string]any, JSONBuildObjectFields:
-			parts = append(parts, fmt.Sprintf("'%s', %s", key, JSONBuildObject(v.(JSONBuildObjectFields))))
+		case JSONBuildObjectFields:
+			parts = append(parts, fmt.Sprintf("'%s', %s", key, JSONBuildObject(v)))
+		case map[string]any:
+			parts = append(parts, fmt.Sprintf("'%s', %s", key, JSONBuildObject(v)))
 		case string:
 			parts = append(parts, fmt.Sprintf("'%s', %s", key, v))
 		}

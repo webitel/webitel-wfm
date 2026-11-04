@@ -20,24 +20,28 @@ func Select(cols ...string) *sqlbuilder.SelectBuilder {
 
 func Insert(table string, args []map[string]any) *sqlbuilder.InsertBuilder {
 	ib := sqlbuilder.NewInsertBuilder().InsertInto(table)
+
 	for _, arg := range args {
-		if len(arg) > 0 {
-			keys := make([]string, 0, len(args))
-			for k := range arg {
-				keys = append(keys, k)
-			}
-
-			slices.Sort(keys)
-
-			ks := make([]string, 0, len(arg))
-			vs := make([]any, 0, len(arg))
-			for _, k := range keys {
-				ks = append(ks, k)
-				vs = append(vs, arg[k])
-			}
-
-			ib.Cols(ks...).Values(vs...)
+		if len(arg) == 0 {
+			continue
 		}
+
+		keys := make([]string, 0, len(args))
+		for k := range arg {
+			keys = append(keys, k)
+		}
+
+		slices.Sort(keys)
+
+		ks := make([]string, 0, len(arg))
+		vs := make([]any, 0, len(arg))
+
+		for _, k := range keys {
+			ks = append(ks, k)
+			vs = append(vs, arg[k])
+		}
+
+		ib.Cols(ks...).Values(vs...)
 	}
 
 	return ib
@@ -50,6 +54,7 @@ func Insert(table string, args []map[string]any) *sqlbuilder.InsertBuilder {
 //	// Resulting to: UPDATE test SET foo = "bar"
 func Update(table string, args map[string]any) *sqlbuilder.UpdateBuilder {
 	ub := sqlbuilder.NewUpdateBuilder().Update(table)
+
 	if len(args) > 0 {
 		keys := make([]string, 0, len(args))
 		for k := range args {
@@ -57,6 +62,7 @@ func Update(table string, args map[string]any) *sqlbuilder.UpdateBuilder {
 		}
 
 		slices.Sort(keys)
+
 		vs := make([]string, 0, len(args))
 		for _, k := range keys {
 			vs = append(vs, ub.Assign(k, args[k]))
@@ -89,7 +95,7 @@ func Values(value ...any) *sqlbuilder.InsertBuilder {
 	return vb
 }
 
-func RBAC(use bool, acl string, id int64, domain int64, groups []int, access uint32) *sqlbuilder.WhereClause {
+func RBAC(use bool, acl string, id, domain int64, groups []int, access uint32) *sqlbuilder.WhereClause {
 	sb := sqlbuilder.NewSelectBuilder()
 	sb.Select(sb.As(sb.Var("1"), "rbac")).
 		From(acl).

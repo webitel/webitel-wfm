@@ -55,10 +55,10 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 	}
 
 	date := &model.FilterBetween{}
-	if v := req.Date; v != nil {
+	if v := req.GetDate(); v != nil {
 		date = &model.FilterBetween{
-			From: model.NewTimestamp(v.From),
-			To:   model.NewTimestamp(v.To),
+			From: model.NewTimestamp(v.GetFrom()),
+			To:   model.NewTimestamp(v.GetTo()),
 		}
 	}
 
@@ -68,6 +68,7 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 	}
 
 	out := make(map[int64]*pb.WorkingScheduleForecast)
+
 	for _, i := range items {
 		day := timeutils.Date(i.Timestamp.Time).Unix()
 		if _, ok := out[day]; !ok {
@@ -137,7 +138,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 
 	agents := make([]int64, 0, len(req.GetAgents()))
 	for _, agent := range req.GetAgents() {
-		agents = append(agents, agent.Id)
+		agents = append(agents, agent.GetId())
 	}
 
 	items, err := w.service.UpdateWorkingScheduleAddAgents(ctx, read, agents)
@@ -168,28 +169,28 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context,
 }
 
 func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {
-	skills := make([]*model.LookupItem, 0, len(in.ExtraSkills))
-	for _, skill := range in.ExtraSkills {
-		skills = append(skills, &model.LookupItem{Id: skill.Id})
+	skills := make([]*model.LookupItem, 0, len(in.GetExtraSkills()))
+	for _, skill := range in.GetExtraSkills() {
+		skills = append(skills, &model.LookupItem{ID: skill.GetId()})
 	}
 
-	agents := make([]*model.LookupItem, 0, len(in.Agents))
-	for _, agent := range in.Agents {
-		agents = append(agents, &model.LookupItem{Id: agent.Id})
+	agents := make([]*model.LookupItem, 0, len(in.GetAgents()))
+	for _, agent := range in.GetAgents() {
+		agents = append(agents, &model.LookupItem{ID: agent.GetId()})
 	}
 
 	return &model.WorkingSchedule{
-		DomainRecord:         model.DomainRecord{Id: in.Id},
-		Name:                 in.Name,
-		State:                model.WorkingScheduleState(in.State.Number()),
-		Team:                 model.LookupItem{Id: in.Team.Id},
-		Calendar:             model.LookupItem{Id: in.Calendar.Id},
-		StartDateAt:          model.NewDate(in.StartDateAt),
-		EndDateAt:            model.NewDate(in.EndDateAt),
-		StartTimeAt:          in.StartTimeAt,
-		EndTimeAt:            in.EndTimeAt,
+		DomainRecord:         model.DomainRecord{ID: in.GetId()},
+		Name:                 in.GetName(),
+		State:                model.WorkingScheduleState(in.GetState().Number()),
+		Team:                 model.LookupItem{ID: in.GetTeam().GetId()},
+		Calendar:             model.LookupItem{ID: in.GetCalendar().GetId()},
+		StartDateAt:          model.NewDate(in.GetStartDateAt()),
+		EndDateAt:            model.NewDate(in.GetEndDateAt()),
+		StartTimeAt:          in.GetStartTimeAt(),
+		EndTimeAt:            in.GetEndTimeAt(),
 		ExtraSkills:          skills,
-		BlockOutsideActivity: in.BlockOutsideActivity,
+		BlockOutsideActivity: in.GetBlockOutsideActivity(),
 		Agents:               agents,
 	}
 }

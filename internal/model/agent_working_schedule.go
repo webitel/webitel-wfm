@@ -16,8 +16,8 @@ type AgentScheduleShiftPause struct {
 
 func (a *AgentScheduleShiftPause) MarshalProto() *pb.AgentScheduleShiftPause {
 	return &pb.AgentScheduleShiftPause{
-		Id:        a.Id,
-		DomainId:  a.DomainId,
+		Id:        a.ID,
+		DomainId:  a.DomainID,
 		CreatedAt: a.CreatedAt.Time.UnixMilli(),
 		CreatedBy: a.CreatedBy.MarshalProto(),
 		UpdatedAt: a.UpdatedAt.Time.UnixMilli(),
@@ -63,8 +63,8 @@ func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
 	}
 
 	return &pb.AgentScheduleShift{
-		Id:        a.Id,
-		DomainId:  a.DomainId,
+		Id:        a.ID,
+		DomainId:  a.DomainID,
 		CreatedAt: a.CreatedAt.Time.UnixMilli(),
 		CreatedBy: a.CreatedBy.MarshalProto(),
 		UpdatedAt: a.UpdatedAt.Time.UnixMilli(),
@@ -102,7 +102,7 @@ func (a *AgentSchedule) MarshalProto() *pb.AgentSchedule {
 		Locked: a.Locked,
 	}
 
-	if schedule.Locked {
+	if schedule.GetLocked() {
 		return schedule
 	}
 
@@ -141,13 +141,13 @@ func (a *AgentWorkingSchedule) MarshalProto() *pb.AgentWorkingSchedule {
 type AgentWorkingScheduleSearch struct {
 	SearchItem SearchItem
 
-	WorkingScheduleId int64
+	WorkingScheduleID int64
 
-	Ids           []int64
-	AgentIds      []int64
-	SupervisorIds []int64
-	TeamIds       []int64
-	SkillIds      []int64
+	IDs           []int64
+	AgentIDs      []int64
+	SupervisorIDs []int64
+	TeamIDs       []int64
+	SkillIDs      []int64
 }
 
 type CreateAgentsWorkingScheduleShifts struct {

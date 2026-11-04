@@ -71,13 +71,7 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, read *options.Rea
 }
 
 func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, search *options.Search, in []*model.AgentAbsences) ([]*model.AgentAbsences, error) {
-	ids, err := a.storage.CreateAgentsAbsences(ctx, search, in)
-	if err != nil {
-		return nil, err
-	}
-
-	search.WithIDs(ids)
-	out, _, err := a.SearchAgentsAbsences(ctx, search)
+	out, err := a.storage.CreateAgentsAbsences(ctx, search, in)
 	if err != nil {
 		return nil, err
 	}

@@ -52,14 +52,14 @@ func (a *AgentWorkingConditions) UpdateAgentWorkingConditions(ctx context.Contex
 func unmarshalAgentWorkingConditionsProto(item *pb.AgentWorkingConditions) *model.AgentWorkingConditions {
 	out := &model.AgentWorkingConditions{
 		WorkingCondition: model.LookupItem{
-			Id: item.WorkingCondition.Id,
+			ID: item.GetWorkingCondition().GetId(),
 		},
 		PauseTemplate: &model.LookupItem{},
 	}
 
-	if item.PauseTemplate != nil {
+	if item.GetPauseTemplate() != nil {
 		out.PauseTemplate = &model.LookupItem{
-			Id: item.PauseTemplate.Id,
+			ID: item.GetPauseTemplate().GetId(),
 		}
 	}
 

@@ -12,10 +12,10 @@ import (
 )
 
 type ShiftTemplateManager interface {
-	CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error)
+	CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error)
 	ReadShiftTemplate(ctx context.Context, read *options.Read) (*model.ShiftTemplate, error)
 	SearchShiftTemplate(ctx context.Context, search *options.Search) ([]*model.ShiftTemplate, error)
-	UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error
+	UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error)
 	DeleteShiftTemplate(ctx context.Context, read *options.Read) (int64, error)
 }
 
@@ -29,13 +29,14 @@ func NewShiftTemplate(db dbsql.Store) *ShiftTemplate {
 	}
 }
 
-func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (int64, error) {
+func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
 	var id int64
+
 	columns := []map[string]any{
 		{
-			"domain_id":   user.DomainId,
-			"created_by":  user.Id,
-			"updated_by":  user.Id,
+			"domain_id":   user.DomainID,
+			"created_by":  user.ID,
+			"updated_by":  user.ID,
 			"name":        in.Name,
 			"description": in.Description,
 			"times":       in.Times,
@@ -44,19 +45,29 @@ func (s *ShiftTemplate) CreateShiftTemplate(ctx context.Context, user *model.Sig
 
 	sql, args := b.Insert(b.ShiftTemplateTable.Name(), columns).SQL("RETURNING id").Build()
 	if err := s.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return id, nil
+	read, err := options.NewRead(ctx, options.WithID(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just committed; a standby may not have it yet.
+	return s.read(ctx, s.db.Primary(), read)
 }
 
 func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Read) (*model.ShiftTemplate, error) {
+	return s.read(ctx, s.db.StandbyPreferred(), read)
+}
+
+func (s *ShiftTemplate) read(ctx context.Context, node dbsql.Node, read *options.Read) (*model.ShiftTemplate, error) {
 	search, err := options.NewSearch(ctx, options.WithID(read.ID()))
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := s.SearchShiftTemplate(ctx, search.PopulateFromRead(read))
+	items, err := s.search(ctx, node, search.PopulateFromRead(read))
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +84,10 @@ func (s *ShiftTemplate) ReadShiftTemplate(ctx context.Context, read *options.Rea
 }
 
 func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options.Search) ([]*model.ShiftTemplate, error) {
+	return s.search(ctx, s.db.StandbyPreferred(), search)
+}
+
+func (s *ShiftTemplate) search(ctx context.Context, node dbsql.Node, search *options.Search) ([]*model.ShiftTemplate, error) {
 	const (
 		linkCreatedBy = 1 << iota
 		linkUpdatedBy
@@ -91,6 +106,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 			}
 
 			join |= linkCreatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(createdBy,
 					b.Equal(shiftTemplate.Ident("created_by"), createdBy.Ident("id")),
@@ -104,6 +120,7 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 			}
 
 			join |= linkUpdatedBy
+
 			base.JoinWithOption(
 				b.LeftJoin(updatedBy,
 					b.Equal(shiftTemplate.Ident("updated_by"), updatedBy.Ident("id")),
@@ -130,10 +147,12 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 
 			case "created_by":
 				joinCreatedBy()
+
 				field = b.Alias(b.JSONBuildObject(b.UserLookup(createdBy)), field)
 
 			case "updated_by":
 				joinUpdatedBy()
+
 				field = b.Alias(b.JSONBuildObject(b.UserLookup(updatedBy)), field)
 			}
 
@@ -143,7 +162,8 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 
 	// Add WHERE clauses.
 	{
-		base.Where(base.EQ(shiftTemplate.Ident("domain_id"), search.User().DomainId))
+		base.Where(base.EQ(shiftTemplate.Ident("domain_id"), search.User().DomainID))
+
 		if search.Query() != "" {
 			base.Where(base.ILike(shiftTemplate.Ident("name"), search.Query()))
 		}
@@ -167,10 +187,12 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 
 			case "created_by":
 				joinCreatedBy()
+
 				field = b.OrderBy(createdBy.Ident("name"), direction)
 
 			case "updated_by":
 				joinUpdatedBy()
+
 				field = b.OrderBy(updatedBy.Ident("name"), direction)
 			}
 
@@ -179,17 +201,18 @@ func (s *ShiftTemplate) SearchShiftTemplate(ctx context.Context, search *options
 	}
 
 	var items []*model.ShiftTemplate
+
 	sql, args := base.Limit(search.Size()).Offset(search.Offset()).Build()
-	if err := s.db.StandbyPreferred().Select(ctx, &items, sql, args...); err != nil {
+	if err := node.Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
 	}
 
 	return items, nil
 }
 
-func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) error {
+func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.SignedInUser, in *model.ShiftTemplate) (*model.ShiftTemplate, error) {
 	columns := map[string]any{
-		"updated_by":  user.Id,
+		"updated_by":  user.ID,
 		"name":        in.Name,
 		"description": in.Description,
 		"times":       in.Times,
@@ -197,22 +220,28 @@ func (s *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, user *model.Sig
 
 	ub := b.Update(b.ShiftTemplateTable.Name(), columns)
 	clauses := []string{
-		ub.Equal("domain_id", user.DomainId),
-		ub.Equal("id", in.Id),
+		ub.Equal("domain_id", user.DomainID),
+		ub.Equal("id", in.ID),
 	}
 
 	sql, args := ub.Where(clauses...).Build()
 	if err := s.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	read, err := options.NewRead(ctx, options.WithID(in.ID))
+	if err != nil {
+		return nil, err
+	}
+
+	// The row was just updated; a standby may still hold the old one.
+	return s.read(ctx, s.db.Primary(), read)
 }
 
 func (s *ShiftTemplate) DeleteShiftTemplate(ctx context.Context, read *options.Read) (int64, error) {
 	db := b.Delete(b.ShiftTemplateTable.Name())
 	clauses := []string{
-		db.Equal("domain_id", read.User().DomainId),
+		db.Equal("domain_id", read.User().DomainID),
 		db.Equal("id", read.ID()),
 	}
 

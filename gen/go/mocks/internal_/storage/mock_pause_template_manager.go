@@ -25,22 +25,24 @@ func (_m *MockPauseTemplateManager) EXPECT() *MockPauseTemplateManager_Expecter 
 }
 
 // CreatePauseTemplate provides a mock function with given fields: ctx, user, in
-func (_m *MockPauseTemplateManager) CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (int64, error) {
+func (_m *MockPauseTemplateManager) CreatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error) {
 	ret := _m.Called(ctx, user, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreatePauseTemplate")
 	}
 
-	var r0 int64
+	var r0 *model.PauseTemplate
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) (*model.PauseTemplate, error)); ok {
 		return rf(ctx, user, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) int64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) *model.PauseTemplate); ok {
 		r0 = rf(ctx, user, in)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.PauseTemplate)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) error); ok {
@@ -72,12 +74,12 @@ func (_c *MockPauseTemplateManager_CreatePauseTemplate_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockPauseTemplateManager_CreatePauseTemplate_Call) Return(_a0 int64, _a1 error) *MockPauseTemplateManager_CreatePauseTemplate_Call {
+func (_c *MockPauseTemplateManager_CreatePauseTemplate_Call) Return(_a0 *model.PauseTemplate, _a1 error) *MockPauseTemplateManager_CreatePauseTemplate_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockPauseTemplateManager_CreatePauseTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.PauseTemplate) (int64, error)) *MockPauseTemplateManager_CreatePauseTemplate_Call {
+func (_c *MockPauseTemplateManager_CreatePauseTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.PauseTemplate) (*model.PauseTemplate, error)) *MockPauseTemplateManager_CreatePauseTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -258,21 +260,33 @@ func (_c *MockPauseTemplateManager_SearchPauseTemplate_Call) RunAndReturn(run fu
 }
 
 // UpdatePauseTemplate provides a mock function with given fields: ctx, user, in
-func (_m *MockPauseTemplateManager) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) error {
+func (_m *MockPauseTemplateManager) UpdatePauseTemplate(ctx context.Context, user *model.SignedInUser, in *model.PauseTemplate) (*model.PauseTemplate, error) {
 	ret := _m.Called(ctx, user, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdatePauseTemplate")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) error); ok {
+	var r0 *model.PauseTemplate
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) (*model.PauseTemplate, error)); ok {
+		return rf(ctx, user, in)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) *model.PauseTemplate); ok {
 		r0 = rf(ctx, user, in)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.PauseTemplate)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *model.SignedInUser, *model.PauseTemplate) error); ok {
+		r1 = rf(ctx, user, in)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockPauseTemplateManager_UpdatePauseTemplate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePauseTemplate'
@@ -295,12 +309,12 @@ func (_c *MockPauseTemplateManager_UpdatePauseTemplate_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockPauseTemplateManager_UpdatePauseTemplate_Call) Return(_a0 error) *MockPauseTemplateManager_UpdatePauseTemplate_Call {
-	_c.Call.Return(_a0)
+func (_c *MockPauseTemplateManager_UpdatePauseTemplate_Call) Return(_a0 *model.PauseTemplate, _a1 error) *MockPauseTemplateManager_UpdatePauseTemplate_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockPauseTemplateManager_UpdatePauseTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.PauseTemplate) error) *MockPauseTemplateManager_UpdatePauseTemplate_Call {
+func (_c *MockPauseTemplateManager_UpdatePauseTemplate_Call) RunAndReturn(run func(context.Context, *model.SignedInUser, *model.PauseTemplate) (*model.PauseTemplate, error)) *MockPauseTemplateManager_UpdatePauseTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }

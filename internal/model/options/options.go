@@ -29,8 +29,8 @@ func WithID(id int64) Option {
 	}
 }
 
-func WithDerivedID(name string, id int64) Option {
-	return func(options any) error {
+func WithDerivedID(_ string, _ int64) Option {
+	return func(_ any) error {
 		return nil
 	}
 }
@@ -79,12 +79,15 @@ func WithSearch(term string) Option {
 func WithOrder(field ...string) Option {
 	return func(options any) error {
 		for _, f := range field {
-			if f != "" {
-				fieldName, fieldOrder := order(f)
-				fieldParts := strings.Split(fieldName, ".")
-				if err := processOrderByField(options, fieldParts, fieldOrder); err != nil {
-					return err
-				}
+			if f == "" {
+				continue
+			}
+
+			fieldName, fieldOrder := order(f)
+
+			fieldParts := strings.Split(fieldName, ".")
+			if err := processOrderByField(options, fieldParts, fieldOrder); err != nil {
+				return err
 			}
 		}
 

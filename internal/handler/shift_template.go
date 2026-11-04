@@ -71,7 +71,7 @@ func (h *ShiftTemplate) SearchShiftTemplate(ctx context.Context, req *pb.SearchS
 }
 
 func (h *ShiftTemplate) UpdateShiftTemplate(ctx context.Context, req *pb.UpdateShiftTemplateRequest) (*pb.UpdateShiftTemplateResponse, error) {
-	read, err := options.NewRead(ctx, options.WithID(req.Item.Id))
+	read, err := options.NewRead(ctx, options.WithID(req.GetItem().GetId()))
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +108,13 @@ func marshalShiftTemplateBulkProto(templates []*model.ShiftTemplate) []*pb.Shift
 }
 
 func unmarshalShiftTemplateProto(in *pb.ShiftTemplate) *model.ShiftTemplate {
-	times := make([]model.ShiftTemplateTime, 0, len(in.Times))
-	for _, t := range in.Times {
+	times := make([]model.ShiftTemplateTime, 0, len(in.GetTimes()))
+	for _, t := range in.GetTimes() {
 		times = append(times, unmarshalShiftTemplateTimeProto(t))
 	}
 
 	return &model.ShiftTemplate{
-		DomainRecord: model.DomainRecord{Id: in.Id},
+		DomainRecord: model.DomainRecord{ID: in.GetId()},
 		Name:         in.GetName(),
 		Description:  in.Description,
 		Times:        times,
@@ -123,7 +123,7 @@ func unmarshalShiftTemplateProto(in *pb.ShiftTemplate) *model.ShiftTemplate {
 
 func unmarshalShiftTemplateTimeProto(item *pb.ShiftTemplateTime) model.ShiftTemplateTime {
 	return model.ShiftTemplateTime{
-		Start: item.Start,
-		End:   item.End,
+		Start: item.GetStart(),
+		End:   item.GetEnd(),
 	}
 }

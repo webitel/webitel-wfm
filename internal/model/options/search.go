@@ -22,9 +22,9 @@ var (
 
 type Substring string
 
-func (s Substring) SubstringMask(term string, any, one rune) Substring {
-	if any == 0 {
-		any = '*'
+func (s Substring) SubstringMask(term string, many, one rune) Substring {
+	if many == 0 {
+		many = '*'
 	}
 
 	if one == 0 {
@@ -32,7 +32,7 @@ func (s Substring) SubstringMask(term string, any, one rune) Substring {
 		one = '?'
 	}
 
-	sv := strings.Split(term, string(any))
+	sv := strings.Split(term, string(many))
 
 	// omit any empty sequences: [1:len()-2]
 	for i := len(sv) - 2; i > 0; i-- {
@@ -55,6 +55,7 @@ func (s Substring) Value() (driver.Value, error) {
 
 	// TODO: escape(%)
 	v := string(s.Substring())
+
 	const escape = "\\"
 
 	// escape control '_' (single char entry)

@@ -17,14 +17,17 @@ type toTraverse struct {
 // GetColumnToFieldIndexMap containing where columns should be mapped.
 func GetColumnToFieldIndexMap(structType reflect.Type) map[string][]int {
 	result := make(map[string][]int, structType.NumField())
-	jsonColumns := map[string]struct{}{}
+	jsonColumns := make(map[string]struct{})
+
 	var queue []*toTraverse
+
 	queue = append(queue, &toTraverse{Type: structType, IndexPrefix: nil, ColumnPrefix: ""})
 	for len(queue) > 0 {
 		traversal := queue[0]
 		queue = queue[1:]
+
 		structType := traversal.Type
-		for i := 0; i < structType.NumField(); i++ {
+		for i := range structType.NumField() {
 			field := structType.Field(i)
 
 			if field.PkgPath != "" && !field.Anonymous {
@@ -33,6 +36,7 @@ func GetColumnToFieldIndexMap(structType reflect.Type) map[string][]int {
 			}
 
 			dbTag, dbTagPresent := field.Tag.Lookup(dbStructTagKey)
+
 			var options tagOptions
 			if dbTagPresent {
 				dbTag, options = parseTag(dbTag)
@@ -53,7 +57,7 @@ func GetColumnToFieldIndexMap(structType reflect.Type) map[string][]int {
 			}
 
 			childType := field.Type
-			if field.Type.Kind() == reflect.Ptr {
+			if field.Type.Kind() == reflect.Pointer {
 				childType = field.Type.Elem()
 			}
 
@@ -67,6 +71,7 @@ func GetColumnToFieldIndexMap(structType reflect.Type) map[string][]int {
 			}
 
 			column := buildColumn(traversal.ColumnPrefix, columnPart)
+
 			if childType.Kind() == reflect.Struct {
 				if options.Contains("json") {
 					jsonColumns[column] = struct{}{}
@@ -78,14 +83,20 @@ func GetColumnToFieldIndexMap(structType reflect.Type) map[string][]int {
 					})
 				}
 			}
-			if !field.Anonymous {
-				_, self := jsonColumns[column]
-				_, parent := jsonColumns[traversal.ColumnPrefix]
-				if !self || !parent {
-					if _, exists := result[column]; !exists {
-						result[column] = index
-					}
-				}
+
+			if field.Anonymous {
+				continue
+			}
+
+			_, self := jsonColumns[column]
+
+			_, parent := jsonColumns[traversal.ColumnPrefix]
+			if self && parent {
+				continue
+			}
+
+			if _, exists := result[column]; !exists {
+				result[column] = index
 			}
 		}
 	}
@@ -95,6 +106,7 @@ func GetColumnToFieldIndexMap(structType reflect.Type) map[string][]int {
 
 func buildColumn(parts ...string) string {
 	var notEmptyParts []string
+
 	for _, p := range parts {
 		if p != "" {
 			notEmptyParts = append(notEmptyParts, p)
@@ -141,13 +153,16 @@ func (o tagOptions) Contains(optionName string) bool {
 	s := string(o)
 	for s != "" {
 		var next string
+
 		i := strings.Index(s, ",")
 		if i >= 0 {
 			s, next = s[:i], s[i+1:]
 		}
+
 		if s == optionName {
 			return true
 		}
+
 		s = next
 	}
 

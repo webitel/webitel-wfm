@@ -26,12 +26,12 @@ func NewWorkingCondition(storage storage.WorkingConditionManager) *WorkingCondit
 }
 
 func (w *WorkingCondition) CreateWorkingCondition(ctx context.Context, read *options.Read, in *model.WorkingCondition) (*model.WorkingCondition, error) {
-	id, err := w.storage.CreateWorkingCondition(ctx, read.User(), in)
+	item, err := w.storage.CreateWorkingCondition(ctx, read.User(), in)
 	if err != nil {
 		return nil, err
 	}
 
-	return w.ReadWorkingCondition(ctx, read.WithID(id))
+	return item, nil
 }
 
 func (w *WorkingCondition) ReadWorkingCondition(ctx context.Context, read *options.Read) (*model.WorkingCondition, error) {
@@ -55,11 +55,12 @@ func (w *WorkingCondition) SearchWorkingCondition(ctx context.Context, search *o
 }
 
 func (w *WorkingCondition) UpdateWorkingCondition(ctx context.Context, read *options.Read, in *model.WorkingCondition) (*model.WorkingCondition, error) {
-	if err := w.storage.UpdateWorkingCondition(ctx, read.User(), in); err != nil {
+	item, err := w.storage.UpdateWorkingCondition(ctx, read.User(), in)
+	if err != nil {
 		return nil, err
 	}
 
-	return w.ReadWorkingCondition(ctx, read)
+	return item, nil
 }
 
 func (w *WorkingCondition) DeleteWorkingCondition(ctx context.Context, read *options.Read) (int64, error) {

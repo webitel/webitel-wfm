@@ -25,7 +25,7 @@ func (a *AgentService) Agent(ctx context.Context, id int64) (int64, error) {
 		return 0, webitel.ParseError(err)
 	}
 
-	return agent.Id, nil
+	return agent.GetId(), nil
 }
 
 func (a *AgentService) Agents(ctx context.Context, search *model.AgentSearch) ([]int64, error) {
@@ -34,36 +34,36 @@ func (a *AgentService) Agents(ctx context.Context, search *model.AgentSearch) ([
 		Fields: []string{"id"},
 	}
 
-	if len(search.Ids) > 0 {
-		ids := make([]string, 0, len(search.Ids))
-		for _, id := range search.Ids {
+	if len(search.IDs) > 0 {
+		ids := make([]string, 0, len(search.IDs))
+		for _, id := range search.IDs {
 			ids = append(ids, strconv.FormatInt(id, 10))
 		}
 
 		req.Id = ids
 	}
 
-	if len(search.SupervisorIds) > 0 {
-		ids := make([]uint32, 0, len(search.SupervisorIds))
-		for _, id := range search.SupervisorIds {
+	if len(search.SupervisorIDs) > 0 {
+		ids := make([]uint32, 0, len(search.SupervisorIDs))
+		for _, id := range search.SupervisorIDs {
 			ids = append(ids, uint32(id))
 		}
 
 		req.SupervisorId = ids
 	}
 
-	if len(search.TeamIds) > 0 {
-		ids := make([]uint32, 0, len(search.TeamIds))
-		for _, id := range search.TeamIds {
+	if len(search.TeamIDs) > 0 {
+		ids := make([]uint32, 0, len(search.TeamIDs))
+		for _, id := range search.TeamIDs {
 			ids = append(ids, uint32(id))
 		}
 
 		req.TeamId = ids
 	}
 
-	if len(search.SkillIds) > 0 {
-		ids := make([]uint32, 0, len(search.SkillIds))
-		for _, id := range search.SkillIds {
+	if len(search.SkillIDs) > 0 {
+		ids := make([]uint32, 0, len(search.SkillIDs))
+		for _, id := range search.SkillIDs {
 			ids = append(ids, uint32(id))
 		}
 
@@ -75,9 +75,9 @@ func (a *AgentService) Agents(ctx context.Context, search *model.AgentSearch) ([
 		return nil, webitel.ParseError(err)
 	}
 
-	ids := make([]int64, 0, len(agents.Items))
-	for _, id := range agents.Items {
-		ids = append(ids, id.Id)
+	ids := make([]int64, 0, len(agents.GetItems()))
+	for _, id := range agents.GetItems() {
+		ids = append(ids, id.GetId())
 	}
 
 	return ids, nil

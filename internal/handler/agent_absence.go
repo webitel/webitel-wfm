@@ -95,7 +95,7 @@ func (a *AgentAbsence) DeleteAgentAbsence(ctx context.Context, req *pb.DeleteAge
 		return nil, err
 	}
 
-	return &pb.DeleteAgentAbsenceResponse{Id: req.Id}, nil
+	return &pb.DeleteAgentAbsenceResponse{Id: req.GetId()}, nil
 }
 
 func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, req *pb.CreateAgentsAbsencesRequest) (*pb.CreateAgentsAbsencesResponse, error) {
@@ -137,22 +137,23 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, req *pb.SearchA
 func unmarshalAbsenceProto(in *pb.Absence) *model.Absence {
 	return &model.Absence{
 		DomainRecord: model.DomainRecord{
-			Id: in.Id,
+			ID: in.GetId(),
 		},
-		AbsentAt:    model.NewDate(in.AbsentAt),
-		AbsenceType: model.AgentAbsenceType(in.TypeId),
+		AbsentAt:    model.NewDate(in.GetAbsentAt()),
+		AbsenceType: model.AgentAbsenceType(in.GetTypeId()),
 	}
 }
 
 func unmarshalAgentsAbsencesBulk(agentIDs []int64, in []*pb.CreateAgentsAbsencesRequestAbsentType) []*model.AgentAbsences {
 	absences := make([]*model.Absence, 0, len(in))
 	for _, absence := range in {
-		start := model.NewDate(absence.DateFrom)
-		end := model.NewDate(absence.DateTo)
+		start := model.NewDate(absence.GetDateFrom())
+
+		end := model.NewDate(absence.GetDateTo())
 		for d := start; !d.Time.After(end.Time); d.Time = d.Time.AddDate(0, 0, 1) {
 			item := &model.Absence{
 				AbsentAt:    d,
-				AbsenceType: model.AgentAbsenceType(absence.TypeId),
+				AbsenceType: model.AgentAbsenceType(absence.GetTypeId()),
 			}
 
 			absences = append(absences, item)
@@ -163,7 +164,7 @@ func unmarshalAgentsAbsencesBulk(agentIDs []int64, in []*pb.CreateAgentsAbsences
 	for _, id := range agentIDs {
 		out = append(out, &model.AgentAbsences{
 			Agent: model.LookupItem{
-				Id: id,
+				ID: id,
 			},
 			Absence: absences,
 		})

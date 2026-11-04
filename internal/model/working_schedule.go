@@ -49,8 +49,8 @@ func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
 	}
 
 	out := &pb.WorkingSchedule{
-		Id:                   w.Id,
-		DomainId:             w.DomainId,
+		Id:                   w.ID,
+		DomainId:             w.DomainID,
 		CreatedBy:            w.CreatedBy.MarshalProto(),
 		UpdatedBy:            w.UpdatedBy.MarshalProto(),
 		Name:                 w.Name,

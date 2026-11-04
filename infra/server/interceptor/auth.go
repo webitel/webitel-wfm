@@ -58,14 +58,14 @@ func AuthUnaryServerInterceptor(authcli auth.Manager) grpc.UnaryServerIntercepto
 
 		ok, useRBAC := validateSessionPermission(session, objClass, action)
 		_ = ok
-		//if ok { // FIXME: must be !ok
+		// if ok { // FIXME: must be !ok
 		//	return nil, errors.Wrap(ErrForbidden, errors.WithValue("objclass", objClass), errors.WithValue("action", action.Name()))
-		//}
+		// }
 
 		s := &model.SignedInUser{
 			Token:    session.Token,
-			DomainId: session.DomainID,
-			Id:       session.UserID,
+			DomainID: session.DomainID,
+			ID:       session.UserID,
 			Object:   objClass,
 			UseRBAC:  useRBAC,
 			RbacOptions: model.RbacOptions{
@@ -129,6 +129,7 @@ func objClassWithAction(info *grpc.UnaryServerInfo) (string, []string, auth.Acce
 
 func validateSessionPermission(session *auth.Session, objClass string, action auth.Access) (bool, bool) {
 	permission := session.Permission(objClass)
+
 	switch action {
 	case auth.AccessCreate:
 		if !permission.CanCreate() {

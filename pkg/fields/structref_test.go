@@ -11,13 +11,16 @@ func TestGetColumnToFieldIndexMap(t *testing.T) {
 		ID   string
 		Name string
 	}
+
 	type Embed struct {
 		Play bool
 	}
+
 	type embedImplicit struct {
 		ID  string
-		XYZ Embed `db:",json"`
+		XYZ Embed `db:",json"` //nolint:tagliatelle // the column comes from the tag option, as written
 	}
+
 	tests := []struct {
 		name string
 		v    any
@@ -56,7 +59,7 @@ func TestGetColumnToFieldIndexMap(t *testing.T) {
 				ModifiedAt  time.Time
 				Ignored     string `db:"-"`
 				Pointer     *string
-				Embed
+				Embed       //nolint:embeddedstructfieldcheck // the field order is what this case tests
 			}{},
 			want: map[string][]int{
 				"id":          {0},

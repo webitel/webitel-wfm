@@ -50,14 +50,14 @@ type mock struct {
 	Automatic string
 	Tagged    string `db:"tagged"`
 	OneTwo    string // OneTwo should be one_two in the database.
-	CamelCase string `db:"CamelCase"` // CamelCase should not be normalized to camel_case.
+	CamelCase string `db:"CamelCase"` //nolint:tagliatelle // CamelCase should not be normalized to camel_case.
 	Ignored   string `db:"-"`
 }
 
 type mockEmbed struct {
 	Before int
-	mock
-	After string
+	mock   //nolint:embeddedstructfieldcheck // the field order is what this fixture tests
+	After  string
 }
 
 type numericMock struct {
@@ -70,9 +70,9 @@ type mockSimpleMultiEmbed struct {
 }
 
 type mockMultiEmbed struct {
-	A string
-	mock
-	B string
+	A    string
+	mock //nolint:embeddedstructfieldcheck // the field order is what this fixture tests
+	B    string
 	numericMock
 	C string
 }
@@ -81,7 +81,8 @@ type emptyEmbed struct{}
 
 type nameMock struct {
 	emptyEmbed //lint:ignore U1000 Mock to test empty embeds.
-	Name       string
+
+	Name string
 }
 
 type jsonMock struct {
@@ -116,12 +117,14 @@ type HasPointerNestedMock struct {
 
 type themeImplicit struct {
 	ID  string
-	XYZ Theme `db:",json"`
+	XYZ Theme `db:",json"` //nolint:tagliatelle // the column comes from the tag option, as written
 }
 
 func TestWildcard(t *testing.T) {
 	t.Parallel()
+
 	var uninitializedPointer *jsonMock
+
 	testCases := []struct {
 		v    any
 		desc string
@@ -180,7 +183,7 @@ func TestWildcard(t *testing.T) {
 				Automatic string
 				Tagged    string `db:"tagged"`
 				OneTwo    string // OneTwo should be one_two in the database.
-				CamelCase string `db:"CamelCase"` // CamelCase should not be normalized to camel_case.
+				CamelCase string `db:"CamelCase"` //nolint:tagliatelle // CamelCase should not be normalized to camel_case.
 				Ignored   string `db:"-"`
 			}{},
 			desc: "anonymous",
@@ -191,7 +194,7 @@ func TestWildcard(t *testing.T) {
 				Automatic  string
 				Tagged     string `db:"tagged"`
 				OneTwo     string // OneTwo should be one_two in the database.
-				CamelCase  string `db:"CamelCase"` // CamelCase should not be normalized to camel_case.
+				CamelCase  string `db:"CamelCase"` //nolint:tagliatelle // CamelCase should not be normalized to camel_case.
 				Ignored    string `db:"-"`
 				Copy       string
 				Duplicated string `db:"copy"`
@@ -258,9 +261,9 @@ func TestWildcard(t *testing.T) {
 			// Testing an edge case:
 			// Regular fields containing dots are aliased even when unnecessary, and this should be okay.
 			// This is a conscious design decision to reduce complexity avoiding leaking internal details from
-			// internal/structref through the fields() function.
+			// internal/structref through the Fields() function.
 			v: struct {
-				RegularFieldWithDots string `db:"regular.field.with.dots"`
+				RegularFieldWithDots string `db:"regular.field.with.dots"` //nolint:tagliatelle // the dots are this case
 			}{},
 			desc: "RegularFieldWithDots",
 			want: `"regular.field.with.dots" as "regular.field.with.dots"`,
@@ -281,7 +284,7 @@ func TestWildcard(t *testing.T) {
 }
 
 func BenchmarkWildcard(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Wildcard(mock{})
 	}
 }
@@ -289,22 +292,26 @@ func BenchmarkWildcard(b *testing.B) {
 func BenchmarkWildcardAsync(b *testing.B) {
 	var w sync.WaitGroup
 	w.Add(b.N)
-	for i := 0; i < b.N; i++ {
+
+	for range b.N {
 		go func() {
 			Wildcard(mock{})
 			w.Done()
 		}()
 	}
+
 	w.Wait()
 }
 
 func TestWildcardCache(t *testing.T) {
 	old := wildcardsCache
+
 	t.Cleanup(func() {
 		wildcardsCache = old // Restore default caching.
 	})
 
 	const maxCached = 3
+
 	wildcardsCache = &lru{
 		cap: maxCached,
 
@@ -322,7 +329,7 @@ func TestWildcardCache(t *testing.T) {
 				Automatic string
 				Tagged    string `db:"tagged"`
 				OneTwo    string // OneTwo should be one_two in the database.
-				CamelCase string `db:"CamelCase"` // CamelCase should not be normalized to camel_case.
+				CamelCase string `db:"CamelCase"` //nolint:tagliatelle // CamelCase should not be normalized to camel_case.
 				Ignored   string `db:"-"`
 			}{},
 			want:        `"automatic","tagged","one_two","CamelCase"`,
@@ -333,7 +340,7 @@ func TestWildcardCache(t *testing.T) {
 				Automatic string
 				Tagged    string `db:"tagged"`
 				OneTwo    string // OneTwo should be one_two in the database.
-				CamelCase string `db:"CamelCase"` // CamelCase should not be normalized to camel_case.
+				CamelCase string `db:"CamelCase"` //nolint:tagliatelle // CamelCase should not be normalized to camel_case.
 				Ignored   string `db:"-"`
 			}{},
 			want:        `"automatic","tagged","one_two","CamelCase"`,
@@ -385,15 +392,19 @@ func TestWildcardCache(t *testing.T) {
 		if orig != m.want {
 			t.Errorf("wanted %v, got %v instead", m.want, orig)
 		}
+
 		if orig != cached {
 			t.Errorf("wanted cached value %v, got %v instead", m.want, cached)
 		}
+
 		if wildcardsCache.l.Len() != len(wildcardsCache.m) {
 			t.Error("cache doubly linked list and map length should match")
 		}
+
 		if len(wildcardsCache.m) > maxCached {
 			t.Errorf("cache should contain %d once full, got %d instead", maxCached, len(wildcardsCache.m))
 		}
+
 		if len(wildcardsCache.m) != m.cachedItems {
 			t.Errorf("wanted %d cached items, found %d", m.cachedItems, len(wildcardsCache.m))
 		}

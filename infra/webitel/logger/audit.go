@@ -41,7 +41,7 @@ func (a *Audit) Delete(ctx context.Context, user *model.SignedInUser, records ma
 }
 
 func (a *Audit) audit(ctx context.Context, action Action, user *model.SignedInUser, records map[int64]any) error {
-	ok, err := a.svc.Active(ctx, user.DomainId, user.Object)
+	ok, err := a.svc.Active(ctx, user.DomainID, user.Object)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (a *Audit) audit(ctx context.Context, action Action, user *model.SignedInUs
 		}
 
 		item := Record{
-			Id:       id,
+			ID:       id,
 			NewState: body,
 		}
 
@@ -68,16 +68,16 @@ func (a *Audit) audit(ctx context.Context, action Action, user *model.SignedInUs
 	msg := Message{
 		Records: items,
 		RequiredFields: RequiredFields{
-			UserId:     user.Id,
-			UserIp:     "",
-			DomainId:   user.DomainId,
+			UserID:     user.ID,
+			UserIP:     "",
+			DomainId:   user.DomainID,
 			Action:     action,
 			Date:       time.Now().Unix(),
 			ObjectName: user.Object,
 		},
 	}
 
-	if err = a.pub.Publish(ctx, exchange, fmt.Sprintf(rkFormat, msg.DomainId, user.Object), msg.ToJson(), nil); err != nil {
+	if err = a.pub.Publish(ctx, exchange, fmt.Sprintf(rkFormat, msg.DomainId, user.Object), msg.ToJSON(), nil); err != nil {
 		return err
 	}
 

@@ -16,19 +16,21 @@ import (
 var ErrValidation = errors.InvalidArgument("validate input message", errors.WithID("interceptor.validate"))
 
 func ValidateUnaryServerInterceptor(val protovalidate.Validator) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if v, ok := req.(proto.Message); ok {
 			if err := val.Validate(v); err != nil {
 				var ve *protovalidate.ValidationError
 				if ok := errors.As(err, &ve); ok {
-					wrappers := make([]errors.Wrapper, 0)
+					wrappers := make([]errors.Wrapper, 0, len(ve.Violations))
 					for _, violation := range ve.Violations {
 						fields := make([]string, 0, len(ve.Violations))
+
 						for _, f := range violation.Proto.GetField().GetElements() {
-							field := *f.FieldName
+							field := f.GetFieldName()
 							if f.Subscript != nil {
 								var subscript string
-								switch s := f.Subscript.(type) {
+
+								switch s := f.GetSubscript().(type) {
 								case *validatepb.FieldPathElement_Index:
 									subscript = strconv.FormatUint(s.Index, 10)
 								case *validatepb.FieldPathElement_BoolKey:

@@ -53,6 +53,7 @@ func TestWithID(t *testing.T) {
 		t.Run(fmt.Sprintf("%T", o.options), func(t *testing.T) {
 			for scenario, tt := range tests {
 				opts := DeepCopy(o.options)
+
 				t.Run(scenario, func(t *testing.T) {
 					for _, id := range tt.id {
 						err := WithID(id)(opts)
@@ -117,6 +118,7 @@ func TestWithIDs(t *testing.T) {
 		t.Run(fmt.Sprintf("%T", o.options), func(t *testing.T) {
 			for scenario, tt := range tests {
 				opts := DeepCopy(o.options)
+
 				t.Run(scenario, func(t *testing.T) {
 					err := WithIDs(tt.ids...)(opts)
 					if o.err != nil {
@@ -235,6 +237,7 @@ func TestWithFields(t *testing.T) {
 		t.Run(fmt.Sprintf("%T", o.options), func(t *testing.T) {
 			for scenario, tt := range tests {
 				opts := DeepCopy(o.options)
+
 				t.Run(scenario, func(t *testing.T) {
 					err := WithFields(tt.fields)(opts)
 					if o.err != nil {
@@ -348,6 +351,7 @@ func TestWithOrder(t *testing.T) {
 		t.Run(fmt.Sprintf("%T", o.options), func(t *testing.T) {
 			for scenario, tt := range tests {
 				opts := DeepCopy(o.options)
+
 				t.Run(scenario, func(t *testing.T) {
 					err := WithOrder(tt.orderBy...)(opts)
 					if o.err != nil {
@@ -372,6 +376,8 @@ func TestWithOrder(t *testing.T) {
 }
 
 func assertDerivedEqual(t *testing.T, expected, actual map[string]*Derived) {
+	t.Helper()
+
 	require.Len(t, actual, len(expected), "derived maps have different lengths")
 
 	for key, expectedDerived := range expected {
@@ -392,8 +398,8 @@ func DeepCopy[T any](src T) T {
 }
 
 func deepCopy(v reflect.Value) reflect.Value {
-	switch v.Kind() {
-	case reflect.Ptr:
+	switch v.Kind() { //nolint:exhaustive // every other kind is copied by value in default
+	case reflect.Pointer:
 		if v.IsNil() {
 			return reflect.Zero(v.Type())
 		}
@@ -404,7 +410,7 @@ func deepCopy(v reflect.Value) reflect.Value {
 		return copy
 	case reflect.Struct:
 		copy := reflect.New(v.Type()).Elem()
-		for i := 0; i < v.NumField(); i++ {
+		for i := range v.NumField() {
 			if v.Type().Field(i).IsExported() {
 				copy.Field(i).Set(deepCopy(v.Field(i)))
 			}
@@ -417,7 +423,7 @@ func deepCopy(v reflect.Value) reflect.Value {
 		}
 
 		copy := reflect.MakeSlice(v.Type(), v.Len(), v.Cap())
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			copy.Index(i).Set(deepCopy(v.Index(i)))
 		}
 

@@ -183,8 +183,8 @@ func TestAuthUnaryServerInterceptorAllowsValidSession(t *testing.T) {
 	require.NotNil(t, got)
 	require.NotNil(t, got.SignedInUser, "the handler received no signed in user")
 
-	assert.Equal(t, int64(5), got.SignedInUser.DomainId)
-	assert.Equal(t, int64(3), got.SignedInUser.Id)
+	assert.Equal(t, int64(5), got.SignedInUser.DomainID)
+	assert.Equal(t, int64(3), got.SignedInUser.ID)
 	assert.Equal(t, "super-auth-header", got.SignedInUser.Token)
 
 	// The object class comes from the generated registry, so a real method name

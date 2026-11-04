@@ -17,7 +17,6 @@ import (
 	"github.com/webitel/webitel-go-kit/infra/pgw"
 	"github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq"
 	rabbitslog "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq/pkg/adapter/slog"
-	"github.com/webitel/webitel-go-kit/pkg/cache"
 
 	"github.com/webitel/webitel-wfm/config"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
@@ -38,15 +37,6 @@ import (
 )
 
 const (
-	// cacheTTL bounds how long a storage entry may be served without a database read.
-	cacheTTL = 24 * time.Hour
-
-	// defaultCacheEntries applies when cache.size is unset; maxCacheEntries
-	// catches a value still written in bytes, which ristretto would turn into
-	// a counter array large enough to exhaust memory at startup.
-	defaultCacheEntries = 1024
-	maxCacheEntries     = 1 << 20
-
 	// writeTimeout stops a broker applying TCP pushback from parking a publish
 	// forever with the publisher mutex held.
 	writeTimeout = 5 * time.Second
@@ -160,23 +150,6 @@ func newDB(pg appconfig.Postgres) (*dbsql.DB, error) {
 	}
 
 	return dbsql.New(pm), nil
-}
-
-func ProvideCache(cfg *config.Config, log *slog.Logger) cache.RistrettoConfig {
-	size := cfg.Cache.Size
-	if size <= 0 {
-		size = defaultCacheEntries
-	}
-
-	if size > maxCacheEntries {
-		log.Warn("cache.size counts entries, not bytes; capping",
-			slog.Int("configured", size), slog.Int("used", maxCacheEntries),
-		)
-
-		size = maxCacheEntries
-	}
-
-	return cache.RistrettoConfig{MaxCost: int64(size), TTL: cacheTTL}
 }
 
 func ProvideAuth(lc fx.Lifecycle, d discovery.DiscoveryProvider, h *health.Registry) (auth.Manager, error) {

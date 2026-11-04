@@ -23,6 +23,7 @@ func NewForecastCalculation(service service.ForecastCalculationManager) *Forecas
 
 func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, req *pb.CreateForecastCalculationRequest) (*pb.CreateForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
+
 	out, err := f.service.CreateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
 	if err != nil {
 		return nil, err
@@ -33,7 +34,8 @@ func (f *ForecastCalculation) CreateForecastCalculation(ctx context.Context, req
 
 func (f *ForecastCalculation) ReadForecastCalculation(ctx context.Context, req *pb.ReadForecastCalculationRequest) (*pb.ReadForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	out, err := f.service.ReadForecastCalculation(ctx, s.SignedInUser, &model.SearchItem{Id: req.GetId(), Fields: req.GetFields()})
+
+	out, err := f.service.ReadForecastCalculation(ctx, s.SignedInUser, &model.SearchItem{ID: req.GetId(), Fields: req.GetFields()})
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +50,7 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, req
 		Size:   req.GetSize(),
 		Search: req.Q,
 		Sort:   req.Sort,
-		Fields: req.Fields,
+		Fields: req.GetFields(),
 	}
 
 	items, next, err := f.service.SearchForecastCalculation(ctx, s.SignedInUser, search)
@@ -61,6 +63,7 @@ func (f *ForecastCalculation) SearchForecastCalculation(ctx context.Context, req
 
 func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, req *pb.UpdateForecastCalculationRequest) (*pb.UpdateForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
+
 	out, err := f.service.UpdateForecastCalculation(ctx, s.SignedInUser, unmarshalForecastCalculationProto(req.GetItem()))
 	if err != nil {
 		return nil, err
@@ -71,7 +74,8 @@ func (f *ForecastCalculation) UpdateForecastCalculation(ctx context.Context, req
 
 func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req *pb.DeleteForecastCalculationRequest) (*pb.DeleteForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
-	id, err := f.service.DeleteForecastCalculation(ctx, s.SignedInUser, req.Id)
+
+	id, err := f.service.DeleteForecastCalculation(ctx, s.SignedInUser, req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -82,11 +86,11 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, req
 func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, req *pb.ExecuteForecastCalculationRequest) (*pb.ExecuteForecastCalculationResponse, error) {
 	s := grpccontext.FromContext(ctx)
 	forecast := &model.FilterBetween{
-		From: model.NewTimestamp(req.ForecastData.From),
-		To:   model.NewTimestamp(req.ForecastData.To),
+		From: model.NewTimestamp(req.GetForecastData().GetFrom()),
+		To:   model.NewTimestamp(req.GetForecastData().GetTo()),
 	}
 
-	out, err := f.service.ExecuteForecastCalculation(ctx, s.SignedInUser, req.Id, req.TeamId, forecast)
+	out, err := f.service.ExecuteForecastCalculation(ctx, s.SignedInUser, req.GetId(), req.GetTeamId(), forecast)
 	if err != nil {
 		return nil, err
 	}
@@ -96,11 +100,11 @@ func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, re
 
 func unmarshalForecastCalculationProto(in *pb.ForecastCalculation) *model.ForecastCalculation {
 	return &model.ForecastCalculation{
-		DomainRecord: model.DomainRecord{Id: in.Id},
+		DomainRecord: model.DomainRecord{ID: in.GetId()},
 		Name:         in.GetName(),
 		Description:  in.Description,
-		Procedure:    in.Procedure,
-		Args:         in.Args,
+		Procedure:    in.GetProcedure(),
+		Args:         in.GetArgs(),
 	}
 }
 

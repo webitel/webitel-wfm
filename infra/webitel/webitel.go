@@ -24,9 +24,8 @@ var (
 	ErrNoRows   = errors.NotFound("no rows in result set", errors.WithID("webitel.connection.service"))
 )
 
-var (
-	// see https://github.com/grpc/grpc/blob/master/doc/service_config.md to know more about service config
-	retryPolicy = `{
+// see https://github.com/grpc/grpc/blob/master/doc/service_config.md to know more about service config
+var retryPolicy = `{
 		"loadBalancingConfig": [ { "round_robin": {} } ],
 		"methodConfig": [
 			{
@@ -42,7 +41,6 @@ var (
  			}
 		]
 	}`
-)
 
 // New dials a Webitel service with retries, waiting for it to come up, and
 // forwards the signed-in user's token with every call.
@@ -76,7 +74,7 @@ func Dial(dp discovery.Discovery, target string, opts ...grpc.DialOption) (*grpc
 func ParseError(err error) error {
 	st, ok := status.FromError(err)
 	if ok {
-		switch st.Code() {
+		switch st.Code() { //nolint:exhaustive // every other code falls to default
 		case codes.NotFound, codes.PermissionDenied:
 			return errors.Wrap(ErrNoRows, errors.WithCause(st.Err()))
 		default:
@@ -106,6 +104,7 @@ func timeoutUnaryInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor 
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if timeout > 0 {
 			var cancel context.CancelFunc
+
 			ctx, cancel = context.WithTimeout(ctx, timeout)
 			defer cancel()
 		}

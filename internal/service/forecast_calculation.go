@@ -3,9 +3,15 @@ package service
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
+
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
+
+var ErrForecastCalculationEmptyAgents = errors.New("forecast calculation procedure returned an hour without a number of agents", errors.WithCode(codes.FailedPrecondition), errors.WithID("service.forecast_calculation.empty_agents"))
 
 type ForecastCalculationManager interface {
 	CreateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
@@ -14,7 +20,7 @@ type ForecastCalculationManager interface {
 	UpdateForecastCalculation(ctx context.Context, user *model.SignedInUser, in *model.ForecastCalculation) (*model.ForecastCalculation, error)
 	DeleteForecastCalculation(ctx context.Context, user *model.SignedInUser, id int64) (int64, error)
 
-	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
+	ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamID int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error)
 }
 type ForecastCalculation struct {
 	storage storage.ForecastCalculationManager
@@ -73,10 +79,18 @@ func (f *ForecastCalculation) DeleteForecastCalculation(ctx context.Context, use
 	return out, nil
 }
 
-func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamId int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
-	out, err := f.storage.ExecuteForecastCalculation(ctx, user, id, teamId, forecast)
+func (f *ForecastCalculation) ExecuteForecastCalculation(ctx context.Context, user *model.SignedInUser, id, teamID int64, forecast *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
+	out, err := f.storage.ExecuteForecastCalculation(ctx, user, id, teamID, forecast)
 	if err != nil {
 		return nil, err
+	}
+
+	// An hour without a number of agents rejects the whole forecast: it is not
+	// taken in part.
+	for _, i := range out {
+		if i.Agents == nil {
+			return nil, errors.Wrap(ErrForecastCalculationEmptyAgents, errors.WithValue("forecast_at", i.Timestamp.Time.String()))
+		}
 	}
 
 	return out, nil

@@ -54,6 +54,7 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 	}
 
 	series := period.GenerateSeries(0, 0, 1)
+
 	schedules := make([]*model.AgentSchedule, 0, len(in.Shifts))
 	for _, time := range series {
 		if v, ok := in.Shifts[int64(time.Weekday())]; ok {
@@ -70,9 +71,9 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 
 	agentIDs := make([]int64, 0, len(in.Agents))
 	for _, agent := range in.Agents {
-		agentIDs = append(agentIDs, agent.Id)
+		agentIDs = append(agentIDs, agent.ID)
 	}
-	deactivated, err := a.workingScheduleStorage.DeactivatedAgents(ctx, user.DomainId, agentIDs)
+	deactivated, err := a.workingScheduleStorage.DeactivatedAgents(ctx, user.DomainID, agentIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +89,7 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 		})
 	}
 
-	out, err := a.storage.CreateAgentsWorkingScheduleShifts(ctx, user, ws.Id, agents)
+	out, err := a.storage.CreateAgentsWorkingScheduleShifts(ctx, user, ws.ID, agents)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 }
 
 func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, []*model.Holiday, error) {
-	read, err := options.NewRead(ctx, options.WithID(search.WorkingScheduleId))
+	read, err := options.NewRead(ctx, options.WithID(search.WorkingScheduleID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,30 +108,53 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		return nil, nil, err
 	}
 
-	period := timeutils.NewPeriod(search.SearchItem.Date.From.Time, search.SearchItem.Date.To.Time, timeutils.IncludeAll)
+	if search.SearchItem.Date == nil {
+		search.SearchItem.Date = &model.FilterBetween{}
+	}
+
+	date := search.SearchItem.Date
+	if !date.From.Valid {
+		date.From = model.NewTimestamp(ws.StartDateAt.Time.Unix())
+	}
+
+	if !date.To.Valid {
+		date.To = model.NewTimestamp(ws.EndDateAt.Time.Unix())
+	}
+
+	period := timeutils.NewPeriod(date.From.Time, date.To.Time, timeutils.IncludeAll)
 	if !timeutils.NewPeriod(ws.StartDateAt.Time, ws.EndDateAt.Time, timeutils.IncludeAll).Contains(period) {
 		return nil, nil, ErrAgentWorkingScheduleDateFilter
 	}
 
-	if len(search.SupervisorIds) > 0 || len(search.TeamIds) > 0 || len(search.SkillIds) > 0 {
-		search.AgentIds, err = a.engine.AgentService().Agents(ctx, &model.AgentSearch{SupervisorIds: search.SupervisorIds, TeamIds: search.TeamIds, SkillIds: search.SkillIds})
+	filtered := len(search.SupervisorIDs) > 0 || len(search.TeamIDs) > 0 || len(search.SkillIDs) > 0
+	if filtered {
+		search.AgentIDs, err = a.engine.AgentService().Agents(ctx, &model.AgentSearch{SupervisorIDs: search.SupervisorIDs, TeamIDs: search.TeamIDs, SkillIDs: search.SkillIDs})
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
 	var items []*model.AgentWorkingSchedule
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		if items, err = a.storage.SearchAgentWorkingSchedule(ctx, user, search); err != nil {
-			return err
-		}
 
-		return nil
-	})
+	eg, ctx := errgroup.WithContext(ctx)
+
+	// A filter that matched no agent leaves AgentIds empty, which storage reads
+	// as no filter at all: list nobody rather than everyone.
+	if !filtered || len(search.AgentIDs) > 0 {
+		eg.Go(func() error {
+			var err error
+			if items, err = a.storage.SearchAgentWorkingSchedule(ctx, user, search); err != nil {
+				return err
+			}
+
+			return nil
+		})
+	}
 
 	var holidays []*model.Holiday
+
 	eg.Go(func() error {
+		var err error
 		if holidays, err = a.storage.Holidays(ctx, user, search); err != nil {
 			return err
 		}
