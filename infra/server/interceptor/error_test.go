@@ -37,7 +37,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 	t.Run("business refusal", func(t *testing.T) {
 		v := model.Violation{OperatorID: 7, Date: pgtype.Date{Time: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC), Valid: true}, Reason: "service.shift.overlap"}
 		_, err := interceptor(context.Background(), nil, info, func(context.Context, any) (any, error) {
-			return nil, model.Refuse(model.NewRefusal("server.interceptor.error.refused", "refused"), v)
+			return nil, model.Refuse(errors.FailedPrecondition("refused", errors.WithID("server.interceptor.error.refused")), v)
 		})
 
 		st, ok := status.FromError(err)
@@ -48,7 +48,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 		assert.Equal(t, "server.interceptor.error.refused", got.ID)
 		assert.Equal(t, int32(400), got.Code)
 		assert.Equal(t, "Bad Request", got.Status)
-		assert.Contains(t, got.Detail, "violations = operator 7 on 2026-11-02: service.shift.overlap")
+		assert.Equal(t, "refused", got.Detail, "the list stays out of the client's detail")
 	})
 
 	t.Run("not nil err received", func(t *testing.T) {
