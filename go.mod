@@ -31,7 +31,7 @@ require (
 	github.com/webitel/webitel-go-kit/infra/pgw v0.0.0-20260901092450-f7cbb06aceb5
 	github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq v0.0.0-20260901092450-f7cbb06aceb5
 	github.com/webitel/webitel-go-kit/infra/transport v0.0.0-20260901092450-f7cbb06aceb5
-	github.com/webitel/webitel-go-kit/pkg/errors v0.1.0
+	github.com/webitel/webitel-go-kit/pkg/errors v0.2.0
 	github.com/webitel/webitel-go-kit/pkg/interceptors v0.1.1
 	go.opentelemetry.io/contrib/bridges/otelslog v0.17.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.71.0

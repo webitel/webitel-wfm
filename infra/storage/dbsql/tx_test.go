@@ -2,6 +2,8 @@ package dbsql
 
 import (
 	"context"
+	"math"
+	"reflect"
 	"testing"
 
 	"github.com/jackc/pgerrcode"
@@ -21,6 +23,7 @@ type stubTx struct {
 	execs, batches, savepoints int
 	committed, rolledBack      bool
 	rollbackCtxErr             error
+	sent                       *pgx.Batch
 }
 
 func (t *stubTx) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
@@ -33,8 +36,9 @@ func (t *stubTx) Query(context.Context, string, ...any) (pgx.Rows, error) {
 	return nil, t.queryErr
 }
 
-func (t *stubTx) SendBatch(context.Context, *pgx.Batch) pgx.BatchResults {
+func (t *stubTx) SendBatch(_ context.Context, b *pgx.Batch) pgx.BatchResults {
 	t.batches++
+	t.sent = b
 
 	return stubBatchResults{}
 }
@@ -85,7 +89,7 @@ func TestInTxCommits(t *testing.T) {
 	tx := &stubTx{}
 	db := &stubBeginner{tx: tx}
 
-	if err := inTx(context.Background(), db, func(context.Context, Store) error { return nil }); err != nil {
+	if err := inTx(context.Background(), db, func(context.Context, Tx) error { return nil }); err != nil {
 		t.Fatalf("inTx = %v, want nil", err)
 	}
 
@@ -107,7 +111,7 @@ func TestInTxRollsBackOnError(t *testing.T) {
 			tx := &stubTx{rollbackErr: rollbackErr}
 			ctx, cancel := context.WithCancel(context.Background())
 
-			err := inTx(ctx, &stubBeginner{tx: tx}, func(context.Context, Store) error {
+			err := inTx(ctx, &stubBeginner{tx: tx}, func(context.Context, Tx) error {
 				cancel()
 
 				return errRefused
@@ -151,7 +155,7 @@ func TestInTxRollsBackOnPanic(t *testing.T) {
 		}
 	}()
 
-	_ = inTx(ctx, &stubBeginner{tx: tx}, func(context.Context, Store) error {
+	_ = inTx(ctx, &stubBeginner{tx: tx}, func(context.Context, Tx) error {
 		cancel()
 		panic("boom")
 	})
@@ -161,7 +165,7 @@ func TestInTxRollsBackWhenCtxEndsBeforeCommit(t *testing.T) {
 	tx := &stubTx{}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	err := inTx(ctx, &stubBeginner{tx: tx}, func(context.Context, Store) error {
+	err := inTx(ctx, &stubBeginner{tx: tx}, func(context.Context, Tx) error {
 		cancel()
 
 		return nil
@@ -182,8 +186,8 @@ func TestInTxJoins(t *testing.T) {
 	db := &stubBeginner{tx: tx}
 	ctx := context.Background()
 
-	err := inTx(ctx, db, func(ctx context.Context, outer Store) error {
-		return outer.InTx(ctx, func(ctx context.Context, inner Store) error {
+	err := inTx(ctx, db, func(ctx context.Context, outer Tx) error {
+		return outer.InTx(ctx, func(ctx context.Context, inner Tx) error {
 			if err := inner.Primary().Exec(ctx, "SELECT 1"); err != nil {
 				return err
 			}
@@ -219,7 +223,7 @@ func TestInTxParsesDriverErrors(t *testing.T) {
 
 	tests := map[string]struct {
 		db       *stubBeginner
-		fn       func(context.Context, Store) error
+		fn       func(context.Context, Tx) error
 		sentinel error
 	}{
 		"begin": {
@@ -228,12 +232,12 @@ func TestInTxParsesDriverErrors(t *testing.T) {
 		},
 		"exec": {
 			db:       &stubBeginner{tx: &stubTx{execErr: unique}},
-			fn:       func(ctx context.Context, tx Store) error { return tx.Primary().Exec(ctx, "INSERT") },
+			fn:       func(ctx context.Context, tx Tx) error { return tx.Primary().Exec(ctx, "INSERT") },
 			sentinel: ErrUniqueViolation,
 		},
 		"get": {
 			db: &stubBeginner{tx: &stubTx{queryErr: unique}},
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				var id int64
 
 				return tx.Primary().Get(ctx, &id, "INSERT … RETURNING id")
@@ -242,7 +246,7 @@ func TestInTxParsesDriverErrors(t *testing.T) {
 		},
 		"select": {
 			db: &stubBeginner{tx: &stubTx{queryErr: unique}},
-			fn: func(ctx context.Context, tx Store) error {
+			fn: func(ctx context.Context, tx Tx) error {
 				var ids []int64
 
 				return tx.Primary().Select(ctx, &ids, "INSERT … RETURNING id")
@@ -259,7 +263,7 @@ func TestInTxParsesDriverErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			fn := tc.fn
 			if fn == nil {
-				fn = func(context.Context, Store) error { return nil }
+				fn = func(context.Context, Tx) error { return nil }
 			}
 
 			if err := inTx(context.Background(), tc.db, fn); !errors.Is(err, tc.sentinel) {
@@ -272,7 +276,7 @@ func TestInTxParsesDriverErrors(t *testing.T) {
 func TestDBInTxOnDeadPrimary(t *testing.T) {
 	called := false
 
-	err := New(&pgw.PoolManager{}).InTx(context.Background(), func(context.Context, Store) error {
+	err := New(&pgw.PoolManager{}).InTx(context.Background(), func(context.Context, Tx) error {
 		called = true
 
 		return nil
@@ -284,5 +288,73 @@ func TestDBInTxOnDeadPrimary(t *testing.T) {
 
 	if called {
 		t.Error("fn ran without a primary")
+	}
+}
+
+func TestLockTakesKeysInOneOrder(t *testing.T) {
+	stub := &stubTx{}
+	keys := []LockKey{OperatorLock(5), TeamLock(9), OperatorLock(2), OperatorLock(5), TeamLock(1)}
+
+	if err := (txStore{tx: stub}).Lock(context.Background(), keys...); err != nil {
+		t.Fatalf("Lock = %v, want nil", err)
+	}
+
+	if stub.batches != 1 {
+		t.Fatalf("batches = %d, want 1", stub.batches)
+	}
+
+	want := [][]any{
+		{teamLockClass, int64(1)}, {teamLockClass, int64(9)}, {operatorLockClass, int64(2)}, {operatorLockClass, int64(5)},
+	}
+	if len(stub.sent.QueuedQueries) != len(want) {
+		t.Fatalf("queued %d locks, want %d", len(stub.sent.QueuedQueries), len(want))
+	}
+
+	for i, q := range stub.sent.QueuedQueries {
+		if q.SQL != lockSQL || !reflect.DeepEqual(q.Arguments, want[i]) {
+			t.Errorf("lock %d = %q %v, want %q %v", i, q.SQL, q.Arguments, lockSQL, want[i])
+		}
+	}
+
+	if keys[0] != OperatorLock(5) || keys[4] != TeamLock(1) {
+		t.Errorf("Lock reordered the caller's keys: %v", keys)
+	}
+}
+
+func TestLockRejectsIDsOutsideInt4(t *testing.T) {
+	tests := map[string]struct {
+		keys    []LockKey
+		batches int
+		wantErr bool
+	}{
+		"operator above int4":         {keys: []LockKey{OperatorLock(math.MaxInt32 + 1)}, wantErr: true},
+		"team below int4":             {keys: []LockKey{TeamLock(math.MinInt32 - 1)}, wantErr: true},
+		"one bad key among good ones": {keys: []LockKey{OperatorLock(1), OperatorLock(math.MaxInt32 + 1)}, wantErr: true},
+		"int4 boundaries":             {keys: []LockKey{OperatorLock(math.MaxInt32), TeamLock(math.MinInt32)}, batches: 1},
+		"no keys":                     {},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			stub := &stubTx{}
+
+			err := (txStore{tx: stub}).Lock(context.Background(), tt.keys...)
+			if tt.wantErr && (!errors.Is(err, ErrLockKeyRange) || errors.ID(err) != "dbsql.lock.key_range") {
+				t.Errorf("Lock = %v, want ErrLockKeyRange", err)
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Errorf("Lock = %v, want nil", err)
+			}
+
+			if stub.batches != tt.batches {
+				t.Errorf("batches = %d, want %d", stub.batches, tt.batches)
+			}
+		})
+	}
+}
+
+func TestRootStoreCannotLock(t *testing.T) {
+	if _, ok := any((*DB)(nil)).(Tx); ok {
+		t.Error("*DB implements Tx: Lock must be reachable only through InTx")
 	}
 }
