@@ -26,6 +26,8 @@ type WorkingScheduleManager interface {
 
 	UpdateWorkingScheduleAddAgents(ctx context.Context, read *options.Read, agentIDs []int64) ([]*model.LookupItem, error)
 	UpdateWorkingScheduleRemoveAgent(ctx context.Context, read *options.Read, agentID int64) (int64, error)
+
+	DeactivatedAgents(ctx context.Context, domainID int64, agentIDs []int64) ([]int64, error)
 }
 
 type WorkingSchedule struct {
@@ -302,4 +304,23 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, 
 	}
 
 	return agentID, nil
+}
+
+func (w *WorkingSchedule) DeactivatedAgents(ctx context.Context, domainID int64, agentIDs []int64) ([]int64, error) {
+	if len(agentIDs) == 0 {
+		return nil, nil
+	}
+
+	var ids []int64
+	err := w.db.Primary().Select(ctx, &ids, `SELECT a.id
+  FROM call_center.cc_agent a
+  JOIN directory.wbt_user u ON u.id = a.user_id
+ WHERE a.domain_id = $1
+   AND a.id = ANY($2::int8[])
+   AND u.deleted_at NOTNULL`, domainID, agentIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
 }

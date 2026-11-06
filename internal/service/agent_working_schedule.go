@@ -69,6 +69,18 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 		return nil, ErrAgentWorkingScheduleDateShiftMap
 	}
 
+	agentIDs := make([]int64, 0, len(in.Agents))
+	for _, agent := range in.Agents {
+		agentIDs = append(agentIDs, agent.ID)
+	}
+	deactivated, err := a.workingScheduleStorage.DeactivatedAgents(ctx, user.DomainID, agentIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(deactivated) > 0 {
+		return nil, errors.Wrap(ErrAgentDeactivated, errors.WithValue("agents", deactivated))
+	}
+
 	agents := make([]*model.AgentWorkingSchedule, 0, len(in.Agents))
 	for _, agent := range in.Agents {
 		agents = append(agents, &model.AgentWorkingSchedule{
