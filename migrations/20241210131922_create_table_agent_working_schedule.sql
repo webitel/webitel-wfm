@@ -181,6 +181,8 @@ DROP VIEW wfm.agent_working_schedule_v;
 
 DROP VIEW wfm.agent_working_schedule_pause_v;
 
+DROP TABLE wfm.agent_working_schedule_skill;
+
 DROP TABLE wfm.agent_working_schedule_pause;
 
 DROP TABLE wfm.agent_working_schedule;
