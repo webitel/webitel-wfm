@@ -317,6 +317,39 @@ func TestReadWorkingScheduleFieldMaskSelectsOnlyThoseColumns(t *testing.T) {
 	}
 }
 
+// etag is not a column: a mask asks for it by name and gets id and ver, each
+// once, since a repeated column fails the scan.
+func TestReadWorkingScheduleFieldMaskTranslatesEtag(t *testing.T) {
+	for _, tc := range []struct {
+		mask []string
+		want string
+	}{
+		{mask: []string{"etag"}, want: "SELECT id, ver FROM"},
+		{mask: []string{"id", "etag"}, want: "SELECT id, ver FROM"},
+		{mask: []string{"name", "etag", "id"}, want: "SELECT id, name, ver FROM"},
+	} {
+		t.Run(strings.Join(tc.mask, ","), func(t *testing.T) {
+			rows := schedule(7, "seven")
+
+			ws, tr := newProbe(t, &rows, &rows, 7)
+			ctx := userCtx(1, 1)
+
+			masked, err := options.NewRead(ctx, options.WithID(7), options.WithFields(tc.mask))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := ws.ReadWorkingSchedule(ctx, masked); err != nil {
+				t.Fatal(err)
+			}
+
+			if sql := tr.calls[0].sql; !strings.HasPrefix(sql, tc.want) {
+				t.Errorf("mask %v selected %s, want prefix %q", tc.mask, sql, tc.want)
+			}
+		})
+	}
+}
+
 // read maps the row count onto the error contract: more than one row under an
 // id is a conflict, none is ErrNoRows, and neither comes with a value.
 func TestReadWorkingScheduleErrors(t *testing.T) {

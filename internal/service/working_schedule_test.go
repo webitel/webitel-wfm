@@ -16,6 +16,68 @@ import (
 	"github.com/webitel/webitel-wfm/internal/storage"
 )
 
+// versionedStore holds one schedule at version 2 and records every write.
+type versionedStore struct {
+	storage.WorkingScheduleManager
+
+	state  model.WorkingScheduleState
+	writes []string
+}
+
+func (s *versionedStore) ReadWorkingSchedule(_ context.Context, read *options.Read) (*model.WorkingSchedule, error) {
+	return &model.WorkingSchedule{
+		DomainRecord: model.DomainRecord{ID: read.ID()},
+		State:        s.state,
+		Team:         model.LookupItem{ID: 5},
+		Calendar:     model.LookupItem{ID: 6},
+		Ver:          2,
+	}, nil
+}
+
+func (s *versionedStore) DeleteWorkingSchedule(context.Context, *options.Read) (int64, error) {
+	s.writes = append(s.writes, "delete")
+
+	return 0, nil
+}
+
+func (s *versionedStore) UpdateWorkingSchedule(_ context.Context, _ *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
+	s.writes = append(s.writes, "update")
+
+	return in, nil
+}
+
+// A save made against an older version is refused before anything else looks at
+// the row: before the team/calendar branch, which deletes and recreates it
+// without reaching the storage guard, and before the state check, so the client
+// rereads first and then sees the true state.
+func TestUpdateWorkingScheduleRefusesAStaleVersion(t *testing.T) {
+	for name, state := range map[string]model.WorkingScheduleState{
+		"draft with a changed team": model.WorkingScheduleStateDraft,
+		"no longer a draft":         model.WorkingScheduleStateActive,
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, user := signedIn()
+			store := &versionedStore{state: state}
+
+			in := &model.WorkingSchedule{
+				DomainRecord: model.DomainRecord{ID: 7},
+				Team:         model.LookupItem{ID: 9},
+				Calendar:     model.LookupItem{ID: 6},
+				Ver:          1,
+			}
+
+			_, err := NewWorkingSchedule(store, nil, nil).UpdateWorkingSchedule(ctx, user, in)
+			if !errors.Is(err, storage.ErrWorkingScheduleVersionConflict) {
+				t.Errorf("err = %v, want %v", err, storage.ErrWorkingScheduleVersionConflict)
+			}
+
+			if len(store.writes) > 0 {
+				t.Errorf("a stale save wrote: %v", store.writes)
+			}
+		})
+	}
+}
+
 // forecastStore returns the rows a forecast procedure produced.
 type forecastStore struct {
 	storage.ForecastCalculationManager

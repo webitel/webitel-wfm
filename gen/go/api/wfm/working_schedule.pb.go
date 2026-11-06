@@ -919,8 +919,11 @@ type WorkingSchedule struct {
 	BlockOutsideActivity bool                   `protobuf:"varint,16,opt,name=block_outside_activity,json=blockOutsideActivity,proto3" json:"block_outside_activity,omitempty"`
 	Agents               []*LookupEntity        `protobuf:"bytes,17,rep,name=agents,proto3" json:"agents,omitempty"`
 	TotalAgents          int64                  `protobuf:"varint,18,opt,name=total_agents,json=totalAgents,proto3" json:"total_agents,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Version of the row, returned by every read. UpdateWorkingSchedule requires
+	// it and refuses with Aborted when the schedule has changed since.
+	Etag          string `protobuf:"bytes,19,opt,name=etag,proto3" json:"etag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkingSchedule) Reset() {
@@ -1079,6 +1082,13 @@ func (x *WorkingSchedule) GetTotalAgents() int64 {
 	return 0
 }
 
+func (x *WorkingSchedule) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
 type WorkingScheduleForecast_Forecast struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hour          int64                  `protobuf:"varint,1,opt,name=hour,proto3" json:"hour,omitempty"`
@@ -1139,15 +1149,15 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\x1cCreateWorkingScheduleRequest\x120\n" +
 	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleB\x06\xbaH\x03\xc8\x01\x01R\x04item\"I\n" +
 	"\x1dCreateWorkingScheduleResponse\x12(\n" +
-	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleR\x04item\"\x9e\x02\n" +
+	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleR\x04item\"\xa4\x02\n" +
 	"\x1aReadWorkingScheduleRequest\x12\x1a\n" +
 	"\x02id\x18\x01 \x01(\x03B\n" +
-	"\xbaH\a\xc8\x01\x01\"\x02 \x00R\x02id\x12\xe3\x01\n" +
-	"\x06fields\x18\x02 \x03(\tB\xca\x01\xbaH\xc6\x01\x92\x01\xc2\x01\x18\x01\"\xbd\x01r\xba\x01\x10\x01R\x02idR\tdomain_idR\x04nameR\x05stateR\x04teamR\rstart_date_atR\vend_date_atR\rstart_time_atR\vend_time_atR\fextra_skillsR\x16block_outside_activityR\x06agentsR\n" +
+	"\xbaH\a\xc8\x01\x01\"\x02 \x00R\x02id\x12\xe9\x01\n" +
+	"\x06fields\x18\x02 \x03(\tB\xd0\x01\xbaH\xcc\x01\x92\x01\xc8\x01\x18\x01\"\xc3\x01r\xc0\x01\x10\x01R\x02idR\tdomain_idR\x04nameR\x05stateR\x04teamR\rstart_date_atR\vend_date_atR\rstart_time_atR\vend_time_atR\fextra_skillsR\x16block_outside_activityR\x06agentsR\n" +
 	"created_atR\n" +
 	"created_byR\n" +
 	"updated_atR\n" +
-	"updated_byR\x06fields\"G\n" +
+	"updated_byR\x04etagR\x06fields\"G\n" +
 	"\x1bReadWorkingScheduleResponse\x12(\n" +
 	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleR\x04item\"\\\n" +
 	"\"ReadWorkingScheduleForecastRequest\x12\x0e\n" +
@@ -1158,18 +1168,18 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\n" +
 	"ItemsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\x03R\x03key\x122\n" +
-	"\x05value\x18\x02 \x01(\v2\x1c.wfm.WorkingScheduleForecastR\x05value:\x028\x01\"\xa1\x03\n" +
+	"\x05value\x18\x02 \x01(\v2\x1c.wfm.WorkingScheduleForecastR\x05value:\x028\x01\"\xa7\x03\n" +
 	"\x1cSearchWorkingScheduleRequest\x12\x1d\n" +
 	"\x01q\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xfa\x01H\x00R\x01q\x88\x01\x01\x12 \n" +
 	"\x04page\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x04page\x88\x01\x01\x12 \n" +
 	"\x04size\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x02R\x04size\x88\x01\x01\x12\x17\n" +
-	"\x04sort\x18\x04 \x01(\tH\x03R\x04sort\x88\x01\x01\x12\xe3\x01\n" +
-	"\x06fields\x18\x05 \x03(\tB\xca\x01\xbaH\xc6\x01\x92\x01\xc2\x01\x18\x01\"\xbd\x01r\xba\x01\x10\x01R\x02idR\tdomain_idR\x04nameR\x05stateR\x04teamR\rstart_date_atR\vend_date_atR\rstart_time_atR\vend_time_atR\fextra_skillsR\x16block_outside_activityR\x06agentsR\n" +
+	"\x04sort\x18\x04 \x01(\tH\x03R\x04sort\x88\x01\x01\x12\xe9\x01\n" +
+	"\x06fields\x18\x05 \x03(\tB\xd0\x01\xbaH\xcc\x01\x92\x01\xc8\x01\x18\x01\"\xc3\x01r\xc0\x01\x10\x01R\x02idR\tdomain_idR\x04nameR\x05stateR\x04teamR\rstart_date_atR\vend_date_atR\rstart_time_atR\vend_time_atR\fextra_skillsR\x16block_outside_activityR\x06agentsR\n" +
 	"created_atR\n" +
 	"created_byR\n" +
 	"updated_atR\n" +
-	"updated_byR\x06fieldsB\x04\n" +
+	"updated_byR\x04etagR\x06fieldsB\x04\n" +
 	"\x02_qB\a\n" +
 	"\x05_pageB\a\n" +
 	"\x05_sizeB\a\n" +
@@ -1202,7 +1212,7 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\bforecast\x18\x01 \x03(\v2%.wfm.WorkingScheduleForecast.ForecastR\bforecast\x1a6\n" +
 	"\bForecast\x12\x12\n" +
 	"\x04hour\x18\x01 \x01(\x03R\x04hour\x12\x16\n" +
-	"\x06agents\x18\x02 \x01(\x03R\x06agents\"\xcc\x05\n" +
+	"\x06agents\x18\x02 \x01(\x03R\x06agents\"\xe0\x05\n" +
 	"\x0fWorkingSchedule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\x12\x1d\n" +
@@ -1227,7 +1237,8 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\fextra_skills\x18\x0f \x03(\v2\x11.wfm.LookupEntityR\vextraSkills\x124\n" +
 	"\x16block_outside_activity\x18\x10 \x01(\bR\x14blockOutsideActivity\x12)\n" +
 	"\x06agents\x18\x11 \x03(\v2\x11.wfm.LookupEntityR\x06agents\x12!\n" +
-	"\ftotal_agents\x18\x12 \x01(\x03R\vtotalAgents*\xcc\x01\n" +
+	"\ftotal_agents\x18\x12 \x01(\x03R\vtotalAgents\x12\x12\n" +
+	"\x04etag\x18\x13 \x01(\tR\x04etag*\xcc\x01\n" +
 	"\x14WorkingScheduleState\x12&\n" +
 	"\"WORKING_SCHEDULE_STATE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cWORKING_SCHEDULE_STATE_DRAFT\x10\x01\x12\"\n" +

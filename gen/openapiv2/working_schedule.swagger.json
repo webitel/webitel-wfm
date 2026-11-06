@@ -408,6 +408,10 @@
                     "totalAgents": {
                       "type": "string",
                       "format": "int64"
+                    },
+                    "etag": {
+                      "type": "string",
+                      "description": "Version of the row, returned by every read. UpdateWorkingSchedule requires\nit and refuses with Aborted when the schedule has changed since."
                     }
                   }
                 }
@@ -636,6 +640,10 @@
         "totalAgents": {
           "type": "string",
           "format": "int64"
+        },
+        "etag": {
+          "type": "string",
+          "description": "Version of the row, returned by every read. UpdateWorkingSchedule requires\nit and refuses with Aborted when the schedule has changed since."
         }
       }
     },

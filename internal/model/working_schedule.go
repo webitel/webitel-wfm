@@ -3,6 +3,8 @@ package model
 import (
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/webitel/webitel-go-kit/pkg/etag"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
@@ -35,6 +37,7 @@ type WorkingSchedule struct {
 	ExtraSkills          []*LookupItem `db:"extra_skills,json"`
 	BlockOutsideActivity bool          `db:"block_outside_activity"`
 	Agents               []*LookupItem `db:"agents,json"`
+	Ver                  int32         `db:"ver"`
 }
 
 func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
@@ -65,6 +68,12 @@ func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
 		BlockOutsideActivity: w.BlockOutsideActivity,
 		Agents:               agents,
 		TotalAgents:          int64(len(agents)),
+	}
+
+	// ver starts at 1: 0 means a field mask left it out, and a token built from
+	// it would fail every save with a false conflict.
+	if w.Ver > 0 {
+		out.Etag, _ = etag.EncodeEtag(etag.EtagWorkingSchedule, w.ID, w.Ver)
 	}
 
 	if !w.CreatedAt.Time.IsZero() {
