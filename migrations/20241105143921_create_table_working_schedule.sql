@@ -116,6 +116,8 @@ DROP TABLE wfm.working_schedule_agent;
 
 DROP TABLE wfm.working_schedule_extra_skill;
 
+DROP INDEX call_center.cc_skill_domain_id_udx;
+
 DROP TRIGGER tg_populate_updated_at_column ON wfm.working_schedule;
 
 DROP TABLE wfm.working_schedule;
