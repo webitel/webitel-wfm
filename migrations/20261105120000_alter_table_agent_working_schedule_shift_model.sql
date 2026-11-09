@@ -5,10 +5,21 @@ DROP VIEW wfm.agent_working_schedule_v;
 DROP VIEW wfm.agent_working_schedule_pause_v;
 
 -- An agent is in a schedule once: a duplicate made the shift insert's agent lookup return two rows.
+-- Duplicates saved so far are dropped, the oldest row stays; with shifts in the table the migration
+-- fails below and this is rolled back too.
+DELETE
+FROM wfm.working_schedule_agent a
+    USING wfm.working_schedule_agent b
+WHERE a.working_schedule_id = b.working_schedule_id
+  AND a.agent_id = b.agent_id
+  AND a.id > b.id;
+
 CREATE UNIQUE INDEX working_schedule_agent_schedule_agent_udx
     ON wfm.working_schedule_agent (working_schedule_id, agent_id);
 
 -- No shifts are carried over, as none exist yet: on a table that has some, this migration fails and changes nothing.
+-- schedule_at is the working date, the day the shift starts on in the calendar's time zone; the writer sets it.
+-- source is 1 manual or 2 planner, as in wfm.ShiftSource.
 ALTER TABLE wfm.agent_working_schedule
     DROP CONSTRAINT agent_working_schedule_working_schedule_agent_id_schedule_a_key,
     DROP COLUMN start_min,
@@ -21,35 +32,10 @@ ALTER TABLE wfm.agent_working_schedule
     ADD COLUMN planner_run_id BIGINT,
     -- The shift is [start_at, end_at): the next one may start at end_at.
     ADD CONSTRAINT agent_working_schedule_duration_check
-        CHECK ( start_at < end_at AND end_at - start_at <= INTERVAL '24 hours' ),
-    -- 1 manual, 2 planner, as in wfm.ShiftSource.
-    ADD CONSTRAINT agent_working_schedule_source_check CHECK ( source IN (1, 2) );
+        CHECK ( start_at < end_at AND end_at - start_at <= INTERVAL '24 hours' );
 
 CREATE INDEX agent_working_schedule_agent_date_idx
     ON wfm.agent_working_schedule (working_schedule_agent_id, schedule_at);
-
--- The working date is the day the shift starts on in the time zone of its schedule's calendar.
-CREATE FUNCTION wfm.tg_agent_working_schedule_working_date()
-    RETURNS TRIGGER AS
-$$
-BEGIN
-    SELECT (NEW.start_at AT TIME ZONE tz.sys_name)::DATE
-    INTO NEW.schedule_at
-    FROM wfm.working_schedule_agent wsa
-             INNER JOIN wfm.working_schedule ws ON ws.id = wsa.working_schedule_id
-             INNER JOIN flow.calendar c ON c.id = ws.calendar_id
-             INNER JOIN flow.calendar_timezones tz ON tz.id = c.timezone_id
-    WHERE wsa.id = NEW.working_schedule_agent_id;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER tg_working_date
-    BEFORE INSERT OR UPDATE OF start_at, working_schedule_agent_id
-    ON wfm.agent_working_schedule
-    FOR EACH ROW
-EXECUTE PROCEDURE wfm.tg_agent_working_schedule_working_date();
 
 ALTER TABLE wfm.agent_working_schedule_pause
     DROP COLUMN start_min,
@@ -57,6 +43,10 @@ ALTER TABLE wfm.agent_working_schedule_pause
     ADD COLUMN start_at TIMESTAMP WITH TIME ZONE NOT NULL,
     ADD COLUMN end_at   TIMESTAMP WITH TIME ZONE NOT NULL,
     ADD CONSTRAINT agent_working_schedule_pause_duration_check CHECK ( start_at < end_at );
+
+-- For the pause check below and for the cascade when shifts are deleted.
+CREATE INDEX agent_working_schedule_pause_shift_idx
+    ON wfm.agent_working_schedule_pause (agent_working_schedule_id);
 
 -- A pause lies inside its shift. The argument names the column that holds the shift id.
 CREATE FUNCTION wfm.tg_agent_working_schedule_pause_inside()
@@ -210,15 +200,13 @@ DROP TRIGGER agent_working_schedule_pause_inside ON wfm.agent_working_schedule_p
 
 DROP FUNCTION wfm.tg_agent_working_schedule_pause_inside;
 
+DROP INDEX wfm.agent_working_schedule_pause_shift_idx;
+
 ALTER TABLE wfm.agent_working_schedule_pause
     DROP COLUMN start_at,
     DROP COLUMN end_at,
     ADD COLUMN start_min INT2 NOT NULL,
     ADD COLUMN end_min   INT2 NOT NULL;
-
-DROP TRIGGER tg_working_date ON wfm.agent_working_schedule;
-
-DROP FUNCTION wfm.tg_agent_working_schedule_working_date;
 
 DROP INDEX wfm.agent_working_schedule_agent_date_idx;
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -23,7 +24,7 @@ const testDSNEnv = "WFM_TEST_POSTGRES_DSN"
 // scheduleVer is the migration before the shift model.
 const scheduleVer = 20261102120000
 
-// One agent in one schedule, on a calendar in Kyiv: UTC+2 in November.
+// One agent in one schedule.
 const seed = `
 INSERT INTO directory.wbt_domain (dc, name) VALUES (1, 'domain');
 INSERT INTO directory.wbt_user (id, dc, name) VALUES (1, 1, 'user');
@@ -118,7 +119,8 @@ func commit(ctx context.Context, db *sql.DB, stmts ...string) error {
 	return tx.Commit()
 }
 
-// refusedBy names the constraint that refused err, or is empty when err is nil.
+// refusedBy names the constraint that refused err, or its SQLSTATE when the
+// error names none; it is empty when err is nil.
 func refusedBy(t *testing.T, err error) string {
 	t.Helper()
 
@@ -127,16 +129,22 @@ func refusedBy(t *testing.T, err error) string {
 	}
 
 	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.ConstraintName == "" {
-		t.Fatalf("not a constraint violation: %v", err)
+	if !errors.As(err, &pgErr) {
+		t.Fatalf("not a database refusal: %v", err)
 	}
 
-	return pgErr.ConstraintName
+	if pgErr.ConstraintName != "" {
+		return pgErr.ConstraintName
+	}
+
+	return pgErr.Code
 }
 
+// shift writes the shift with the UTC day of its start as the working date: the
+// writer computes the real one, the table only stores it.
 func shift(id int, start, end string) string {
-	return fmt.Sprintf(`INSERT INTO wfm.agent_working_schedule (id, domain_id, created_by, working_schedule_agent_id, start_at, end_at)
-VALUES (%d, 1, 1, 1, '%s', '%s')`, id, start, end)
+	return fmt.Sprintf(`INSERT INTO wfm.agent_working_schedule (id, domain_id, created_by, working_schedule_agent_id, schedule_at, start_at, end_at)
+VALUES (%d, 1, 1, 1, '%s', '%s', '%s')`, id, start[:10], start, end)
 }
 
 func pause(start, end string) string {
@@ -150,6 +158,16 @@ func TestMigrationsGoDownAndUpAgain(t *testing.T) {
 
 	if _, err := p.Up(ctx); err != nil {
 		t.Fatalf("up: %v", err)
+	}
+
+	// Down to the last migration of the old model first: going down to 0 drops the
+	// whole wfm schema and would hide anything the newer downs leave behind.
+	if _, err := p.DownTo(ctx, scheduleVer); err != nil {
+		t.Fatalf("down to %d: %v", scheduleVer, err)
+	}
+
+	if _, err := p.Up(ctx); err != nil {
+		t.Fatalf("up from %d: %v", scheduleVer, err)
 	}
 
 	if _, err := p.DownTo(ctx, 0); err != nil {
@@ -242,10 +260,10 @@ func TestShiftModel(t *testing.T) {
 			stmts: []string{shift(1, "2026-11-02 07:00Z", "2026-11-02 11:00Z"), shift(2, "2026-11-02 11:00Z", "2026-11-02 15:00Z")},
 		},
 		{
-			name: "an unknown source",
-			stmts: []string{`INSERT INTO wfm.agent_working_schedule (domain_id, created_by, working_schedule_agent_id, start_at, end_at, source)
-VALUES (1, 1, 1, '2026-11-02 08:00Z', '2026-11-02 16:00Z', 3)`},
-			want: "agent_working_schedule_source_check",
+			name: "a shift without a working date",
+			stmts: []string{`INSERT INTO wfm.agent_working_schedule (domain_id, created_by, working_schedule_agent_id, start_at, end_at)
+VALUES (1, 1, 1, '2026-11-02 08:00Z', '2026-11-02 16:00Z')`},
+			want: pgerrcode.NotNullViolation,
 		},
 		{
 			name:  "a pause up to the end of its shift",
@@ -305,62 +323,69 @@ VALUES (1, 1, 1, '2026-11-02 08:00Z', '2026-11-02 16:00Z', 3)`},
 		})
 	}
 
-	t.Run("the working date is the start day in the calendar's zone", func(t *testing.T) {
+	t.Run("a new shift is version 1, written by hand", func(t *testing.T) {
 		clean(t)
 
-		// 21:30Z is 23:30 in Kyiv; 22:30Z is already the next day there.
-		err := commit(ctx, db,
-			shift(1, "2026-11-02 21:30Z", "2026-11-03 06:00Z"),
-			shift(2, "2026-11-02 22:30Z", "2026-11-03 06:00Z"),
-		)
-		if err != nil {
+		if err := commit(ctx, db, day); err != nil {
 			t.Fatal(err)
 		}
 
-		dates := func() map[int]string {
-			rows, err := db.QueryContext(ctx, "SELECT id, schedule_at::TEXT, ver, source FROM wfm.agent_working_schedule")
+		var ver, source int
+		if err := db.QueryRowContext(ctx, "SELECT ver, source FROM wfm.agent_working_schedule").Scan(&ver, &source); err != nil {
+			t.Fatal(err)
+		}
+
+		if ver != 1 || source != 1 {
+			t.Errorf("ver %d, source %d, want 1 and 1 (manual)", ver, source)
+		}
+	})
+
+	// Pauses and skills are read, checked and deleted by their shift.
+	t.Run("pauses and skills are indexed by their shift", func(t *testing.T) {
+		for _, table := range []string{"wfm.agent_working_schedule_pause", "wfm.agent_working_schedule_skill"} {
+			var ok bool
+
+			err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT
+               FROM pg_index i
+                        JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0]
+               WHERE i.indrelid = $1::REGCLASS
+                 AND a.attname = 'agent_working_schedule_id')`, table).Scan(&ok)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer rows.Close()
 
-			out := map[int]string{}
-
-			for rows.Next() {
-				var (
-					id, ver, source int
-					date            string
-				)
-
-				if err := rows.Scan(&id, &date, &ver, &source); err != nil {
-					t.Fatal(err)
-				}
-
-				if ver != 1 || source != 1 {
-					t.Errorf("shift %d: ver %d, source %d, want 1 and 1 (manual)", id, ver, source)
-				}
-
-				out[id] = date
+			if !ok {
+				t.Errorf("%s has no index that starts with agent_working_schedule_id", table)
 			}
-
-			if err := rows.Err(); err != nil {
-				t.Fatal(err)
-			}
-
-			return out
-		}
-
-		if got := dates(); got[1] != "2026-11-02" || got[2] != "2026-11-03" {
-			t.Errorf("working dates = %v, want 1: 2026-11-02, 2: 2026-11-03", got)
-		}
-
-		err = commit(ctx, db, "UPDATE wfm.agent_working_schedule SET start_at = start_at + INTERVAL '1 day', end_at = end_at + INTERVAL '1 day' WHERE id = 1")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if got := dates()[1]; got != "2026-11-03" {
-			t.Errorf("working date after a move = %s, want 2026-11-03", got)
 		}
 	})
+}
+
+// An agent saved twice in one schedule, which the code allowed until now, is
+// kept once, as its oldest row.
+func TestShiftModelDropsDuplicateAgents(t *testing.T) {
+	db, p := newDB(t)
+	ctx := context.Background()
+
+	if _, err := p.UpTo(ctx, scheduleVer); err != nil {
+		t.Fatalf("up to %d: %v", scheduleVer, err)
+	}
+
+	again := "INSERT INTO wfm.working_schedule_agent (domain_id, working_schedule_id, agent_id) VALUES (1, 1, 1)"
+	if err := commit(ctx, db, seed, again); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	if _, err := p.Up(ctx); err != nil {
+		t.Fatalf("up: %v", err)
+	}
+
+	var n, id int
+	if err := db.QueryRowContext(ctx, "SELECT count(*), min(id) FROM wfm.working_schedule_agent").Scan(&n, &id); err != nil {
+		t.Fatal(err)
+	}
+
+	if n != 1 || id != 1 {
+		t.Errorf("rows = %d, first id = %d; want the agent once, as row 1", n, id)
+	}
 }
