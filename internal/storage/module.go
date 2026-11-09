@@ -12,5 +12,6 @@ var Module = fx.Module("storage",
 		fx.Annotate(NewForecastCalculation, fx.As(new(ForecastCalculationManager))),
 		fx.Annotate(NewWorkingSchedule, fx.As(new(WorkingScheduleManager))),
 		fx.Annotate(NewAgentWorkingSchedule, fx.As(new(AgentWorkingScheduleManager))),
+		fx.Annotate(NewShift, fx.As(new(ShiftManager))),
 	),
 )
