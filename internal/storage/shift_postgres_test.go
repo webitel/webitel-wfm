@@ -134,6 +134,7 @@ func migrate(t *testing.T, cfg *pgx.ConnConfig) {
 	ctx := context.Background()
 
 	db := stdlib.OpenDB(*cfg)
+
 	defer func() { _ = db.Close() }()
 
 	platform, err := os.ReadFile("../../migrations/testdata/platform.sql")
