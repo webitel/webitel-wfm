@@ -217,7 +217,7 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 	db, conn := newPostgres(t)
 	ctx := context.Background()
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
-	s := NewShift(db)
+	s := NewAgentWorkingSchedule(db)
 
 	cases := []struct {
 		name  string
@@ -399,7 +399,7 @@ func TestCreateShiftsWritesTheRowOnPostgres(t *testing.T) {
 	shift.Pauses[0].Cause = &model.LookupItem{ID: 1}
 	shift.Skills = []*model.ShiftSkill{{Skill: model.LookupItem{ID: 1}, Capacity: &capacity, Enabled: false}}
 
-	ids, err := NewShift(db).CreateShifts(ctx, &model.SignedInUser{ID: 1, DomainID: 1}, 1, []*model.Shift{shift})
+	ids, err := NewAgentWorkingSchedule(db).CreateShifts(ctx, &model.SignedInUser{ID: 1, DomainID: 1}, 1, []*model.Shift{shift})
 	if err != nil {
 		t.Fatalf("%v %v", err, violationsOf(err))
 	}
@@ -433,7 +433,7 @@ WHERE s.id = $1 AND s.working_schedule_agent_id = 1 AND s.domain_id = 1 AND s.cr
 		t.Errorf("times = %v, %v, %v; want %v, %v, %v", start, end, pauseStart, shift.Start, shift.End, shift.Pauses[0].Start)
 	}
 
-	if ver != 1 || source != int(model.ShiftSourceManual) || plannerRun != nil {
+	if ver != 1 || source != 1 || plannerRun != nil {
 		t.Errorf("ver, source, planner_run_id = %d, %d, %v; want 1, manual, none", ver, source, plannerRun)
 	}
 
@@ -448,15 +448,15 @@ func TestCreateShiftsRefusesTheScheduleOnPostgres(t *testing.T) {
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
 	in := []*model.Shift{shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02")}
 
-	if _, err := NewShift(db).CreateShifts(ctx, user, 4, in); !errors.Is(err, ErrShiftScheduleState) {
+	if _, err := NewAgentWorkingSchedule(db).CreateShifts(ctx, user, 4, in); !errors.Is(err, ErrShiftScheduleState) {
 		t.Errorf("archived: err = %v, want %v", err, ErrShiftScheduleState)
 	}
 
-	if _, err := NewShift(db).CreateShifts(ctx, user, 99, in); errors.Code(err) != codes.NotFound {
+	if _, err := NewAgentWorkingSchedule(db).CreateShifts(ctx, user, 99, in); errors.Code(err) != codes.NotFound {
 		t.Errorf("unknown: err = %v, want not found", err)
 	}
 
-	if _, err := NewShift(db).CreateShifts(ctx, &model.SignedInUser{ID: 1, DomainID: 2}, 1, in); errors.Code(err) != codes.NotFound {
+	if _, err := NewAgentWorkingSchedule(db).CreateShifts(ctx, &model.SignedInUser{ID: 1, DomainID: 2}, 1, in); errors.Code(err) != codes.NotFound {
 		t.Errorf("another domain: err = %v, want not found", err)
 	}
 }
@@ -468,7 +468,7 @@ func TestCreateShiftsSerializeOnTheAgentOnPostgres(t *testing.T) {
 	db, conn := newPostgres(t)
 	ctx := context.Background()
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
-	s := NewShift(db)
+	s := NewAgentWorkingSchedule(db)
 
 	const rounds = 30
 

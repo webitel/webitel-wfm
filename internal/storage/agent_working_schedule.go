@@ -18,6 +18,7 @@ const (
 )
 
 type AgentWorkingScheduleManager interface {
+	CreateShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, in []*model.Shift) ([]int64, error)
 	CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, workingScheduleID int64, in []*model.AgentWorkingSchedule) ([]*model.AgentWorkingSchedule, error)
 	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error)
 	Holidays(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.Holiday, error)
