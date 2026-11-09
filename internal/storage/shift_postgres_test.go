@@ -259,6 +259,18 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 			want: []string{violation(2, "2026-11-11", "storage.shift.absence")},
 		},
 		{
+			name: "two agents on the date one of them is absent on",
+			in: []*model.Shift{
+				shiftAt(t, 1, "2026-11-11 09:00+02", "2026-11-11 17:00+02"),
+				shiftAt(t, 2, "2026-11-11 09:00+02", "2026-11-11 17:00+02"),
+			},
+			want: []string{violation(2, "2026-11-11", "storage.shift.absence")},
+		},
+		{
+			name: "the last day of the schedule",
+			in:   []*model.Shift{shiftAt(t, 1, "2026-11-30 09:00+02", "2026-11-30 17:00+02")},
+		},
+		{
 			// 00:30 in Kyiv on the 11th is still the 10th in UTC, a day the agent works.
 			name: "a shift starting after midnight in Kyiv on the day the agent is absent",
 			in:   []*model.Shift{shiftAt(t, 2, "2026-11-11 00:30+02", "2026-11-11 08:30+02")},
