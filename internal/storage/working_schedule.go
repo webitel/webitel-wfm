@@ -87,7 +87,7 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 			agents = append(agents, agent)
 		}
 
-		cteq.With(builder.With("agents").As(builder.Insert(builder.WorkingScheduleAgentTable.Name(), agents).SQL("RETURNING id")))
+		cteq.With(builder.With("agents").As(builder.Insert(builder.WorkingScheduleAgentTable.Name(), agents).SQL(skipAgentInSchedule + " RETURNING id")))
 	}
 
 	cte := cteq.Builder()
@@ -266,6 +266,10 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *optio
 	return read.ID(), nil
 }
 
+// skipAgentInSchedule makes adding an agent the schedule already has a no-op. It names no
+// columns, so it also runs where the migration adding the unique key is not applied yet.
+const skipAgentInSchedule = "ON CONFLICT DO NOTHING"
+
 func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, read *options.Read, agentIDs []int64) ([]*model.LookupItem, error) {
 	columns := make([]map[string]any, 0, len(agentIDs))
 	for _, agentID := range agentIDs {
@@ -276,7 +280,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 		})
 	}
 
-	sql, args := builder.Insert(builder.WorkingScheduleAgentTable.Name(), columns).Build()
+	sql, args := builder.Insert(builder.WorkingScheduleAgentTable.Name(), columns).SQL(skipAgentInSchedule).Build()
 	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
 		return nil, err
 	}
