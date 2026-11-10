@@ -17,16 +17,26 @@ import (
 )
 
 var (
+	ErrShiftDuration       = errors.InvalidArgument("invalid input: a shift should end after it starts, within 24 hours", errors.WithID("storage.shift.duration"))
+	ErrShiftPauseOutside   = errors.InvalidArgument("invalid input: a pause should end after it starts, inside its shift", errors.WithID("storage.shift.pause_outside"))
+	ErrShiftPauseOverlap   = errors.InvalidArgument("invalid input: the pauses of a shift should not overlap", errors.WithID("storage.shift.pause_overlap"))
+	ErrShiftRequestOverlap = errors.InvalidArgument("invalid input: the shifts of an agent should not overlap", errors.WithID("storage.shift.request_overlap"))
+
 	ErrShiftScheduleState = errors.FailedPrecondition("shifts are written to a draft, pending or active schedule only", errors.WithID("storage.shift.schedule_state"))
 	ErrShiftsRefused      = errors.FailedPrecondition("the shifts break the schedule rules", errors.WithID("storage.shift.refused"))
 )
 
 // CreateShifts writes the shifts with their pauses and skills in one transaction under
-// the agents' locks: all of them, or none with ErrShiftsRefused and one violation per
-// agent, working date and broken rule. WFM-99 and WFM-103 write through here too.
+// the agents' locks. A request wrong on its own is invalid before any lock is taken; one
+// that breaks the schedule rules is refused whole with ErrShiftsRefused and one violation
+// per agent, working date and rule. WFM-99 and WFM-103 write through here too.
 func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, in []*model.Shift) ([]int64, error) {
 	if len(in) == 0 {
 		return nil, nil
+	}
+
+	if err := validateShifts(in); err != nil {
+		return nil, err
 	}
 
 	locks := make([]dbsql.LockKey, 0, len(in))
@@ -113,113 +123,129 @@ func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) 
 	return &schedule, nil
 }
 
-// existingShift is a shift already written for one of the agents, in this schedule or in an active one.
-type existingShift struct {
-	AgentID    int64     `db:"agent_id"`
-	ScheduleID int64     `db:"schedule_id"`
-	Date       time.Time `db:"schedule_at"`
-	Start      time.Time `db:"start_at"`
-	End        time.Time `db:"end_at"`
+// validateShifts checks the request on its own: every shift ends after it starts and
+// within 24 hours, its pauses lie inside it and apart, and the shifts of an agent do not
+// overlap. Intervals are [start, end), so back to back is fine, and sorted by start they
+// overlap only if two neighbors do.
+func validateShifts(in []*model.Shift) error {
+	for _, shift := range in {
+		if !shift.Start.Before(shift.End) || shift.End.Sub(shift.Start) > 24*time.Hour {
+			return invalidShift(ErrShiftDuration, shift)
+		}
+
+		pauses := slices.SortedFunc(slices.Values(shift.Pauses), func(a, b *model.ShiftPause) int { return a.Start.Compare(b.Start) })
+		for i, pause := range pauses {
+			if !pause.Start.Before(pause.End) || pause.Start.Before(shift.Start) || pause.End.After(shift.End) {
+				return invalidShift(ErrShiftPauseOutside, shift)
+			}
+
+			if i > 0 && pause.Start.Before(pauses[i-1].End) {
+				return invalidShift(ErrShiftPauseOverlap, shift)
+			}
+		}
+	}
+
+	byAgent := slices.SortedFunc(slices.Values(in), func(a, b *model.Shift) int {
+		return cmp.Or(cmp.Compare(a.AgentID, b.AgentID), a.Start.Compare(b.Start))
+	})
+	for i := 1; i < len(byAgent); i++ {
+		if byAgent[i].AgentID == byAgent[i-1].AgentID && byAgent[i].Start.Before(byAgent[i-1].End) {
+			return invalidShift(ErrShiftRequestOverlap, byAgent[i])
+		}
+	}
+
+	return nil
 }
 
-type agentAbsence struct {
-	AgentID int64     `db:"agent_id"`
-	Date    time.Time `db:"absent_at"`
+func invalidShift(err error, shift *model.Shift) error {
+	return errors.Wrap(err, errors.WithValue("agent_id", shift.AgentID), errors.WithValue("start_at", shift.Start))
 }
 
-// shiftViolations lists every rule the request breaks. Shifts are [start, end), so back
-// to back is fine. Other schedules count only when active (EP_05).
+// shiftFactsSQL looks up, for each requested shift in order, what only the database
+// knows: whether the agent is in schedule $1, absent on the working date, working that
+// date in another active schedule ($6 is the active state), or already working at that
+// time in this schedule or an active one. Shifts are [start, end): back to back is fine.
+const shiftFactsSQL = `
+SELECT EXISTS (SELECT 1
+               FROM wfm.working_schedule_agent wsa
+               WHERE wsa.working_schedule_id = $1
+                 AND wsa.agent_id = r.agent_id) AS member,
+       EXISTS (SELECT 1
+               FROM wfm.agent_absence a
+               WHERE a.agent_id = r.agent_id
+                 AND a.absent_at = r.schedule_at) AS absent,
+       EXISTS (SELECT 1
+               FROM wfm.agent_working_schedule aws
+                        INNER JOIN wfm.working_schedule_agent wsa ON wsa.id = aws.working_schedule_agent_id
+                        INNER JOIN wfm.working_schedule ws ON ws.id = wsa.working_schedule_id
+               WHERE wsa.agent_id = r.agent_id
+                 AND ws.id <> $1
+                 AND ws.state = $6
+                 AND aws.schedule_at = r.schedule_at) AS date_taken,
+       EXISTS (SELECT 1
+               FROM wfm.agent_working_schedule aws
+                        INNER JOIN wfm.working_schedule_agent wsa ON wsa.id = aws.working_schedule_agent_id
+                        INNER JOIN wfm.working_schedule ws ON ws.id = wsa.working_schedule_id
+               WHERE wsa.agent_id = r.agent_id
+                 AND (ws.id = $1 OR ws.state = $6)
+                 AND aws.start_at < r.end_at
+                 AND aws.end_at > r.start_at) AS overlaps
+FROM unnest($2::bigint[], $3::date[], $4::timestamptz[], $5::timestamptz[])
+         WITH ORDINALITY AS r(agent_id, schedule_at, start_at, end_at, n)
+ORDER BY r.n`
+
+type shiftFacts struct {
+	Member    bool `db:"member"`
+	Absent    bool `db:"absent"`
+	DateTaken bool `db:"date_taken"`
+	Overlaps  bool `db:"overlaps"`
+}
+
+// shiftViolations lists every schedule rule the request breaks: the database finds the
+// facts in one query, the rules turn them into reasons here. Other schedules count only
+// when active (EP_05).
 func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*model.Shift) ([]model.Violation, error) {
-	agents := make([]any, 0, len(in))
-	dates := make([]any, 0, len(in))
+	agents := make([]int64, 0, len(in))
+	dates := make([]time.Time, 0, len(in))
+	starts := make([]time.Time, 0, len(in))
+	ends := make([]time.Time, 0, len(in))
 
 	for _, shift := range in {
 		agents = append(agents, shift.AgentID)
 		dates = append(dates, s.date(shift))
+		starts = append(starts, shift.Start)
+		ends = append(ends, shift.End)
 	}
 
-	first := slices.MinFunc(in, func(a, b *model.Shift) int { return a.Start.Compare(b.Start) }).Start
-	last := slices.MaxFunc(in, func(a, b *model.Shift) int { return a.End.Compare(b.End) }).End
-
-	q := builder.Select("agent_id").From("wfm.working_schedule_agent")
-	sql, args := q.Where(q.Equal("working_schedule_id", s.ID), q.In("agent_id", agents...)).Build()
-
-	var members []int64
-	if err := tx.Primary().Select(ctx, &members, sql, args...); err != nil {
-		return nil, err
-	}
-
-	q = builder.Select("agent_id", "absent_at").From("wfm.agent_absence")
-	sql, args = q.Where(q.In("agent_id", agents...), q.In("absent_at", dates...)).Build()
-
-	var absences []agentAbsence
-	if err := tx.Primary().Select(ctx, &absences, sql, args...); err != nil {
-		return nil, err
-	}
-
-	q = builder.Select("wsa.agent_id", "wsa.working_schedule_id AS schedule_id", "aws.schedule_at", "aws.start_at", "aws.end_at").
-		From("wfm.agent_working_schedule aws").
-		Join("wfm.working_schedule_agent wsa", "wsa.id = aws.working_schedule_agent_id").
-		Join("wfm.working_schedule ws", "ws.id = wsa.working_schedule_id")
-	sql, args = q.Where(
-		q.In("wsa.agent_id", agents...),
-		q.Or(q.Equal("ws.id", s.ID), q.Equal("ws.state", int16(model.WorkingScheduleStateActive))),
-		q.Or(q.In("aws.schedule_at", dates...), q.And(q.LessThan("aws.start_at", last), q.GreaterThan("aws.end_at", first))),
-	).Build()
-
-	var existing []existingShift
-	if err := tx.Primary().Select(ctx, &existing, sql, args...); err != nil {
+	var facts []shiftFacts
+	if err := tx.Primary().Select(ctx, &facts, shiftFactsSQL, s.ID, agents, dates, starts, ends, int16(model.WorkingScheduleStateActive)); err != nil {
 		return nil, err
 	}
 
 	var out []model.Violation
 
-	for _, shift := range in {
-		date := s.date(shift)
+	for i, f := range facts {
 		broke := func(rule string) {
-			out = append(out, model.Violation{OperatorID: shift.AgentID, Date: pgtype.Date{Time: date, Valid: true}, Reason: "storage.shift." + rule})
+			out = append(out, model.Violation{OperatorID: agents[i], Date: pgtype.Date{Time: dates[i], Valid: true}, Reason: "storage.shift." + rule})
 		}
 
-		if !slices.Contains(members, shift.AgentID) {
+		if !f.Member {
 			broke("agent_not_in_schedule")
 		}
 
-		if date.Before(s.StartDate) || date.After(s.EndDate) {
+		if dates[i].Before(s.StartDate) || dates[i].After(s.EndDate) {
 			broke("outside_schedule")
 		}
 
-		if !shift.Start.Before(shift.End) || shift.End.Sub(shift.Start) > 24*time.Hour {
-			broke("duration")
-		}
-
-		if slices.ContainsFunc(shift.Pauses, func(p *model.ShiftPause) bool {
-			return !p.Start.Before(p.End) || p.Start.Before(shift.Start) || p.End.After(shift.End)
-		}) {
-			broke("pause_outside")
-		}
-
-		if pausesOverlap(shift.Pauses) {
-			broke("pause_overlap")
-		}
-
-		if slices.ContainsFunc(absences, func(a agentAbsence) bool { return a.AgentID == shift.AgentID && a.Date.Equal(date) }) {
+		if f.Absent {
 			broke("absence")
 		}
 
-		if slices.ContainsFunc(existing, func(e existingShift) bool {
-			return e.AgentID == shift.AgentID && e.ScheduleID != s.ID && e.Date.Equal(date)
-		}) {
+		if f.DateTaken {
 			broke("locked_date")
 		}
 
-		written := slices.ContainsFunc(existing, func(e existingShift) bool {
-			return e.AgentID == shift.AgentID && overlaps(e.Start, e.End, shift.Start, shift.End)
-		})
-		requested := slices.ContainsFunc(in, func(o *model.Shift) bool {
-			return o != shift && o.AgentID == shift.AgentID && overlaps(o.Start, o.End, shift.Start, shift.End)
-		})
-
-		if written || requested {
+		if f.Overlaps {
 			broke("overlap")
 		}
 	}
@@ -232,23 +258,6 @@ func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*m
 	return slices.CompactFunc(out, func(a, b model.Violation) bool {
 		return a.OperatorID == b.OperatorID && a.Date.Time.Equal(b.Date.Time) && a.Reason == b.Reason
 	}), nil
-}
-
-// overlaps says whether [aStart, aEnd) and [bStart, bEnd) meet.
-func overlaps(aStart, aEnd, bStart, bEnd time.Time) bool {
-	return aStart.Before(bEnd) && aEnd.After(bStart)
-}
-
-func pausesOverlap(pauses []*model.ShiftPause) bool {
-	for i, a := range pauses {
-		for _, b := range pauses[i+1:] {
-			if overlaps(a.Start, a.End, b.Start, b.End) {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // insertShifts queues one statement per shift: the shift, then its pauses and skills off its id.

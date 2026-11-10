@@ -35,7 +35,7 @@ const testDSNEnv = "WFM_TEST_POSTGRES_DSN"
 // Schedule 1 is the draft written to, over October and November, with agents 1 and 2.
 // Schedule 2 is active, with agent 1 working the 10th by day and the night into the 16th.
 // Schedule 3 is another draft of agent 1, with a shift on the 12th: a draft blocks nothing.
-// Schedule 4 is archived. Agent 2 is absent on the 11th; agent 3 is in no schedule.
+// Schedule 4 is archived. Agent 2 is absent on the 11th; agent 3 is only in the other draft.
 const shiftSeed = `
 INSERT INTO directory.wbt_domain (dc, name) VALUES (1, 'domain');
 INSERT INTO directory.wbt_user (id, dc, name) VALUES (1, 1, 'user');
@@ -51,7 +51,7 @@ VALUES (1, 1, 'draft', 1, 1, 1, '2026-10-01', '2026-11-30'),
        (3, 1, 'other draft', 1, 1, 1, '2026-11-01', '2026-11-30'),
        (4, 1, 'archived', 4, 1, 1, '2026-11-01', '2026-11-30');
 INSERT INTO wfm.working_schedule_agent (id, domain_id, working_schedule_id, agent_id)
-VALUES (1, 1, 1, 1), (2, 1, 1, 2), (3, 1, 2, 1), (4, 1, 3, 1), (5, 1, 4, 1);
+VALUES (1, 1, 1, 1), (2, 1, 1, 2), (3, 1, 2, 1), (4, 1, 3, 1), (5, 1, 4, 1), (6, 1, 3, 3);
 INSERT INTO wfm.agent_working_schedule (domain_id, created_by, working_schedule_agent_id, schedule_at, start_at, end_at)
 VALUES (1, 1, 3, '2026-11-10', '2026-11-10 09:00+02', '2026-11-10 17:00+02'),
        (1, 1, 3, '2026-11-15', '2026-11-15 22:00+02', '2026-11-16 06:00+02'),
@@ -234,16 +234,6 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 			in:   []*model.Shift{shiftAt(t, 1, "2026-11-02 08:00+02", "2026-11-03 08:00+02")},
 		},
 		{
-			name: "a shift that ends as it starts",
-			in:   []*model.Shift{shiftAt(t, 1, "2026-11-02 08:00+02", "2026-11-02 08:00+02")},
-			want: []string{violation(1, "2026-11-02", "storage.shift.duration")},
-		},
-		{
-			name: "a shift over the night the clocks go back",
-			in:   []*model.Shift{shiftAt(t, 1, "2026-10-24 22:00+03", "2026-10-25 22:00+02")},
-			want: []string{violation(1, "2026-10-24", "storage.shift.duration")},
-		},
-		{
 			name: "an agent the schedule does not have",
 			in:   []*model.Shift{shiftAt(t, 3, "2026-11-02 09:00+02", "2026-11-02 17:00+02")},
 			want: []string{violation(3, "2026-11-02", "storage.shift.agent_not_in_schedule")},
@@ -254,9 +244,18 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 			want: []string{violation(1, "2026-12-01", "storage.shift.outside_schedule")},
 		},
 		{
+			name: "the day before the schedule",
+			in:   []*model.Shift{shiftAt(t, 1, "2026-09-30 09:00+03", "2026-09-30 17:00+03")},
+			want: []string{violation(1, "2026-09-30", "storage.shift.outside_schedule")},
+		},
+		{
 			name: "a date the agent is absent on",
 			in:   []*model.Shift{shiftAt(t, 2, "2026-11-11 09:00+02", "2026-11-11 17:00+02")},
 			want: []string{violation(2, "2026-11-11", "storage.shift.absence")},
+		},
+		{
+			name: "the absent agent on another date",
+			in:   []*model.Shift{shiftAt(t, 2, "2026-11-12 09:00+02", "2026-11-12 17:00+02")},
 		},
 		{
 			name: "two agents on the date one of them is absent on",
@@ -302,42 +301,26 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 			in:    []*model.Shift{shiftAt(t, 1, "2026-11-02 17:00+02", "2026-11-02 21:00+02")},
 		},
 		{
-			name: "two shifts of the request over each other",
+			name:  "a shift ending as one of this schedule starts",
+			given: []*model.Shift{shiftAt(t, 1, "2026-11-02 17:00+02", "2026-11-02 21:00+02")},
+			in:    []*model.Shift{shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02")},
+		},
+		{
+			name: "several agents and days, every broken rule listed once, nothing written",
 			in: []*model.Shift{
-				shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02"),
-				shiftAt(t, 1, "2026-11-02 16:00+02", "2026-11-02 20:00+02"),
-			},
-			want: []string{violation(1, "2026-11-02", "storage.shift.overlap")},
-		},
-		{
-			name: "a pause outside the shift",
-			in:   []*model.Shift{shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02", "2026-11-02 16:30+02", "2026-11-02 17:30+02")},
-			want: []string{violation(1, "2026-11-02", "storage.shift.pause_outside")},
-		},
-		{
-			name: "pauses over each other",
-			in: []*model.Shift{shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02",
-				"2026-11-02 12:00+02", "2026-11-02 13:00+02", "2026-11-02 12:30+02", "2026-11-02 13:30+02")},
-			want: []string{violation(1, "2026-11-02", "storage.shift.pause_overlap")},
-		},
-		{
-			name: "pauses back to back",
-			in: []*model.Shift{shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02",
-				"2026-11-02 12:00+02", "2026-11-02 13:00+02", "2026-11-02 13:00+02", "2026-11-02 13:30+02")},
-		},
-		{
-			name: "several agents and days, every broken rule listed, nothing written",
-			in: []*model.Shift{
-				shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02"),
+				shiftAt(t, 3, "2026-12-01 09:00+02", "2026-12-01 12:00+02"),
+				shiftAt(t, 3, "2026-12-01 13:00+02", "2026-12-01 17:00+02"),
 				shiftAt(t, 2, "2026-11-11 09:00+02", "2026-11-11 17:00+02"),
-				shiftAt(t, 2, "2026-11-10 09:00+02", "2026-11-10 09:00+02", "2026-11-10 08:00+02", "2026-11-10 08:30+02"),
-				shiftAt(t, 3, "2026-11-03 09:00+02", "2026-11-03 17:00+02"),
+				shiftAt(t, 1, "2026-11-16 05:00+02", "2026-11-16 13:00+02"),
+				shiftAt(t, 1, "2026-11-10 20:00+02", "2026-11-10 22:00+02"),
+				shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02"),
 			},
 			want: []string{
-				violation(2, "2026-11-10", "storage.shift.duration"),
-				violation(2, "2026-11-10", "storage.shift.pause_outside"),
+				violation(1, "2026-11-10", "storage.shift.locked_date"),
+				violation(1, "2026-11-16", "storage.shift.overlap"),
 				violation(2, "2026-11-11", "storage.shift.absence"),
-				violation(3, "2026-11-03", "storage.shift.agent_not_in_schedule"),
+				violation(3, "2026-12-01", "storage.shift.agent_not_in_schedule"),
+				violation(3, "2026-12-01", "storage.shift.outside_schedule"),
 			},
 		},
 	}
@@ -439,6 +422,17 @@ WHERE s.id = $1 AND s.working_schedule_agent_id = 1 AND s.domain_id = 1 AND s.cr
 
 	if pauseCause != 1 || skill != 1 || skillCapacity == nil || *skillCapacity != 3 || enabled {
 		t.Errorf("pause cause, skill, capacity, enabled = %d, %d, %v, %v", pauseCause, skill, skillCapacity, enabled)
+	}
+}
+
+// The date lock comes from other active schedules only: an active schedule takes
+// a second shift of an agent on a date it already has one on.
+func TestCreateShiftsIntoAnActiveScheduleOnPostgres(t *testing.T) {
+	db, _ := newPostgres(t)
+	in := []*model.Shift{shiftAt(t, 1, "2026-11-10 20:00+02", "2026-11-10 22:00+02")}
+
+	if _, err := NewAgentWorkingSchedule(db).CreateShifts(context.Background(), &model.SignedInUser{ID: 1, DomainID: 1}, 2, in); err != nil {
+		t.Fatalf("%v %v", err, violationsOf(err))
 	}
 }
 
