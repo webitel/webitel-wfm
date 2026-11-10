@@ -26,16 +26,11 @@ import (
 	"github.com/webitel/webitel-wfm/migrations"
 )
 
-// These tests need a real PostgreSQL and are skipped unless the variable holds
-// a URL, e.g. postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable.
+// Skipped unless set, e.g. postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable.
 const testDSNEnv = "WFM_TEST_POSTGRES_DSN"
 
-// The calendar is in Kyiv: UTC+3 until the clocks go back on 2026-10-25, UTC+2 after.
-//
-// Schedule 1 is the draft written to, over October and November, with agents 1 and 2.
-// Schedule 2 is active, with agent 1 working the 10th by day and the night into the 16th.
-// Schedule 3 is another draft of agent 1, with a shift on the 12th: a draft blocks nothing.
-// Schedule 4 is archived. Agent 2 is absent on the 11th; agent 3 is only in the other draft.
+// Kyiv calendar. Schedule 1 is the draft written to; 2 is active, 3 another draft, 4 archived.
+// Agent 2 is absent on the 11th; agent 3 is only in schedule 3.
 const shiftSeed = `
 INSERT INTO directory.wbt_domain (dc, name) VALUES (1, 'domain');
 INSERT INTO directory.wbt_user (id, dc, name) VALUES (1, 1, 'user');
@@ -59,8 +54,6 @@ VALUES (1, 1, 3, '2026-11-10', '2026-11-10 09:00+02', '2026-11-10 17:00+02'),
 INSERT INTO wfm.agent_absence (domain_id, created_by, updated_by, absent_at, agent_id, absence_type_id)
 VALUES (1, 1, 1, '2026-11-11', 2, 1);`
 
-// newPostgres creates a database with the platform stand-ins, every migration and
-// the seed, and returns a Store on it plus a connection for looking at the rows.
 func newPostgres(t *testing.T) (dbsql.Store, *pgx.Conn) {
 	t.Helper()
 
@@ -78,7 +71,6 @@ func newPostgres(t *testing.T) (dbsql.Store, *pgx.Conn) {
 
 	t.Cleanup(func() { _ = admin.Close(ctx) })
 
-	// Random, not time-based: parallel go test runs share the server.
 	name := fmt.Sprintf("wfm_storage_%x", rand.Uint64())
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
 		t.Fatalf("create database: %v", err)
@@ -161,7 +153,6 @@ func migrate(t *testing.T, cfg *pgx.ConnConfig) {
 	}
 }
 
-// at reads a time such as "2026-11-02 09:00+02".
 func at(t *testing.T, s string) time.Time {
 	t.Helper()
 
@@ -184,7 +175,6 @@ func shiftAt(t *testing.T, agent int64, start, end string, pauses ...string) *mo
 	return shift
 }
 
-// violation reads as "agent date reason", the way a failure should print.
 func violation(agent int64, date, reason string) string {
 	return fmt.Sprintf("%d %s %s", agent, date, reason)
 }
@@ -200,7 +190,6 @@ func violationsOf(err error) []string {
 	return out
 }
 
-// shiftsIn counts the shifts of schedule 1.
 func shiftsIn(t *testing.T, conn *pgx.Conn) int {
 	t.Helper()
 
@@ -221,9 +210,9 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 
 	cases := []struct {
 		name  string
-		given []*model.Shift // written first, and accepted
+		given []*model.Shift
 		in    []*model.Shift
-		want  []string // the violations; none means the shifts are written
+		want  []string
 	}{
 		{
 			name: "a day shift",
@@ -270,7 +259,6 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 			in:   []*model.Shift{shiftAt(t, 1, "2026-11-30 09:00+02", "2026-11-30 17:00+02")},
 		},
 		{
-			// 00:30 in Kyiv on the 11th is still the 10th in UTC, a day the agent works.
 			name: "a shift starting after midnight in Kyiv on the day the agent is absent",
 			in:   []*model.Shift{shiftAt(t, 2, "2026-11-11 00:30+02", "2026-11-11 08:30+02")},
 			want: []string{violation(2, "2026-11-11", "storage.shift.absence")},
@@ -368,9 +356,6 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 	}
 }
 
-// The row holds what was asked: the working date is the day the shift starts on in
-// Kyiv, not in UTC, the shift is version 1 written by hand, and its pause and skill
-// hang off it.
 func TestCreateShiftsWritesTheRowOnPostgres(t *testing.T) {
 	db, conn := newPostgres(t)
 	ctx := context.Background()
@@ -425,8 +410,6 @@ WHERE s.id = $1 AND s.working_schedule_agent_id = 1 AND s.domain_id = 1 AND s.cr
 	}
 }
 
-// The date lock comes from other active schedules only: an active schedule takes
-// a second shift of an agent on a date it already has one on.
 func TestCreateShiftsIntoAnActiveScheduleOnPostgres(t *testing.T) {
 	db, _ := newPostgres(t)
 	in := []*model.Shift{shiftAt(t, 1, "2026-11-10 20:00+02", "2026-11-10 22:00+02")}
@@ -455,9 +438,7 @@ func TestCreateShiftsRefusesTheScheduleOnPostgres(t *testing.T) {
 	}
 }
 
-// Two writes of overlapping shifts for one agent at the same moment: one is
-// written, the other waits for it and is then refused. Without the agent's lock
-// both would check before either commits and both would be written.
+// Without the agent's lock both writers would pass the checks and both be written.
 func TestCreateShiftsSerializeOnTheAgentOnPostgres(t *testing.T) {
 	db, conn := newPostgres(t)
 	ctx := context.Background()

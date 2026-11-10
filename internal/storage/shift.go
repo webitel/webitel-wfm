@@ -26,10 +26,6 @@ var (
 	ErrShiftsRefused      = errors.FailedPrecondition("the shifts break the schedule rules", errors.WithID("storage.shift.refused"))
 )
 
-// CreateShifts writes the shifts with their pauses and skills in one transaction under
-// the agents' locks. A request wrong on its own is invalid before any lock is taken; one
-// that breaks the schedule rules is refused whole with ErrShiftsRefused and one violation
-// per agent, working date and rule. WFM-99 and WFM-103 write through here too.
 func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, in []*model.Shift) ([]int64, error) {
 	if len(in) == 0 {
 		return nil, nil
@@ -47,7 +43,7 @@ func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.Sig
 	var ids []int64
 
 	err := a.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
-		// Agents first, schedule row second: activation (WFM-101) locks in the same order.
+		// Agents first, then the schedule: activation (WFM-101) locks in this order.
 		if err := tx.Lock(ctx, locks...); err != nil {
 			return err
 		}
@@ -77,8 +73,6 @@ func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.Sig
 	return ids, nil
 }
 
-// shiftSchedule is the schedule row, held FOR SHARE so its state, dates and calendar
-// stay put until the write commits and an activation (WFM-101) waits for it.
 type shiftSchedule struct {
 	ID        int64
 	State     model.WorkingScheduleState `db:"state"`
@@ -89,7 +83,7 @@ type shiftSchedule struct {
 	zone *time.Location
 }
 
-// date is the working date of a shift: the day it starts on in the calendar's zone.
+// date is the working date: the day the shift starts on in the calendar's zone.
 func (s *shiftSchedule) date(shift *model.Shift) time.Time {
 	y, m, d := shift.Start.In(s.zone).Date()
 
@@ -123,10 +117,7 @@ func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) 
 	return &schedule, nil
 }
 
-// validateShifts checks the request on its own: every shift ends after it starts and
-// within 24 hours, its pauses lie inside it and apart, and the shifts of an agent do not
-// overlap. Intervals are [start, end), so back to back is fine, and sorted by start they
-// overlap only if two neighbors do.
+// Sorted by start, intervals overlap only if two neighbors do.
 func validateShifts(in []*model.Shift) error {
 	for _, shift := range in {
 		if !shift.Start.Before(shift.End) || shift.End.Sub(shift.Start) > 24*time.Hour {
@@ -161,10 +152,7 @@ func invalidShift(err error, shift *model.Shift) error {
 	return errors.Wrap(err, errors.WithValue("agent_id", shift.AgentID), errors.WithValue("start_at", shift.Start))
 }
 
-// shiftFactsSQL looks up, for each requested shift in order, what only the database
-// knows: whether the agent is in schedule $1, absent on the working date, working that
-// date in another active schedule ($6 is the active state), or already working at that
-// time in this schedule or an active one. Shifts are [start, end): back to back is fine.
+// Other schedules count only when active (EP_05).
 const shiftFactsSQL = `
 SELECT EXISTS (SELECT 1
                FROM wfm.working_schedule_agent wsa
@@ -201,9 +189,6 @@ type shiftFacts struct {
 	Overlaps  bool `db:"overlaps"`
 }
 
-// shiftViolations lists every schedule rule the request breaks: the database finds the
-// facts in one query, the rules turn them into reasons here. Other schedules count only
-// when active (EP_05).
 func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*model.Shift) ([]model.Violation, error) {
 	agents := make([]int64, 0, len(in))
 	dates := make([]time.Time, 0, len(in))
@@ -250,7 +235,6 @@ func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*m
 		}
 	}
 
-	// One line per agent, date and rule, however many shifts break it.
 	slices.SortFunc(out, func(a, b model.Violation) int {
 		return cmp.Or(cmp.Compare(a.OperatorID, b.OperatorID), a.Date.Time.Compare(b.Date.Time), strings.Compare(a.Reason, b.Reason))
 	})
@@ -260,7 +244,6 @@ func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*m
 	}), nil
 }
 
-// insertShifts queues one statement per shift: the shift, then its pauses and skills off its id.
 func insertShifts(ctx context.Context, tx dbsql.Tx, user *model.SignedInUser, s *shiftSchedule, in []*model.Shift) ([]int64, error) {
 	batch := tx.Primary().Batch()
 

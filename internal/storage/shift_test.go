@@ -91,8 +91,7 @@ func TestValidateShifts(t *testing.T) {
 	}
 }
 
-// A request wrong on its own is turned away before the transaction: this storage has
-// no database to reach.
+// No database here: validation must run before the transaction.
 func TestCreateShiftsValidatesBeforeTheTransaction(t *testing.T) {
 	in := []*model.Shift{shiftAt(t, 1, "2026-11-02 08:00+02", "2026-11-02 08:00+02")}
 
