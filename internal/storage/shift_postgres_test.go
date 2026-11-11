@@ -3,9 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"math/rand/v2"
-	"net/url"
-	"os"
 	"slices"
 	"sync"
 	"testing"
@@ -13,9 +10,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-	"github.com/pressly/goose/v3/database"
 	"google.golang.org/grpc/codes"
 
 	"github.com/webitel/webitel-go-kit/infra/pgw"
@@ -24,17 +18,16 @@ import (
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/migrations"
+	"github.com/webitel/webitel-wfm/migrations/migrationstest"
 )
 
-// Skipped unless set, e.g. postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable.
-const testDSNEnv = "WFM_TEST_POSTGRES_DSN"
-
 // Kyiv calendar. Schedule 1 is the draft written to; 2 is active, 3 another draft, 4 archived.
-// Agent 2 is absent on the 11th; agent 3 is only in schedule 3.
+// Agent 2 is absent on the 11th; agent 3 is only in schedule 3; agent 5's user is deleted.
+// Agent 4 is in another domain, its user deleted, working the 10th and absent on the 11th there.
 const shiftSeed = `
 INSERT INTO directory.wbt_domain (dc, name) VALUES (1, 'domain');
-INSERT INTO directory.wbt_user (id, dc, name) VALUES (1, 1, 'user');
-INSERT INTO call_center.cc_agent (id, domain_id, user_id) VALUES (1, 1, 1), (2, 1, 1), (3, 1, 1);
+INSERT INTO directory.wbt_user (id, dc, name, deleted_at) VALUES (1, 1, 'user', NULL), (3, 1, 'deleted', now());
+INSERT INTO call_center.cc_agent (id, domain_id, user_id) VALUES (1, 1, 1), (2, 1, 1), (3, 1, 1), (5, 1, 3);
 INSERT INTO call_center.cc_team (id, domain_id, name) VALUES (1, 1, 'team');
 INSERT INTO call_center.cc_skill (id, domain_id, name) VALUES (1, 1, 'skill');
 INSERT INTO call_center.cc_pause_cause (id, domain_id, name) VALUES (1, 1, 'lunch');
@@ -46,58 +39,33 @@ VALUES (1, 1, 'draft', 1, 1, 1, '2026-10-01', '2026-11-30'),
        (3, 1, 'other draft', 1, 1, 1, '2026-11-01', '2026-11-30'),
        (4, 1, 'archived', 4, 1, 1, '2026-11-01', '2026-11-30');
 INSERT INTO wfm.working_schedule_agent (id, domain_id, working_schedule_id, agent_id)
-VALUES (1, 1, 1, 1), (2, 1, 1, 2), (3, 1, 2, 1), (4, 1, 3, 1), (5, 1, 4, 1), (6, 1, 3, 3);
+VALUES (1, 1, 1, 1), (2, 1, 1, 2), (3, 1, 2, 1), (4, 1, 3, 1), (5, 1, 4, 1), (6, 1, 3, 3), (8, 1, 1, 5);
 INSERT INTO wfm.agent_working_schedule (domain_id, created_by, working_schedule_agent_id, schedule_at, start_at, end_at)
 VALUES (1, 1, 3, '2026-11-10', '2026-11-10 09:00+02', '2026-11-10 17:00+02'),
        (1, 1, 3, '2026-11-15', '2026-11-15 22:00+02', '2026-11-16 06:00+02'),
        (1, 1, 4, '2026-11-12', '2026-11-12 09:00+02', '2026-11-12 17:00+02');
 INSERT INTO wfm.agent_absence (domain_id, created_by, updated_by, absent_at, agent_id, absence_type_id)
-VALUES (1, 1, 1, '2026-11-11', 2, 1);`
+VALUES (1, 1, 1, '2026-11-11', 2, 1);
+INSERT INTO directory.wbt_domain (dc, name) VALUES (2, 'other');
+INSERT INTO directory.wbt_user (id, dc, name, deleted_at) VALUES (2, 2, 'other', now());
+INSERT INTO call_center.cc_agent (id, domain_id, user_id) VALUES (4, 2, 2);
+INSERT INTO call_center.cc_team (id, domain_id, name) VALUES (2, 2, 'other');
+INSERT INTO flow.calendar (id, domain_id, name, timezone_id) VALUES (2, 2, 'other', 1);
+INSERT INTO wfm.working_schedule (id, domain_id, name, state, team_id, calendar_id, start_date_at, end_date_at)
+VALUES (5, 2, 'other domain', 3, 2, 2, '2026-11-01', '2026-11-30');
+INSERT INTO wfm.working_schedule_agent (id, domain_id, working_schedule_id, agent_id) VALUES (7, 2, 5, 4);
+INSERT INTO wfm.agent_working_schedule (domain_id, created_by, working_schedule_agent_id, schedule_at, start_at, end_at)
+VALUES (2, 2, 7, '2026-11-10', '2026-11-10 09:00+02', '2026-11-10 17:00+02');
+INSERT INTO wfm.agent_absence (domain_id, created_by, updated_by, absent_at, agent_id, absence_type_id)
+VALUES (2, 2, 2, '2026-11-11', 4, 1);`
 
 func newPostgres(t *testing.T) (dbsql.Store, *pgx.Conn) {
 	t.Helper()
 
-	dsn := os.Getenv(testDSNEnv)
-	if dsn == "" {
-		t.Skipf("%s is not set", testDSNEnv)
-	}
-
 	ctx := context.Background()
+	dsn := migrationstest.Up(t, migrations.Embed)
 
-	admin, err := pgx.Connect(ctx, dsn)
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-
-	t.Cleanup(func() { _ = admin.Close(ctx) })
-
-	name := fmt.Sprintf("wfm_storage_%x", rand.Uint64())
-	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
-		t.Fatalf("create database: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if _, err := admin.Exec(ctx, "DROP DATABASE "+name+" WITH (FORCE)"); err != nil {
-			t.Errorf("drop database: %v", err)
-		}
-	})
-
-	u, err := url.Parse(dsn)
-	if err != nil {
-		t.Fatalf("%s must be a URL: %v", testDSNEnv, err)
-	}
-
-	u.Path = "/" + name
-	dsn = u.String()
-
-	cfg, err := pgx.ParseConfig(dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	migrate(t, cfg)
-
-	conn, err := pgx.ConnectConfig(ctx, cfg)
+	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
@@ -118,39 +86,6 @@ func newPostgres(t *testing.T) (dbsql.Store, *pgx.Conn) {
 	t.Cleanup(func() { _ = db.Close() })
 
 	return db, conn
-}
-
-func migrate(t *testing.T, cfg *pgx.ConnConfig) {
-	t.Helper()
-
-	ctx := context.Background()
-
-	db := stdlib.OpenDB(*cfg)
-
-	defer func() { _ = db.Close() }()
-
-	platform, err := os.ReadFile("../../migrations/testdata/platform.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := db.ExecContext(ctx, string(platform)); err != nil {
-		t.Fatalf("platform: %v", err)
-	}
-
-	store, err := database.NewStore(database.DialectPostgres, "wfm_schema_version")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	p, err := goose.NewProvider("", db, migrations.Embed, goose.WithStore(store))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := p.Up(ctx); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
 }
 
 func at(t *testing.T, s string) time.Time {
@@ -228,9 +163,25 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 			want: []string{violation(3, "2026-11-02", "storage.shift.agent_not_in_schedule")},
 		},
 		{
+			name: "an agent whose user is deleted",
+			in:   []*model.Shift{shiftAt(t, 5, "2026-11-02 09:00+02", "2026-11-02 17:00+02")},
+			want: []string{violation(5, "2026-11-02", "storage.shift.agent_deactivated")},
+		},
+		{
 			name: "a date outside the schedule",
 			in:   []*model.Shift{shiftAt(t, 1, "2026-12-01 09:00+02", "2026-12-01 17:00+02")},
 			want: []string{violation(1, "2026-12-01", "storage.shift.outside_schedule")},
+		},
+		{
+			name: "an agent of another domain, deactivated, working and absent there",
+			in: []*model.Shift{
+				shiftAt(t, 4, "2026-11-10 09:00+02", "2026-11-10 17:00+02"),
+				shiftAt(t, 4, "2026-11-11 09:00+02", "2026-11-11 17:00+02"),
+			},
+			want: []string{
+				violation(4, "2026-11-10", "storage.shift.agent_not_in_schedule"),
+				violation(4, "2026-11-11", "storage.shift.agent_not_in_schedule"),
+			},
 		},
 		{
 			name: "the day before the schedule",

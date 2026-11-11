@@ -5,21 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math/rand/v2"
-	"os"
 	"testing"
 
 	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
-	"github.com/pressly/goose/v3/database"
-)
 
-// These tests need a real PostgreSQL and are skipped unless the variable holds
-// a URL, e.g. postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable.
-const testDSNEnv = "WFM_TEST_POSTGRES_DSN"
+	"github.com/webitel/webitel-wfm/migrations/migrationstest"
+)
 
 // scheduleVer is the migration before the shift model.
 const scheduleVer = 20261102120000
@@ -37,66 +30,10 @@ INSERT INTO wfm.working_schedule (id, domain_id, name, team_id, calendar_id, sta
 VALUES (1, 1, 'schedule', 1, 1, '2026-11-01', '2026-11-30');
 INSERT INTO wfm.working_schedule_agent (domain_id, working_schedule_id, agent_id) VALUES (1, 1, 1);`
 
-// newDB creates an empty database with the platform stand-ins, and a provider
-// set up as cmd/migrate sets it up.
 func newDB(t *testing.T) (*sql.DB, *goose.Provider) {
 	t.Helper()
 
-	dsn := os.Getenv(testDSNEnv)
-	if dsn == "" {
-		t.Skipf("%s is not set", testDSNEnv)
-	}
-
-	ctx := context.Background()
-
-	admin, err := pgx.Connect(ctx, dsn)
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-
-	t.Cleanup(func() { _ = admin.Close(ctx) })
-
-	// Random, not time-based: parallel go test runs share the server.
-	name := fmt.Sprintf("wfm_migrations_%x", rand.Uint64())
-	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
-		t.Fatalf("create database: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if _, err := admin.Exec(ctx, "DROP DATABASE "+name+" WITH (FORCE)"); err != nil {
-			t.Errorf("drop database: %v", err)
-		}
-	})
-
-	cfg, err := pgx.ParseConfig(dsn)
-	if err != nil {
-		t.Fatalf("parse dsn: %v", err)
-	}
-
-	cfg.Database = name
-
-	db := stdlib.OpenDB(*cfg)
-
-	t.Cleanup(func() { _ = db.Close() })
-
-	platform, err := os.ReadFile("testdata/platform.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := db.ExecContext(ctx, string(platform)); err != nil {
-		t.Fatalf("platform: %v", err)
-	}
-
-	store, err := database.NewStore(database.DialectPostgres, "wfm_schema_version")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	p, err := goose.NewProvider("", db, Embed, goose.WithStore(store))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, db, p := migrationstest.New(t, Embed)
 
 	return db, p
 }
