@@ -4,12 +4,12 @@ package migrationstest
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
-	"fmt"
 	"io/fs"
-	"math/rand/v2"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -52,7 +52,7 @@ func New(tb testing.TB, migrations fs.FS) (string, *sql.DB, *goose.Provider) {
 	tb.Cleanup(func() { _ = admin.Close(ctx) })
 
 	// Random, not time-based: parallel go test runs share the server.
-	name := fmt.Sprintf("wfm_test_%x", rand.Uint64())
+	name := "wfm_test_" + strings.ToLower(rand.Text())
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+name); err != nil {
 		tb.Fatalf("create database: %v", err)
 	}
