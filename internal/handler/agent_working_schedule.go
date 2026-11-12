@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -21,38 +23,17 @@ func NewAgentWorkingSchedule(service service.AgentWorkingScheduleManager) *Agent
 	}
 }
 
-func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Context, req *pb.CreateAgentsWorkingScheduleShiftsRequest) (*pb.CreateAgentsWorkingScheduleShiftsResponse, error) {
-	s := grpccontext.FromContext(ctx)
-
-	agents := make([]*model.LookupItem, 0, len(req.GetAgents()))
-	for _, agent := range req.GetAgents() {
-		agents = append(agents, &model.LookupItem{ID: agent.GetId()})
-	}
-
-	shifts := make(map[int64]*model.AgentScheduleShift, len(req.GetItems()))
-	for k, item := range req.GetItems() {
-		shifts[k] = unmarshalAgentScheduleShift(item)
-	}
-
-	opts := &model.CreateAgentsWorkingScheduleShifts{
-		WorkingScheduleID: req.GetWorkingScheduleId(),
-		Date: model.FilterBetween{
-			From: model.NewTimestamp(req.GetDate().GetFrom()),
-			To:   model.NewTimestamp(req.GetDate().GetTo()),
-		},
-		Agents: agents,
-		Shifts: shifts,
-	}
-
-	out, err := a.service.CreateAgentsWorkingScheduleShifts(ctx, s.SignedInUser, opts)
+func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, req *pb.SearchAgentsWorkingScheduleRequest) (*pb.SearchAgentsWorkingScheduleResponse, error) {
+	from, err := parseDate("date.from", req.GetDate().GetFrom())
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.CreateAgentsWorkingScheduleShiftsResponse{Items: marshalAgentWorkingScheduleBulkProto(out)}, nil
-}
+	to, err := parseDate("date.to", req.GetDate().GetTo())
+	if err != nil {
+		return nil, err
+	}
 
-func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, req *pb.SearchAgentsWorkingScheduleRequest) (*pb.SearchAgentsWorkingScheduleResponse, error) {
 	s := grpccontext.FromContext(ctx)
 	search := &model.AgentWorkingScheduleSearch{
 		WorkingScheduleID: req.GetWorkingScheduleId(),
@@ -62,56 +43,23 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		SearchItem: model.SearchItem{
 			Search: req.Q,
 			Date: &model.FilterBetween{
-				From: model.NewTimestamp(req.GetDate().GetFrom()),
-				To:   model.NewTimestamp(req.GetDate().GetTo()),
+				From: pgtype.Timestamp{Time: from.Time, Valid: from.Valid},
+				To:   pgtype.Timestamp{Time: to.Time, Valid: to.Valid},
 			},
 		},
 	}
 
-	items, holidays, err := a.service.SearchAgentsWorkingSchedule(ctx, s.SignedInUser, search)
+	out, err := a.service.SearchAgentsWorkingSchedule(ctx, s.SignedInUser, search)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.SearchAgentsWorkingScheduleResponse{
-		Holidays: marshalAgentWorkingScheduleHolidayBulkProto(holidays),
-		Items:    marshalAgentWorkingScheduleBulkProto(items),
-		Total:    int64(len(items)),
+		Holidays: marshalAgentWorkingScheduleHolidayBulkProto(out.Holidays),
+		Items:    marshalAgentWorkingScheduleBulkProto(out.Items),
+		Total:    int64(len(out.Items)),
+		Calendar: out.Calendar.MarshalProto(),
 	}, nil
-}
-
-func unmarshalAgentScheduleShift(in *pb.AgentScheduleShift) *model.AgentScheduleShift {
-	pauses := make([]*model.AgentScheduleShiftPause, 0, len(in.GetPauses()))
-	for _, pause := range in.GetPauses() {
-		p := &model.AgentScheduleShiftPause{
-			DomainRecord: model.DomainRecord{ID: pause.GetId()},
-			Start:        pause.GetStart(),
-			End:          pause.GetEnd(),
-		}
-
-		if pause.GetCause() != nil {
-			p.Cause = &model.LookupItem{ID: pause.GetCause().GetId()}
-		}
-
-		pauses = append(pauses, p)
-	}
-
-	skills := make([]*model.AgentScheduleShiftSkill, 0, len(in.GetSkills()))
-	for _, skill := range in.GetSkills() {
-		skills = append(skills, &model.AgentScheduleShiftSkill{
-			Skill:    model.LookupItem{ID: skill.GetSkill().GetId()},
-			Capacity: skill.GetCapacity(),
-			Enabled:  skill.GetEnabled(),
-		})
-	}
-
-	return &model.AgentScheduleShift{
-		DomainRecord: model.DomainRecord{ID: in.GetId()},
-		Start:        in.GetStart(),
-		End:          in.GetEnd(),
-		Pauses:       pauses,
-		Skills:       skills,
-	}
 }
 
 func marshalAgentWorkingScheduleBulkProto(in []*model.AgentWorkingSchedule) []*pb.AgentWorkingSchedule {

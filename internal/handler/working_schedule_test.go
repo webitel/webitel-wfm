@@ -31,14 +31,35 @@ func TestWorkingScheduleStateKeepsItsName(t *testing.T) {
 			t.Errorf("model %s goes out as %s, want %s", state, got, name)
 		}
 
-		in := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{
+		in, err := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{
 			State:    pb.WorkingScheduleState(pb.WorkingScheduleState_value[name]),
 			Team:     &pb.LookupEntity{},
 			Calendar: &pb.LookupEntity{},
 		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		if in.State != state {
 			t.Errorf("%s comes in as model %s, want %s", name, in.State, state)
 		}
+	}
+}
+
+// The bounds of a schedule are calendar dates both ways, with no zone and no time.
+func TestWorkingScheduleDatesAreCalendarDates(t *testing.T) {
+	in, err := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{StartDateAt: "2026-11-01", EndDateAt: "2026-11-30"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out := in.MarshalProto()
+	if out.GetStartDateAt() != "2026-11-01" || out.GetEndDateAt() != "2026-11-30" {
+		t.Errorf("dates go back out as %q..%q", out.GetStartDateAt(), out.GetEndDateAt())
+	}
+
+	if _, err := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{StartDateAt: "2026-02-30"}); !errors.Is(err, ErrDate) {
+		t.Errorf("err = %v, want ErrDate", err)
 	}
 }
 

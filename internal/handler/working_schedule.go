@@ -31,9 +31,14 @@ func NewWorkingSchedule(service service.WorkingScheduleManager) *WorkingSchedule
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.CreateWorkingScheduleRequest) (*pb.CreateWorkingScheduleResponse, error) {
+	in, err := unmarshalWorkingScheduleProto(req.GetItem())
+	if err != nil {
+		return nil, err
+	}
+
 	s := grpccontext.FromContext(ctx)
 
-	out, err := w.service.CreateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
+	out, err := w.service.CreateWorkingSchedule(ctx, s.SignedInUser, in)
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +118,12 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.Sea
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.UpdateWorkingScheduleRequest) (*pb.UpdateWorkingScheduleResponse, error) {
+	in, err := unmarshalWorkingScheduleProto(req.GetItem())
+	if err != nil {
+		return nil, err
+	}
+
 	s := grpccontext.FromContext(ctx)
-	in := unmarshalWorkingScheduleProto(req.GetItem())
 
 	// Required here, not in the contract: the message is shared with create.
 	tag, err := etag.ExpectEtag(etag.EtagWorkingSchedule, req.GetItem().GetEtag())
@@ -184,7 +193,17 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context,
 	return &pb.UpdateWorkingScheduleRemoveAgentResponse{Id: out}, nil
 }
 
-func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {
+func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) (*model.WorkingSchedule, error) {
+	start, err := parseDate("item.start_date_at", in.GetStartDateAt())
+	if err != nil {
+		return nil, err
+	}
+
+	end, err := parseDate("item.end_date_at", in.GetEndDateAt())
+	if err != nil {
+		return nil, err
+	}
+
 	skills := make([]*model.LookupItem, 0, len(in.GetExtraSkills()))
 	for _, skill := range in.GetExtraSkills() {
 		skills = append(skills, &model.LookupItem{ID: skill.GetId()})
@@ -201,14 +220,14 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedul
 		State:                model.WorkingScheduleState(in.GetState().Number()),
 		Team:                 model.LookupItem{ID: in.GetTeam().GetId()},
 		Calendar:             model.LookupItem{ID: in.GetCalendar().GetId()},
-		StartDateAt:          model.NewDate(in.GetStartDateAt()),
-		EndDateAt:            model.NewDate(in.GetEndDateAt()),
+		StartDateAt:          start,
+		EndDateAt:            end,
 		StartTimeAt:          in.GetStartTimeAt(),
 		EndTimeAt:            in.GetEndTimeAt(),
 		ExtraSkills:          skills,
 		BlockOutsideActivity: in.GetBlockOutsideActivity(),
 		Agents:               agents,
-	}
+	}, nil
 }
 
 func marshalWorkingScheduleBulkProto(in []*model.WorkingSchedule) []*pb.WorkingSchedule {

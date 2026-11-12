@@ -52,6 +52,10 @@ func (s *shiftStore) Holidays(context.Context, *model.SignedInUser, *model.Agent
 	return s.holidays, nil
 }
 
+func (s *shiftStore) ScheduleCalendar(context.Context, *model.SignedInUser, int64) (*model.ScheduleCalendar, error) {
+	return &model.ScheduleCalendar{TimeZone: "Europe/Kyiv"}, nil
+}
+
 func signedIn() (context.Context, *model.SignedInUser) {
 	user := &model.SignedInUser{ID: 1, DomainID: 2, Token: "token"}
 
@@ -69,7 +73,7 @@ func TestSearchAgentsWorkingScheduleFilterMatchingNoAgent(t *testing.T) {
 
 	svc := NewAgentWorkingSchedule(shifts, scheduleStore{}, newEngine(t, &fakeEngine{}))
 
-	items, holidays, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
+	out, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
 		WorkingScheduleID: 7,
 		TeamIDs:           []int64{99},
 		SearchItem:        model.SearchItem{Date: &model.FilterBetween{}},
@@ -78,16 +82,16 @@ func TestSearchAgentsWorkingScheduleFilterMatchingNoAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(items) != 0 {
-		t.Errorf("listed %d agents, want none", len(items))
+	if len(out.Items) != 0 {
+		t.Errorf("listed %d agents, want none", len(out.Items))
 	}
 
-	if len(holidays) != 1 {
-		t.Errorf("holidays = %d, want 1: the calendar does not depend on the agent filter", len(holidays))
+	if len(out.Holidays) != 1 || out.Calendar == nil {
+		t.Errorf("holidays = %d, calendar = %v, want both: the calendar does not depend on the agent filter", len(out.Holidays), out.Calendar)
 	}
 }
 
-// The shifts and the holidays are read in parallel. Run with -race: both reads
+// The shifts, the holidays and the calendar are read in parallel. Run with -race: both reads
 // used to write one shared error variable.
 func TestSearchAgentsWorkingScheduleParallelReads(t *testing.T) {
 	ctx, user := signedIn()
@@ -95,7 +99,7 @@ func TestSearchAgentsWorkingScheduleParallelReads(t *testing.T) {
 
 	svc := NewAgentWorkingSchedule(shifts, scheduleStore{}, nil)
 	for range 20 {
-		if _, _, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
+		if _, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
 			WorkingScheduleID: 7,
 			SearchItem:        model.SearchItem{Date: &model.FilterBetween{}},
 		}); err != nil {
@@ -122,7 +126,7 @@ func TestSearchAgentsWorkingScheduleWithoutPeriod(t *testing.T) {
 			shifts := &shiftStore{}
 
 			svc := NewAgentWorkingSchedule(shifts, scheduleStore{}, nil)
-			if _, _, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
+			if _, err := svc.SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
 				WorkingScheduleID: 7,
 				SearchItem:        model.SearchItem{Date: tc.date},
 			}); err != nil {

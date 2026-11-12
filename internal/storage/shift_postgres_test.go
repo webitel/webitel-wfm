@@ -59,7 +59,7 @@ VALUES (2, 2, 7, '2026-11-10', '2026-11-10 09:00+02', '2026-11-10 17:00+02');
 INSERT INTO wfm.agent_absence (domain_id, created_by, updated_by, absent_at, agent_id, absence_type_id)
 VALUES (2, 2, 2, '2026-11-11', 4, 1);`
 
-func newPostgres(t *testing.T) (dbsql.Store, *pgx.Conn) {
+func newPostgres(t *testing.T, seed string) (dbsql.Store, *pgx.Conn) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -72,7 +72,7 @@ func newPostgres(t *testing.T) (dbsql.Store, *pgx.Conn) {
 
 	t.Cleanup(func() { _ = conn.Close(ctx) })
 
-	if _, err := conn.Exec(ctx, shiftSeed); err != nil {
+	if _, err := conn.Exec(ctx, seed); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 
@@ -138,7 +138,7 @@ func shiftsIn(t *testing.T, conn *pgx.Conn) int {
 }
 
 func TestCreateShiftsOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
 	s := NewAgentWorkingSchedule(db)
@@ -308,7 +308,7 @@ func TestCreateShiftsOnPostgres(t *testing.T) {
 }
 
 func TestCreateShiftsWritesTheRowOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 
 	capacity := int64(3)
@@ -362,7 +362,7 @@ WHERE s.id = $1 AND s.working_schedule_agent_id = 1 AND s.domain_id = 1 AND s.cr
 }
 
 func TestCreateShiftsIntoAnActiveScheduleOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	in := []*model.Shift{shiftAt(t, 1, "2026-11-10 20:00+02", "2026-11-10 22:00+02")}
 
 	if _, err := NewAgentWorkingSchedule(db).CreateShifts(context.Background(), &model.SignedInUser{ID: 1, DomainID: 1}, 2, in); err != nil {
@@ -371,7 +371,7 @@ func TestCreateShiftsIntoAnActiveScheduleOnPostgres(t *testing.T) {
 }
 
 func TestCreateShiftsRefusesTheScheduleOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
 	in := []*model.Shift{shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02")}
@@ -391,7 +391,7 @@ func TestCreateShiftsRefusesTheScheduleOnPostgres(t *testing.T) {
 
 // Without the agent's lock both writers would pass the checks and both be written.
 func TestCreateShiftsSerializeOnTheAgentOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
 	s := NewAgentWorkingSchedule(db)
