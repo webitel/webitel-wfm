@@ -316,6 +316,7 @@ func (w *WorkingSchedule) DeactivatedAgents(ctx context.Context, domainID int64,
 	}
 
 	var ids []int64
+
 	err := w.db.Primary().Select(ctx, &ids, `SELECT a.id
   FROM call_center.cc_agent a
   JOIN directory.wbt_user u ON u.id = a.user_id

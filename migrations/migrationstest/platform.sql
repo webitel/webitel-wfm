@@ -7,7 +7,7 @@ CREATE SCHEMA flow;
 CREATE TABLE directory.wbt_domain (dc BIGINT PRIMARY KEY, name TEXT);
 CREATE TABLE directory.wbt_user (
     id BIGINT PRIMARY KEY, dc BIGINT NOT NULL REFERENCES directory.wbt_domain (dc),
-    name TEXT, username TEXT, UNIQUE (dc, id)
+    name TEXT, username TEXT, deleted_at TIMESTAMPTZ, UNIQUE (dc, id)
 );
 
 CREATE TABLE call_center.cc_agent (id BIGINT PRIMARY KEY, domain_id BIGINT NOT NULL, user_id BIGINT NOT NULL, UNIQUE (domain_id, id));
