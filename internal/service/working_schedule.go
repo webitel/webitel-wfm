@@ -66,6 +66,7 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 		if slices.Contains(deactivated, a) {
 			continue
 		}
+
 		agents = append(agents, &model.LookupItem{ID: a})
 	}
 
@@ -201,6 +202,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 	if err != nil {
 		return nil, err
 	}
+
 	if len(deactivated) > 0 {
 		return nil, errors.Wrap(ErrAgentDeactivated, errors.WithValue("agents", deactivated))
 	}

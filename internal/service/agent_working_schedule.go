@@ -73,10 +73,12 @@ func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Con
 	for _, agent := range in.Agents {
 		agentIDs = append(agentIDs, agent.ID)
 	}
+
 	deactivated, err := a.workingScheduleStorage.DeactivatedAgents(ctx, user.DomainID, agentIDs)
 	if err != nil {
 		return nil, err
 	}
+
 	if len(deactivated) > 0 {
 		return nil, errors.Wrap(ErrAgentDeactivated, errors.WithValue("agents", deactivated))
 	}
