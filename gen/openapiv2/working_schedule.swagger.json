@@ -374,11 +374,10 @@
                     },
                     "startDateAt": {
                       "type": "string",
-                      "format": "int64"
+                      "description": "The first and the last day of the schedule, \"YYYY-MM-DD\"."
                     },
                     "endDateAt": {
-                      "type": "string",
-                      "format": "int64"
+                      "type": "string"
                     },
                     "startTimeAt": {
                       "type": "string",
@@ -606,11 +605,10 @@
         },
         "startDateAt": {
           "type": "string",
-          "format": "int64"
+          "description": "The first and the last day of the schedule, \"YYYY-MM-DD\"."
         },
         "endDateAt": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "startTimeAt": {
           "type": "string",

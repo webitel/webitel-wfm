@@ -376,7 +376,7 @@
                     },
                     "absentAt": {
                       "type": "string",
-                      "format": "int64"
+                      "description": "\"YYYY-MM-DD\"."
                     }
                   }
                 }
@@ -399,11 +399,10 @@
         },
         "dateFrom": {
           "type": "string",
-          "format": "int64"
+          "description": "\"YYYY-MM-DD\", inclusive."
         },
         "dateTo": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         }
       }
     },
@@ -465,7 +464,7 @@
         },
         "absentAt": {
           "type": "string",
-          "format": "int64"
+          "description": "\"YYYY-MM-DD\"."
         }
       }
     },

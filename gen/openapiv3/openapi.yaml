@@ -1292,6 +1292,7 @@ components:
                     format: enum
                 absentAt:
                     type: string
+                    description: '"YYYY-MM-DD".'
         AgentAbsences:
             type: object
             properties:
@@ -1306,13 +1307,17 @@ components:
             properties:
                 date:
                     type: string
+                    description: The working date, "YYYY-MM-DD".
                 locked:
                     type: boolean
                 absence:
                     type: integer
+                    description: A day has an absence or shifts, not both.
                     format: enum
-                shift:
-                    $ref: '#/components/schemas/AgentScheduleShift'
+                shifts:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentScheduleShift'
         AgentScheduleShift:
             type: object
             properties:
@@ -1328,9 +1333,10 @@ components:
                     type: string
                 updatedBy:
                     $ref: '#/components/schemas/LookupEntity'
-                start:
+                startAt:
                     type: string
-                end:
+                    description: Epoch milliseconds. The shift ends right before end_at, so the next one can start at end_at.
+                endAt:
                     type: string
                 pauses:
                     type: array
@@ -1340,6 +1346,21 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/AgentScheduleShiftSkill'
+                workingDate:
+                    type: string
+                    description: |-
+                        Set by the server. The working date, "YYYY-MM-DD": the day the shift starts on in the
+                         time zone of the schedule's calendar, so a night shift belongs to the day it starts.
+                etag:
+                    type: string
+                    description: Version of the shift, returned by every read. Editing a shift requires it (WFM-99).
+                source:
+                    type: integer
+                    description: Set by the server.
+                    format: enum
+                plannerRunId:
+                    type: string
+                    description: 'Set by the server for a planner''s shift: the planning run that wrote it.'
         AgentScheduleShiftPause:
             type: object
             properties:
@@ -1355,9 +1376,10 @@ components:
                     type: string
                 updatedBy:
                     $ref: '#/components/schemas/LookupEntity'
-                start:
+                startAt:
                     type: string
-                end:
+                    description: Epoch milliseconds, inside the shift.
+                endAt:
                     type: string
                 cause:
                     $ref: '#/components/schemas/LookupEntity'
@@ -1366,10 +1388,11 @@ components:
             properties:
                 skill:
                     $ref: '#/components/schemas/LookupEntity'
-                capacity:
-                    type: string
                 enabled:
                     type: boolean
+            description: |-
+                AgentScheduleShiftSkill switches a skill the agent already has on or off for the time
+                 of the shift, with the agent's own capacity (WFM-114).
         AgentWorkingConditions:
             type: object
             properties:
@@ -1386,6 +1409,23 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/AgentSchedule'
+        CalendarDay:
+            type: object
+            properties:
+                ranges:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/CalendarRange'
+                    description: Working hours, wall-clock minutes from midnight in the calendar's zone.
+        CalendarRange:
+            type: object
+            properties:
+                start:
+                    type: integer
+                    format: int32
+                end:
+                    type: integer
+                    format: int32
         CreateAgentAbsenceRequest:
             type: object
             properties:
@@ -1417,6 +1457,7 @@ components:
                     format: enum
                 dateFrom:
                     type: string
+                    description: '"YYYY-MM-DD", inclusive.'
                 dateTo:
                     type: string
         CreateAgentsAbsencesResponse:
@@ -1432,16 +1473,38 @@ components:
                 workingScheduleId:
                     type: string
                 date:
-                    $ref: '#/components/schemas/FilterBetween'
+                    allOf:
+                        - $ref: '#/components/schemas/DateRange'
+                    description: Date from and Date to of the modal.
                 agents:
                     type: array
                     items:
                         $ref: '#/components/schemas/LookupEntity'
-                items:
+                days:
                     type: object
                     additionalProperties:
-                        $ref: '#/components/schemas/AgentScheduleShift'
-                    description: 'Map key is a day of week: 0 - Sunday, ..., 6 - Saturday.'
+                        $ref: '#/components/schemas/ShiftTemplateDay'
+                    description: |-
+                        Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the
+                         map, one switched off in the modal, gets no shifts.
+                pauses:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ShiftTemplatePause'
+                    description: |-
+                        Pauses of every day. Each belongs to the range that contains it; a pause outside
+                         every range of a day refuses the request.
+                skills:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AgentScheduleShiftSkill'
+                    description: |-
+                        Skills switched on for the time of every shift the request creates. Different
+                         skills for different ranges take separate requests.
+            description: |-
+                The Add shifts modal: a weekly template the server expands into shifts over a range
+                 of dates (WFM-103). Hours are wall-clock minutes from midnight in the time zone of
+                 the schedule's calendar, so a shift keeps its hours across a daylight saving change.
         CreateAgentsWorkingScheduleShiftsResponse:
             type: object
             properties:
@@ -1449,6 +1512,13 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/AgentWorkingSchedule'
+                skipped:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/SkippedDay'
+                    description: |-
+                        Days the request left without shifts, and why: an absence, or a date another
+                         active schedule locks (WFM-103).
         CreateForecastCalculationRequest:
             type: object
             properties:
@@ -1499,6 +1569,16 @@ components:
             properties:
                 item:
                     $ref: '#/components/schemas/WorkingSchedule'
+        DateRange:
+            type: object
+            properties:
+                from:
+                    type: string
+                to:
+                    type: string
+            description: |-
+                DateRange is an inclusive range of calendar dates, "YYYY-MM-DD". A calendar date
+                 is a day, not an instant: it does not depend on the client's time zone.
         DeleteAgentAbsenceResponse:
             type: object
             properties:
@@ -1543,13 +1623,6 @@ components:
                     type: string
                 agents:
                     type: string
-        FilterBetween:
-            type: object
-            properties:
-                from:
-                    type: string
-                to:
-                    type: string
         ForecastCalculation:
             type: object
             properties:
@@ -1588,6 +1661,7 @@ components:
             properties:
                 date:
                     type: string
+                    description: '"YYYY-MM-DD".'
                 name:
                     type: string
         LookupEntity:
@@ -1669,6 +1743,19 @@ components:
             properties:
                 item:
                     $ref: '#/components/schemas/WorkingSchedule'
+        ScheduleCalendar:
+            type: object
+            properties:
+                timeZone:
+                    type: string
+                    description: IANA name, such as "Europe/Kyiv".
+                week:
+                    type: object
+                    additionalProperties:
+                        $ref: '#/components/schemas/CalendarDay'
+                    description: |-
+                        Map key is a day of week as in the Add shifts template: 0 - Sunday, ..., 6 - Saturday.
+                         Every day is present; a day without ranges is a day off.
         SearchAgentAbsenceResponse:
             type: object
             properties:
@@ -1698,6 +1785,12 @@ components:
                         $ref: '#/components/schemas/AgentWorkingSchedule'
                 total:
                     type: string
+                calendar:
+                    allOf:
+                        - $ref: '#/components/schemas/ScheduleCalendar'
+                    description: |-
+                        The calendar of the schedule, to tell working days from days off and to show
+                         times in its zone.
         SearchForecastCalculationResponse:
             type: object
             properties:
@@ -1766,6 +1859,44 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/ShiftTemplateTime'
+        ShiftTemplateDay:
+            type: object
+            properties:
+                ranges:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ShiftTemplateRange'
+            description: |-
+                ShiftTemplateDay holds the shifts of one day of week, several when the agent works
+                 on different skills at different hours.
+        ShiftTemplatePause:
+            type: object
+            properties:
+                start:
+                    type: integer
+                    description: Minutes from midnight.
+                    format: int32
+                duration:
+                    type: integer
+                    description: Minutes.
+                    format: int32
+                cause:
+                    $ref: '#/components/schemas/LookupEntity'
+            description: |-
+                ShiftTemplatePause is a pause of every day at a wall-clock time. In a range that
+                 crosses midnight, a pause after 00:00 belongs to the shift of the previous day.
+        ShiftTemplateRange:
+            type: object
+            properties:
+                start:
+                    type: integer
+                    format: int32
+                end:
+                    type: integer
+                    format: int32
+            description: |-
+                ShiftTemplateRange is one shift of a day, in minutes from midnight. An end before the
+                 start crosses midnight: 1320 to 360 is 22:00 to 06:00, a shift of the day it starts on.
         ShiftTemplateTime:
             type: object
             properties:
@@ -1775,6 +1906,17 @@ components:
                 end:
                     type: integer
                     format: int32
+        SkippedDay:
+            type: object
+            properties:
+                agent:
+                    $ref: '#/components/schemas/LookupEntity'
+                date:
+                    type: string
+                    description: '"YYYY-MM-DD".'
+                reason:
+                    type: string
+                    description: An error id, <layer>.<entity>.<what>.
         Status:
             type: object
             properties:
@@ -1953,6 +2095,7 @@ components:
                     $ref: '#/components/schemas/LookupEntity'
                 startDateAt:
                     type: string
+                    description: The first and the last day of the schedule, "YYYY-MM-DD".
                 endDateAt:
                     type: string
                 startTimeAt:

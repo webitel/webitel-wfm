@@ -74,6 +74,60 @@ func (x *FilterBetween) GetTo() int64 {
 	return 0
 }
 
+// DateRange is an inclusive range of calendar dates, "YYYY-MM-DD". A calendar date
+// is a day, not an instant: it does not depend on the client's time zone.
+type DateRange struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To            string                 `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DateRange) Reset() {
+	*x = DateRange{}
+	mi := &file_filter_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DateRange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DateRange) ProtoMessage() {}
+
+func (x *DateRange) ProtoReflect() protoreflect.Message {
+	mi := &file_filter_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DateRange.ProtoReflect.Descriptor instead.
+func (*DateRange) Descriptor() ([]byte, []int) {
+	return file_filter_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *DateRange) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *DateRange) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
 var File_filter_proto protoreflect.FileDescriptor
 
 const file_filter_proto_rawDesc = "" +
@@ -82,7 +136,11 @@ const file_filter_proto_rawDesc = "" +
 	"\rFilterBetween\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\x03R\x04from\x12\x0e\n" +
 	"\x02to\x18\x02 \x01(\x03R\x02to:D\xbaHA\x1a?\n" +
-	"\abetween\x12\x1eto should be greater than from\x1a\x14this.to >= this.fromB#Z!github.com/webitel/protos/wfm;wfmb\x06proto3"
+	"\abetween\x12\x1eto should be greater than from\x1a\x14this.to >= this.from\"\xc3\x01\n" +
+	"\tDateRange\x127\n" +
+	"\x04from\x18\x01 \x01(\tB#\xbaH r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\x04from\x123\n" +
+	"\x02to\x18\x02 \x01(\tB#\xbaH r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\x02to:H\xbaHE\x1aC\n" +
+	"\abetween\x12\"to should not be earlier than from\x1a\x14this.to >= this.fromB#Z!github.com/webitel/protos/wfm;wfmb\x06proto3"
 
 var (
 	file_filter_proto_rawDescOnce sync.Once
@@ -96,9 +154,10 @@ func file_filter_proto_rawDescGZIP() []byte {
 	return file_filter_proto_rawDescData
 }
 
-var file_filter_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_filter_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_filter_proto_goTypes = []any{
 	(*FilterBetween)(nil), // 0: wfm.FilterBetween
+	(*DateRange)(nil),     // 1: wfm.DateRange
 }
 var file_filter_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -119,7 +178,7 @@ func file_filter_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_filter_proto_rawDesc), len(file_filter_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

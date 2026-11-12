@@ -873,15 +873,16 @@ func (x *AgentAbsences) GetAbsences() []*Absence {
 }
 
 type Absence struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	DomainId      int64                  `protobuf:"varint,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	CreatedBy     *LookupEntity          `protobuf:"bytes,4,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	UpdatedAt     int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	UpdatedBy     *LookupEntity          `protobuf:"bytes,6,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
-	TypeId        AbsenceType            `protobuf:"varint,7,opt,name=type_id,json=typeId,proto3,enum=wfm.AbsenceType" json:"type_id,omitempty"`
-	AbsentAt      int64                  `protobuf:"varint,8,opt,name=absent_at,json=absentAt,proto3" json:"absent_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	DomainId  int64                  `protobuf:"varint,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	CreatedAt int64                  `protobuf:"varint,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedBy *LookupEntity          `protobuf:"bytes,4,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	UpdatedAt int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedBy *LookupEntity          `protobuf:"bytes,6,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	TypeId    AbsenceType            `protobuf:"varint,7,opt,name=type_id,json=typeId,proto3,enum=wfm.AbsenceType" json:"type_id,omitempty"`
+	// "YYYY-MM-DD".
+	AbsentAt      string `protobuf:"bytes,9,opt,name=absent_at,json=absentAt,proto3" json:"absent_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -965,18 +966,19 @@ func (x *Absence) GetTypeId() AbsenceType {
 	return AbsenceType_ABSENCE_TYPE_UNSPECIFIED
 }
 
-func (x *Absence) GetAbsentAt() int64 {
+func (x *Absence) GetAbsentAt() string {
 	if x != nil {
 		return x.AbsentAt
 	}
-	return 0
+	return ""
 }
 
 type CreateAgentsAbsencesRequestAbsentType struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TypeId        AbsenceType            `protobuf:"varint,1,opt,name=type_id,json=typeId,proto3,enum=wfm.AbsenceType" json:"type_id,omitempty"`
-	DateFrom      int64                  `protobuf:"varint,2,opt,name=date_from,json=dateFrom,proto3" json:"date_from,omitempty"`
-	DateTo        int64                  `protobuf:"varint,3,opt,name=date_to,json=dateTo,proto3" json:"date_to,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	TypeId AbsenceType            `protobuf:"varint,1,opt,name=type_id,json=typeId,proto3,enum=wfm.AbsenceType" json:"type_id,omitempty"`
+	// "YYYY-MM-DD", inclusive.
+	DateFrom      string `protobuf:"bytes,4,opt,name=date_from,json=dateFrom,proto3" json:"date_from,omitempty"`
+	DateTo        string `protobuf:"bytes,5,opt,name=date_to,json=dateTo,proto3" json:"date_to,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1018,18 +1020,18 @@ func (x *CreateAgentsAbsencesRequestAbsentType) GetTypeId() AbsenceType {
 	return AbsenceType_ABSENCE_TYPE_UNSPECIFIED
 }
 
-func (x *CreateAgentsAbsencesRequestAbsentType) GetDateFrom() int64 {
+func (x *CreateAgentsAbsencesRequestAbsentType) GetDateFrom() string {
 	if x != nil {
 		return x.DateFrom
 	}
-	return 0
+	return ""
 }
 
-func (x *CreateAgentsAbsencesRequestAbsentType) GetDateTo() int64 {
+func (x *CreateAgentsAbsencesRequestAbsentType) GetDateTo() string {
 	if x != nil {
 		return x.DateTo
 	}
-	return 0
+	return ""
 }
 
 var File_agent_absence_proto protoreflect.FileDescriptor
@@ -1068,16 +1070,16 @@ const file_agent_absence_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\x03R\aagentId\",\n" +
 	"\x1aDeleteAgentAbsenceResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\x86\x03\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xca\x03\n" +
 	"\x1bCreateAgentsAbsencesRequest\x12K\n" +
 	"\x05items\x18\x01 \x03(\v2+.wfm.CreateAgentsAbsencesRequest.absentTypeB\b\xbaH\x05\x92\x01\x02\b\x01R\x05items\x12%\n" +
-	"\tagent_ids\x18\x02 \x03(\x03B\b\xbaH\x05\x92\x01\x02\b\x01R\bagentIds\x1a\xf2\x01\n" +
+	"\tagent_ids\x18\x02 \x03(\x03B\b\xbaH\x05\x92\x01\x02\b\x01R\bagentIds\x1a\xb6\x02\n" +
 	"\n" +
 	"absentType\x129\n" +
-	"\atype_id\x18\x01 \x01(\x0e2\x10.wfm.AbsenceTypeB\x0e\xbaH\v\x82\x01\b\x10\x01\x18\x01\x18\x02\x18\x03R\x06typeId\x12$\n" +
-	"\tdate_from\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\bdateFrom\x12 \n" +
-	"\adate_to\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06dateTo:a\xbaH^\x1a\\\n" +
-	"\x10absent_at.filter\x12(date_to should be greater than date_from\x1a\x1ethis.date_to >= this.date_from\"H\n" +
+	"\atype_id\x18\x01 \x01(\x0e2\x10.wfm.AbsenceTypeB\x0e\xbaH\v\x82\x01\b\x10\x01\x18\x01\x18\x02\x18\x03R\x06typeId\x12@\n" +
+	"\tdate_from\x18\x04 \x01(\tB#\xbaH r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\bdateFrom\x12<\n" +
+	"\adate_to\x18\x05 \x01(\tB#\xbaH r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\x06dateTo:a\xbaH^\x1a\\\n" +
+	"\x10absent_at.filter\x12(date_to should be greater than date_from\x1a\x1ethis.date_to >= this.date_fromJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04\"H\n" +
 	"\x1cCreateAgentsAbsencesResponse\x12(\n" +
 	"\x05items\x18\x01 \x03(\v2\x12.wfm.AgentAbsencesR\x05items\"\xce\x01\n" +
 	"\x1bSearchAgentsAbsencesRequest\x12\x11\n" +
@@ -1096,7 +1098,7 @@ const file_agent_absence_proto_rawDesc = "" +
 	"\x04next\x18\x02 \x01(\bR\x04next\"b\n" +
 	"\rAgentAbsences\x12'\n" +
 	"\x05agent\x18\x01 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12(\n" +
-	"\babsences\x18\x02 \x03(\v2\f.wfm.AbsenceR\babsences\"\xb9\x02\n" +
+	"\babsences\x18\x02 \x03(\v2\f.wfm.AbsenceR\babsences\"\xdb\x02\n" +
 	"\aAbsence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\x12\x1d\n" +
@@ -1108,8 +1110,8 @@ const file_agent_absence_proto_rawDesc = "" +
 	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\x120\n" +
 	"\n" +
 	"updated_by\x18\x06 \x01(\v2\x11.wfm.LookupEntityR\tupdatedBy\x129\n" +
-	"\atype_id\x18\a \x01(\x0e2\x10.wfm.AbsenceTypeB\x0e\xbaH\v\x82\x01\b\x10\x01\x18\x01\x18\x02\x18\x03R\x06typeId\x12$\n" +
-	"\tabsent_at\x18\b \x01(\x03B\a\xbaH\x04\"\x02 \x00R\babsentAt*y\n" +
+	"\atype_id\x18\a \x01(\x0e2\x10.wfm.AbsenceTypeB\x0e\xbaH\v\x82\x01\b\x10\x01\x18\x01\x18\x02\x18\x03R\x06typeId\x12@\n" +
+	"\tabsent_at\x18\t \x01(\tB#\xbaH r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\babsentAtJ\x04\b\b\x10\t*y\n" +
 	"\vAbsenceType\x12\x1c\n" +
 	"\x18ABSENCE_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ABSENCE_TYPE_DAYOFF\x10\x01\x12\x19\n" +
