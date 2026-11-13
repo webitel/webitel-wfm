@@ -17,6 +17,14 @@ import (
 // too, so the id, not the status, is what tells a client to reread.
 var ErrWorkingScheduleVersionConflict = errors.Aborted("working schedule was changed concurrently", errors.WithID("storage.working_schedule.version_conflict"))
 
+var ErrWorkingScheduleSort = errors.InvalidArgument("working schedules sort by name or state only", errors.WithID("storage.working_schedule.sort"))
+
+// The sort goes into SQL, so only these; states sort as Active, Pending, Draft, Archived (US_05.01).
+var workingScheduleOrder = map[string]string{
+	"name":  "name",
+	"state": "array_position(ARRAY [3, 2, 1, 4], state::int)",
+}
+
 type WorkingScheduleManager interface {
 	CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error)
 	ReadWorkingSchedule(ctx context.Context, read *options.Read) (*model.WorkingSchedule, error)
@@ -158,14 +166,18 @@ func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *o
 		sb.Where(sb.In("id", builder.ConvertArgs(ids)...))
 	}
 
-	orderBy := search.OrderBy()
-	if len(orderBy) == 0 {
-		orderBy.WithOrderBy("created_at", builder.OrderDirectionASC)
+	order, direction := "created_at", builder.OrderDirectionASC
+
+	for field, d := range search.OrderBy() {
+		expr, ok := workingScheduleOrder[field]
+		if !ok {
+			return nil, errors.Wrap(ErrWorkingScheduleSort, errors.WithValue("sort", field))
+		}
+
+		order, direction = expr, d
 	}
 
-	for field, direction := range orderBy {
-		sb.OrderBy(builder.OrderBy(field, direction))
-	}
+	sb.OrderBy(builder.OrderBy(order, direction), builder.OrderBy("id", direction))
 
 	var items []*model.WorkingSchedule
 
@@ -180,7 +192,9 @@ func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *o
 // workingScheduleColumns turns a field mask into view columns: etag is built
 // from id and ver, and scany rejects a column selected twice.
 func workingScheduleColumns(mask []string) []string {
-	columns := make([]string, 0, len(mask)+1)
+	columns := make([]string, 0, len(mask)+2)
+	columns = append(columns, "total_agents")
+
 	for _, f := range mask {
 		if f == "etag" {
 			columns = append(columns, "id", "ver")

@@ -37,6 +37,7 @@ type WorkingSchedule struct {
 	ExtraSkills          []*LookupItem `db:"extra_skills,json"`
 	BlockOutsideActivity bool          `db:"block_outside_activity"`
 	Agents               []*LookupItem `db:"agents,json"`
+	TotalAgents          int64         `db:"total_agents"`
 	Ver                  int32         `db:"ver"`
 }
 
@@ -67,7 +68,7 @@ func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
 		ExtraSkills:          skills,
 		BlockOutsideActivity: w.BlockOutsideActivity,
 		Agents:               agents,
-		TotalAgents:          int64(len(agents)),
+		TotalAgents:          w.TotalAgents,
 	}
 
 	// ver starts at 1: 0 means a field mask left it out, and a token built from

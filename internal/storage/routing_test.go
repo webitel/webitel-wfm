@@ -312,7 +312,7 @@ func TestReadWorkingScheduleFieldMaskSelectsOnlyThoseColumns(t *testing.T) {
 		t.Errorf("masked read returned id %d, want 7", out.ID)
 	}
 
-	if sql := tr.calls[0].sql; !strings.HasPrefix(sql, "SELECT id FROM") {
+	if sql := tr.calls[0].sql; !strings.HasPrefix(sql, "SELECT id, total_agents FROM") {
 		t.Errorf("field mask did not reach the SELECT list: %s", sql)
 	}
 }
@@ -324,9 +324,9 @@ func TestReadWorkingScheduleFieldMaskTranslatesEtag(t *testing.T) {
 		mask []string
 		want string
 	}{
-		{mask: []string{"etag"}, want: "SELECT id, ver FROM"},
-		{mask: []string{"id", "etag"}, want: "SELECT id, ver FROM"},
-		{mask: []string{"name", "etag", "id"}, want: "SELECT id, name, ver FROM"},
+		{mask: []string{"etag"}, want: "SELECT id, total_agents, ver FROM"},
+		{mask: []string{"id", "etag"}, want: "SELECT id, total_agents, ver FROM"},
+		{mask: []string{"name", "etag", "id"}, want: "SELECT id, name, total_agents, ver FROM"},
 	} {
 		t.Run(strings.Join(tc.mask, ","), func(t *testing.T) {
 			rows := schedule(7, "seven")
