@@ -94,6 +94,21 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "page",
+            "description": "A page of agents, ordered by name and then by id; the filters apply first.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
           }
         ],
         "tags": [
@@ -494,7 +509,11 @@
         },
         "total": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "Agents that match the filters, on all pages; 0 on a page past the last one."
+        },
+        "next": {
+          "type": "boolean"
         },
         "calendar": {
           "$ref": "#/definitions/wfmScheduleCalendar",
