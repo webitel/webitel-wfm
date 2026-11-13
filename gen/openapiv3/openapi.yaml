@@ -97,6 +97,7 @@ paths:
                     type: string
                 - name: date.to
                   in: query
+                  description: The last day, included.
                   schema:
                     type: string
                 - name: supervisorId
@@ -1292,7 +1293,7 @@ components:
                     format: enum
                 absentAt:
                     type: string
-                    description: '"YYYY-MM-DD".'
+                    description: 'A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
         AgentAbsences:
             type: object
             properties:
@@ -1307,7 +1308,7 @@ components:
             properties:
                 date:
                     type: string
-                    description: The working date, "YYYY-MM-DD".
+                    description: 'The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
                 locked:
                     type: boolean
                 absence:
@@ -1349,8 +1350,9 @@ components:
                 workingDate:
                     type: string
                     description: |-
-                        Set by the server. The working date, "YYYY-MM-DD": the day the shift starts on in the
-                         time zone of the schedule's calendar, so a night shift belongs to the day it starts.
+                        Set by the server. The working date, a date as in DateRange: the day the shift starts
+                         on in the time zone of the schedule's calendar, so a night shift belongs to the day it
+                         starts. 00:00 UTC of that day, epoch milliseconds.
                 etag:
                     type: string
                     description: Version of the shift, returned by every read. Editing a shift requires it (WFM-99).
@@ -1457,7 +1459,7 @@ components:
                     format: enum
                 dateFrom:
                     type: string
-                    description: '"YYYY-MM-DD", inclusive.'
+                    description: 'Dates as in DateRange: 00:00 UTC of the day, epoch milliseconds; date_to is included.'
                 dateTo:
                     type: string
         CreateAgentsAbsencesResponse:
@@ -1576,9 +1578,12 @@ components:
                     type: string
                 to:
                     type: string
+                    description: The last day, included.
             description: |-
-                DateRange is an inclusive range of calendar dates, "YYYY-MM-DD". A calendar date
-                 is a day, not an instant: it does not depend on the client's time zone.
+                DateRange is an inclusive range of calendar dates. A date anywhere in WFM is a day, not
+                 an instant: 00:00 UTC of that day in epoch milliseconds, the same for every client
+                 whatever its time zone. Any other value is refused, so a local midnight shows up as
+                 an error instead of a day shifted by the client's offset.
         DeleteAgentAbsenceResponse:
             type: object
             properties:
@@ -1661,7 +1666,7 @@ components:
             properties:
                 date:
                     type: string
-                    description: '"YYYY-MM-DD".'
+                    description: 'A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
                 name:
                     type: string
         LookupEntity:
@@ -1913,7 +1918,7 @@ components:
                     $ref: '#/components/schemas/LookupEntity'
                 date:
                     type: string
-                    description: '"YYYY-MM-DD".'
+                    description: 'A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
                 reason:
                     type: string
                     description: An error id, <layer>.<entity>.<what>.
@@ -2095,7 +2100,9 @@ components:
                     $ref: '#/components/schemas/LookupEntity'
                 startDateAt:
                     type: string
-                    description: The first and the last day of the schedule, "YYYY-MM-DD".
+                    description: |-
+                        The first and the last day of the schedule, dates as in DateRange: 00:00 UTC of the
+                         day, epoch milliseconds.
                 endDateAt:
                     type: string
                 startTimeAt:

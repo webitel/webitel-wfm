@@ -911,9 +911,10 @@ type WorkingSchedule struct {
 	State     WorkingScheduleState   `protobuf:"varint,8,opt,name=state,proto3,enum=wfm.WorkingScheduleState" json:"state,omitempty"`
 	Team      *LookupEntity          `protobuf:"bytes,9,opt,name=team,proto3" json:"team,omitempty"`
 	Calendar  *LookupEntity          `protobuf:"bytes,10,opt,name=calendar,proto3" json:"calendar,omitempty"`
-	// The first and the last day of the schedule, "YYYY-MM-DD".
-	StartDateAt          string          `protobuf:"bytes,20,opt,name=start_date_at,json=startDateAt,proto3" json:"start_date_at,omitempty"`
-	EndDateAt            string          `protobuf:"bytes,21,opt,name=end_date_at,json=endDateAt,proto3" json:"end_date_at,omitempty"`
+	// The first and the last day of the schedule, dates as in DateRange: 00:00 UTC of the
+	// day, epoch milliseconds.
+	StartDateAt          int64           `protobuf:"varint,11,opt,name=start_date_at,json=startDateAt,proto3" json:"start_date_at,omitempty"`
+	EndDateAt            int64           `protobuf:"varint,12,opt,name=end_date_at,json=endDateAt,proto3" json:"end_date_at,omitempty"`
 	StartTimeAt          int64           `protobuf:"varint,13,opt,name=start_time_at,json=startTimeAt,proto3" json:"start_time_at,omitempty"`
 	EndTimeAt            int64           `protobuf:"varint,14,opt,name=end_time_at,json=endTimeAt,proto3" json:"end_time_at,omitempty"`
 	ExtraSkills          []*LookupEntity `protobuf:"bytes,15,rep,name=extra_skills,json=extraSkills,proto3" json:"extra_skills,omitempty"`
@@ -1027,18 +1028,18 @@ func (x *WorkingSchedule) GetCalendar() *LookupEntity {
 	return nil
 }
 
-func (x *WorkingSchedule) GetStartDateAt() string {
+func (x *WorkingSchedule) GetStartDateAt() int64 {
 	if x != nil {
 		return x.StartDateAt
 	}
-	return ""
+	return 0
 }
 
-func (x *WorkingSchedule) GetEndDateAt() string {
+func (x *WorkingSchedule) GetEndDateAt() int64 {
 	if x != nil {
 		return x.EndDateAt
 	}
-	return ""
+	return 0
 }
 
 func (x *WorkingSchedule) GetStartTimeAt() int64 {
@@ -1213,7 +1214,7 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\bforecast\x18\x01 \x03(\v2%.wfm.WorkingScheduleForecast.ForecastR\bforecast\x1a6\n" +
 	"\bForecast\x12\x12\n" +
 	"\x04hour\x18\x01 \x01(\x03R\x04hour\x12\x16\n" +
-	"\x06agents\x18\x02 \x01(\x03R\x06agents\"\xbc\x06\n" +
+	"\x06agents\x18\x02 \x01(\x03R\x06agents\"\xb2\a\n" +
 	"\x0fWorkingSchedule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\x12\x1d\n" +
@@ -1230,16 +1231,18 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\x05state\x18\b \x01(\x0e2\x19.wfm.WorkingScheduleStateR\x05state\x12%\n" +
 	"\x04team\x18\t \x01(\v2\x11.wfm.LookupEntityR\x04team\x12-\n" +
 	"\bcalendar\x18\n" +
-	" \x01(\v2\x11.wfm.LookupEntityR\bcalendar\x12J\n" +
-	"\rstart_date_at\x18\x14 \x01(\tB&\xbaH#\xd8\x01\x01r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\vstartDateAt\x12F\n" +
-	"\vend_date_at\x18\x15 \x01(\tB&\xbaH#\xd8\x01\x01r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\tendDateAt\x12\"\n" +
+	" \x01(\v2\x11.wfm.LookupEntityR\bcalendar\x12\x84\x01\n" +
+	"\rstart_date_at\x18\v \x01(\x03B`\xbaH]\xba\x01S\n" +
+	"\x04date\x125a date is 00:00 UTC of the day, in epoch milliseconds\x1a\x14this % 86400000 == 0\xd8\x01\x01\"\x02 \x00R\vstartDateAt\x12\x80\x01\n" +
+	"\vend_date_at\x18\f \x01(\x03B`\xbaH]\xba\x01S\n" +
+	"\x04date\x125a date is 00:00 UTC of the day, in epoch milliseconds\x1a\x14this % 86400000 == 0\xd8\x01\x01\"\x02 \x00R\tendDateAt\x12\"\n" +
 	"\rstart_time_at\x18\r \x01(\x03R\vstartTimeAt\x12\x1e\n" +
 	"\vend_time_at\x18\x0e \x01(\x03R\tendTimeAt\x124\n" +
 	"\fextra_skills\x18\x0f \x03(\v2\x11.wfm.LookupEntityR\vextraSkills\x124\n" +
 	"\x16block_outside_activity\x18\x10 \x01(\bR\x14blockOutsideActivity\x12)\n" +
 	"\x06agents\x18\x11 \x03(\v2\x11.wfm.LookupEntityR\x06agents\x12!\n" +
 	"\ftotal_agents\x18\x12 \x01(\x03R\vtotalAgents\x12\x12\n" +
-	"\x04etag\x18\x13 \x01(\tR\x04etagJ\x04\b\v\x10\fJ\x04\b\f\x10\r*\xcc\x01\n" +
+	"\x04etag\x18\x13 \x01(\tR\x04etagJ\x04\b\x14\x10\x15J\x04\b\x15\x10\x16*\xcc\x01\n" +
 	"\x14WorkingScheduleState\x12&\n" +
 	"\"WORKING_SCHEDULE_STATE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cWORKING_SCHEDULE_STATE_DRAFT\x10\x01\x12\"\n" +

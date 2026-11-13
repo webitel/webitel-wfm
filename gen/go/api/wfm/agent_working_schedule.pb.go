@@ -80,7 +80,7 @@ type CreateAgentsWorkingScheduleShiftsRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	WorkingScheduleId int64                  `protobuf:"varint,1,opt,name=working_schedule_id,json=workingScheduleId,proto3" json:"working_schedule_id,omitempty"`
 	// Date from and Date to of the modal.
-	Date   *DateRange      `protobuf:"bytes,5,opt,name=date,proto3" json:"date,omitempty"`
+	Date   *DateRange      `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
 	Agents []*LookupEntity `protobuf:"bytes,3,rep,name=agents,proto3" json:"agents,omitempty"`
 	// Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the
 	// map, one switched off in the modal, gets no shifts.
@@ -388,8 +388,8 @@ func (x *CreateAgentsWorkingScheduleShiftsResponse) GetSkipped() []*SkippedDay {
 type SkippedDay struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Agent *LookupEntity          `protobuf:"bytes,1,opt,name=agent,proto3" json:"agent,omitempty"`
-	// "YYYY-MM-DD".
-	Date string `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
+	// A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.
+	Date int64 `protobuf:"varint,4,opt,name=date,proto3" json:"date,omitempty"`
 	// An error id, <layer>.<entity>.<what>.
 	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -433,11 +433,11 @@ func (x *SkippedDay) GetAgent() *LookupEntity {
 	return nil
 }
 
-func (x *SkippedDay) GetDate() string {
+func (x *SkippedDay) GetDate() int64 {
 	if x != nil {
 		return x.Date
 	}
-	return ""
+	return 0
 }
 
 func (x *SkippedDay) GetReason() string {
@@ -450,7 +450,7 @@ func (x *SkippedDay) GetReason() string {
 type SearchAgentsWorkingScheduleRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	WorkingScheduleId int64                  `protobuf:"varint,1,opt,name=working_schedule_id,json=workingScheduleId,proto3" json:"working_schedule_id,omitempty"`
-	Date              *DateRange             `protobuf:"bytes,7,opt,name=date,proto3" json:"date,omitempty"`
+	Date              *DateRange             `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
 	SupervisorId      []int64                `protobuf:"varint,3,rep,packed,name=supervisor_id,json=supervisorId,proto3" json:"supervisor_id,omitempty"`
 	TeamId            []int64                `protobuf:"varint,4,rep,packed,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
 	SkillId           []int64                `protobuf:"varint,5,rep,packed,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
@@ -755,8 +755,8 @@ func (x *CalendarRange) GetEnd() int32 {
 
 type Holiday struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// "YYYY-MM-DD".
-	Date          string `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
+	// A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.
+	Date          int64  `protobuf:"varint,1,opt,name=date,proto3" json:"date,omitempty"`
 	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -792,11 +792,11 @@ func (*Holiday) Descriptor() ([]byte, []int) {
 	return file_agent_working_schedule_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *Holiday) GetDate() string {
+func (x *Holiday) GetDate() int64 {
 	if x != nil {
 		return x.Date
 	}
-	return ""
+	return 0
 }
 
 func (x *Holiday) GetName() string {
@@ -982,9 +982,10 @@ type AgentScheduleShift struct {
 	EndAt   int64                      `protobuf:"varint,12,opt,name=end_at,json=endAt,proto3" json:"end_at,omitempty"`
 	Pauses  []*AgentScheduleShiftPause `protobuf:"bytes,9,rep,name=pauses,proto3" json:"pauses,omitempty"`
 	Skills  []*AgentScheduleShiftSkill `protobuf:"bytes,10,rep,name=skills,proto3" json:"skills,omitempty"`
-	// Set by the server. The working date, "YYYY-MM-DD": the day the shift starts on in the
-	// time zone of the schedule's calendar, so a night shift belongs to the day it starts.
-	WorkingDate string `protobuf:"bytes,13,opt,name=working_date,json=workingDate,proto3" json:"working_date,omitempty"`
+	// Set by the server. The working date, a date as in DateRange: the day the shift starts
+	// on in the time zone of the schedule's calendar, so a night shift belongs to the day it
+	// starts. 00:00 UTC of that day, epoch milliseconds.
+	WorkingDate int64 `protobuf:"varint,17,opt,name=working_date,json=workingDate,proto3" json:"working_date,omitempty"`
 	// Version of the shift, returned by every read. Editing a shift requires it (WFM-99).
 	Etag string `protobuf:"bytes,14,opt,name=etag,proto3" json:"etag,omitempty"`
 	// Set by the server.
@@ -1095,11 +1096,11 @@ func (x *AgentScheduleShift) GetSkills() []*AgentScheduleShiftSkill {
 	return nil
 }
 
-func (x *AgentScheduleShift) GetWorkingDate() string {
+func (x *AgentScheduleShift) GetWorkingDate() int64 {
 	if x != nil {
 		return x.WorkingDate
 	}
-	return ""
+	return 0
 }
 
 func (x *AgentScheduleShift) GetEtag() string {
@@ -1125,9 +1126,9 @@ func (x *AgentScheduleShift) GetPlannerRunId() int64 {
 
 type AgentSchedule struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The working date, "YYYY-MM-DD".
-	Date   string `protobuf:"bytes,5,opt,name=date,proto3" json:"date,omitempty"`
-	Locked bool   `protobuf:"varint,2,opt,name=locked,proto3" json:"locked,omitempty"`
+	// The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds.
+	Date   int64 `protobuf:"varint,1,opt,name=date,proto3" json:"date,omitempty"`
+	Locked bool  `protobuf:"varint,2,opt,name=locked,proto3" json:"locked,omitempty"`
 	// A day has an absence or shifts, not both.
 	Absence       AbsenceType           `protobuf:"varint,3,opt,name=absence,proto3,enum=wfm.AbsenceType" json:"absence,omitempty"`
 	Shifts        []*AgentScheduleShift `protobuf:"bytes,6,rep,name=shifts,proto3" json:"shifts,omitempty"`
@@ -1165,11 +1166,11 @@ func (*AgentSchedule) Descriptor() ([]byte, []int) {
 	return file_agent_working_schedule_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *AgentSchedule) GetDate() string {
+func (x *AgentSchedule) GetDate() int64 {
 	if x != nil {
 		return x.Date
 	}
-	return ""
+	return 0
 }
 
 func (x *AgentSchedule) GetLocked() bool {
@@ -1252,14 +1253,14 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\x1cagent_working_schedule.proto\x12\x03wfm\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1aproto/webitel/option.proto\x1a\flookup.proto\x1a\ffilter.proto\x1a\x13agent_absence.proto\"\xe7\x03\n" +
 	"(CreateAgentsWorkingScheduleShiftsRequest\x12.\n" +
 	"\x13working_schedule_id\x18\x01 \x01(\x03R\x11workingScheduleId\x12*\n" +
-	"\x04date\x18\x05 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x123\n" +
+	"\x04date\x18\x02 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x123\n" +
 	"\x06agents\x18\x03 \x03(\v2\x11.wfm.LookupEntityB\b\xbaH\x05\x92\x01\x02\b\x01R\x06agents\x12g\n" +
 	"\x04days\x18\x06 \x03(\v27.wfm.CreateAgentsWorkingScheduleShiftsRequest.DaysEntryB\x1a\xbaH\x17\xc8\x01\x01\x9a\x01\x11\b\x01\x10\a\"\x06\"\x04\x18\x06(\x00*\x03\xc8\x01\x01R\x04days\x12/\n" +
 	"\x06pauses\x18\a \x03(\v2\x17.wfm.ShiftTemplatePauseR\x06pauses\x124\n" +
 	"\x06skills\x18\b \x03(\v2\x1c.wfm.AgentScheduleShiftSkillR\x06skills\x1aN\n" +
 	"\tDaysEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\x03R\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.wfm.ShiftTemplateDayR\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05\"M\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.wfm.ShiftTemplateDayR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"M\n" +
 	"\x10ShiftTemplateDay\x129\n" +
 	"\x06ranges\x18\x01 \x03(\v2\x17.wfm.ShiftTemplateRangeB\b\xbaH\x05\x92\x01\x02\b\x01R\x06ranges\"\xa8\x01\n" +
 	"\x12ShiftTemplateRange\x12 \n" +
@@ -1276,20 +1277,20 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\x06_cause\"\x87\x01\n" +
 	")CreateAgentsWorkingScheduleShiftsResponse\x12/\n" +
 	"\x05items\x18\x01 \x03(\v2\x19.wfm.AgentWorkingScheduleR\x05items\x12)\n" +
-	"\askipped\x18\x02 \x03(\v2\x0f.wfm.SkippedDayR\askipped\"a\n" +
+	"\askipped\x18\x02 \x03(\v2\x0f.wfm.SkippedDayR\askipped\"g\n" +
 	"\n" +
 	"SkippedDay\x12'\n" +
 	"\x05agent\x18\x01 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12\x12\n" +
-	"\x04date\x18\x02 \x01(\tR\x04date\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xf8\x01\n" +
+	"\x04date\x18\x04 \x01(\x03R\x04date\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reasonJ\x04\b\x02\x10\x03\"\xf8\x01\n" +
 	"\"SearchAgentsWorkingScheduleRequest\x12.\n" +
 	"\x13working_schedule_id\x18\x01 \x01(\x03R\x11workingScheduleId\x12*\n" +
-	"\x04date\x18\a \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x12#\n" +
+	"\x04date\x18\x02 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x12#\n" +
 	"\rsupervisor_id\x18\x03 \x03(\x03R\fsupervisorId\x12\x17\n" +
 	"\ateam_id\x18\x04 \x03(\x03R\x06teamId\x12\x19\n" +
 	"\bskill_id\x18\x05 \x03(\x03R\askillId\x12\x11\n" +
 	"\x01q\x18\x06 \x01(\tH\x00R\x01q\x88\x01\x01B\x04\n" +
-	"\x02_qJ\x04\b\x02\x10\x03\"\xc9\x01\n" +
+	"\x02_qJ\x04\b\a\x10\b\"\xc9\x01\n" +
 	"#SearchAgentsWorkingScheduleResponse\x12(\n" +
 	"\bholidays\x18\x01 \x03(\v2\f.wfm.HolidayR\bholidays\x12/\n" +
 	"\x05items\x18\x02 \x03(\v2\x19.wfm.AgentWorkingScheduleR\x05items\x12\x14\n" +
@@ -1307,8 +1308,8 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\x05start\x18\x01 \x01(\x05R\x05start\x12\x10\n" +
 	"\x03end\x18\x02 \x01(\x05R\x03end\"7\n" +
 	"\aHoliday\x12\x12\n" +
-	"\x04date\x18\x03 \x01(\tR\x04date\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04nameJ\x04\b\x01\x10\x02\"\xc6\x03\n" +
+	"\x04date\x18\x01 \x01(\x03R\x04date\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04nameJ\x04\b\x03\x10\x04\"\xc6\x03\n" +
 	"\x17AgentScheduleShiftPause\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\x12\x1d\n" +
@@ -1328,7 +1329,7 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\x06_causeJ\x04\b\a\x10\bJ\x04\b\b\x10\t\"j\n" +
 	"\x17AgentScheduleShiftSkill\x12/\n" +
 	"\x05skill\x18\x01 \x01(\v2\x11.wfm.LookupEntityB\x06\xbaH\x03\xc8\x01\x01R\x05skill\x12\x18\n" +
-	"\aenabled\x18\x03 \x01(\bR\aenabledJ\x04\b\x02\x10\x03\"\xb7\x05\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabledJ\x04\b\x02\x10\x03\"\xbd\x05\n" +
 	"\x12AgentScheduleShift\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\x12\x1d\n" +
@@ -1345,16 +1346,16 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\x06pauses\x18\t \x03(\v2\x1c.wfm.AgentScheduleShiftPauseR\x06pauses\x124\n" +
 	"\x06skills\x18\n" +
 	" \x03(\v2\x1c.wfm.AgentScheduleShiftSkillR\x06skills\x12!\n" +
-	"\fworking_date\x18\r \x01(\tR\vworkingDate\x12\x12\n" +
+	"\fworking_date\x18\x11 \x01(\x03R\vworkingDate\x12\x12\n" +
 	"\x04etag\x18\x0e \x01(\tR\x04etag\x12(\n" +
 	"\x06source\x18\x0f \x01(\x0e2\x10.wfm.ShiftSourceR\x06source\x12$\n" +
 	"\x0eplanner_run_id\x18\x10 \x01(\x03R\fplannerRunId:\x8e\x01\xbaH\x8a\x01\x1a\x87\x01\n" +
-	"\x04time\x127a shift ends after it starts and lasts at most 24 hours\x1aFthis.start_at < this.end_at && this.end_at - this.start_at <= 86400000J\x04\b\a\x10\bJ\x04\b\b\x10\t\"\xa4\x01\n" +
+	"\x04time\x127a shift ends after it starts and lasts at most 24 hours\x1aFthis.start_at < this.end_at && this.end_at - this.start_at <= 86400000J\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\r\x10\x0e\"\xa4\x01\n" +
 	"\rAgentSchedule\x12\x12\n" +
-	"\x04date\x18\x05 \x01(\tR\x04date\x12\x16\n" +
+	"\x04date\x18\x01 \x01(\x03R\x04date\x12\x16\n" +
 	"\x06locked\x18\x02 \x01(\bR\x06locked\x12*\n" +
 	"\aabsence\x18\x03 \x01(\x0e2\x10.wfm.AbsenceTypeR\aabsence\x12/\n" +
-	"\x06shifts\x18\x06 \x03(\v2\x17.wfm.AgentScheduleShiftR\x06shiftsJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05\"o\n" +
+	"\x06shifts\x18\x06 \x03(\v2\x17.wfm.AgentScheduleShiftR\x06shiftsJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"o\n" +
 	"\x14AgentWorkingSchedule\x12'\n" +
 	"\x05agent\x18\x01 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12.\n" +
 	"\bschedule\x18\x02 \x03(\v2\x12.wfm.AgentScheduleR\bschedule*^\n" +

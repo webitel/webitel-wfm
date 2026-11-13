@@ -376,7 +376,8 @@
                     },
                     "absentAt": {
                       "type": "string",
-                      "description": "\"YYYY-MM-DD\"."
+                      "format": "int64",
+                      "description": "A date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
                     }
                   }
                 }
@@ -399,10 +400,12 @@
         },
         "dateFrom": {
           "type": "string",
-          "description": "\"YYYY-MM-DD\", inclusive."
+          "format": "int64",
+          "description": "Dates as in DateRange: 00:00 UTC of the day, epoch milliseconds; date_to is included."
         },
         "dateTo": {
-          "type": "string"
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -464,7 +467,8 @@
         },
         "absentAt": {
           "type": "string",
-          "description": "\"YYYY-MM-DD\"."
+          "format": "int64",
+          "description": "A date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
         }
       }
     },

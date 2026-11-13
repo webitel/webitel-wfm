@@ -74,12 +74,15 @@ func (x *FilterBetween) GetTo() int64 {
 	return 0
 }
 
-// DateRange is an inclusive range of calendar dates, "YYYY-MM-DD". A calendar date
-// is a day, not an instant: it does not depend on the client's time zone.
+// DateRange is an inclusive range of calendar dates. A date anywhere in WFM is a day, not
+// an instant: 00:00 UTC of that day in epoch milliseconds, the same for every client
+// whatever its time zone. Any other value is refused, so a local midnight shows up as
+// an error instead of a day shifted by the client's offset.
 type DateRange struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
-	To            string                 `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	From  int64                  `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
+	// The last day, included.
+	To            int64 `protobuf:"varint,2,opt,name=to,proto3" json:"to,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -114,18 +117,18 @@ func (*DateRange) Descriptor() ([]byte, []int) {
 	return file_filter_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *DateRange) GetFrom() string {
+func (x *DateRange) GetFrom() int64 {
 	if x != nil {
 		return x.From
 	}
-	return ""
+	return 0
 }
 
-func (x *DateRange) GetTo() string {
+func (x *DateRange) GetTo() int64 {
 	if x != nil {
 		return x.To
 	}
-	return ""
+	return 0
 }
 
 var File_filter_proto protoreflect.FileDescriptor
@@ -136,10 +139,12 @@ const file_filter_proto_rawDesc = "" +
 	"\rFilterBetween\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\x03R\x04from\x12\x0e\n" +
 	"\x02to\x18\x02 \x01(\x03R\x02to:D\xbaHA\x1a?\n" +
-	"\abetween\x12\x1eto should be greater than from\x1a\x14this.to >= this.from\"\xc3\x01\n" +
-	"\tDateRange\x127\n" +
-	"\x04from\x18\x01 \x01(\tB#\xbaH r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\x04from\x123\n" +
-	"\x02to\x18\x02 \x01(\tB#\xbaH r\x1e2\x1c^[0-9]{4}-[0-9]{2}-[0-9]{2}$R\x02to:H\xbaHE\x1aC\n" +
+	"\abetween\x12\x1eto should be greater than from\x1a\x14this.to >= this.from\"\xb7\x02\n" +
+	"\tDateRange\x12q\n" +
+	"\x04from\x18\x01 \x01(\x03B]\xbaHZ\xba\x01S\n" +
+	"\x04date\x125a date is 00:00 UTC of the day, in epoch milliseconds\x1a\x14this % 86400000 == 0\"\x02 \x00R\x04from\x12m\n" +
+	"\x02to\x18\x02 \x01(\x03B]\xbaHZ\xba\x01S\n" +
+	"\x04date\x125a date is 00:00 UTC of the day, in epoch milliseconds\x1a\x14this % 86400000 == 0\"\x02 \x00R\x02to:H\xbaHE\x1aC\n" +
 	"\abetween\x12\"to should not be earlier than from\x1a\x14this.to >= this.fromB#Z!github.com/webitel/protos/wfm;wfmb\x06proto3"
 
 var (
