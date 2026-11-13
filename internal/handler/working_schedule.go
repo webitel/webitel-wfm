@@ -31,14 +31,9 @@ func NewWorkingSchedule(service service.WorkingScheduleManager) *WorkingSchedule
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, req *pb.CreateWorkingScheduleRequest) (*pb.CreateWorkingScheduleResponse, error) {
-	in, err := unmarshalWorkingScheduleProto(req.GetItem())
-	if err != nil {
-		return nil, err
-	}
-
 	s := grpccontext.FromContext(ctx)
 
-	out, err := w.service.CreateWorkingSchedule(ctx, s.SignedInUser, in)
+	out, err := w.service.CreateWorkingSchedule(ctx, s.SignedInUser, unmarshalWorkingScheduleProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +64,8 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 	date := &model.FilterBetween{}
 	if v := req.GetDate(); v != nil {
 		date = &model.FilterBetween{
-			From: model.NewTimestamp(v.GetFrom()),
-			To:   model.NewTimestamp(v.GetTo()),
+			From: model.TimestampFromMillis(v.GetFrom()),
+			To:   model.TimestampFromMillis(v.GetTo()),
 		}
 	}
 
@@ -82,7 +77,7 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 	out := make(map[int64]*pb.WorkingScheduleForecast)
 
 	for _, i := range items {
-		day := timeutils.Date(i.Timestamp.Time).Unix()
+		day := timeutils.Date(i.Timestamp.Time).UnixMilli()
 		if _, ok := out[day]; !ok {
 			out[day] = &pb.WorkingScheduleForecast{Forecast: make([]*pb.WorkingScheduleForecast_Forecast, 0)}
 		}
@@ -118,12 +113,8 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, req *pb.Sea
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.UpdateWorkingScheduleRequest) (*pb.UpdateWorkingScheduleResponse, error) {
-	in, err := unmarshalWorkingScheduleProto(req.GetItem())
-	if err != nil {
-		return nil, err
-	}
-
 	s := grpccontext.FromContext(ctx)
+	in := unmarshalWorkingScheduleProto(req.GetItem())
 
 	// Required here, not in the contract: the message is shared with create.
 	tag, err := etag.ExpectEtag(etag.EtagWorkingSchedule, req.GetItem().GetEtag())
@@ -193,17 +184,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context,
 	return &pb.UpdateWorkingScheduleRemoveAgentResponse{Id: out}, nil
 }
 
-func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) (*model.WorkingSchedule, error) {
-	start, err := parseDate("item.start_date_at", in.GetStartDateAt())
-	if err != nil {
-		return nil, err
-	}
-
-	end, err := parseDate("item.end_date_at", in.GetEndDateAt())
-	if err != nil {
-		return nil, err
-	}
-
+func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {
 	skills := make([]*model.LookupItem, 0, len(in.GetExtraSkills()))
 	for _, skill := range in.GetExtraSkills() {
 		skills = append(skills, &model.LookupItem{ID: skill.GetId()})
@@ -220,14 +201,14 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) (*model.WorkingSchedu
 		State:                model.WorkingScheduleState(in.GetState().Number()),
 		Team:                 model.LookupItem{ID: in.GetTeam().GetId()},
 		Calendar:             model.LookupItem{ID: in.GetCalendar().GetId()},
-		StartDateAt:          start,
-		EndDateAt:            end,
+		StartDateAt:          model.DateFromMillis(in.GetStartDateAt()),
+		EndDateAt:            model.DateFromMillis(in.GetEndDateAt()),
 		StartTimeAt:          in.GetStartTimeAt(),
 		EndTimeAt:            in.GetEndTimeAt(),
 		ExtraSkills:          skills,
 		BlockOutsideActivity: in.GetBlockOutsideActivity(),
 		Agents:               agents,
-	}, nil
+	}
 }
 
 func marshalWorkingScheduleBulkProto(in []*model.WorkingSchedule) []*pb.WorkingSchedule {

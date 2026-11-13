@@ -7,8 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/webitel/webitel-go-kit/pkg/errors"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -49,9 +47,14 @@ func TestSearchAgentsWorkingScheduleWithoutPeriod(t *testing.T) {
 	}
 }
 
+// utcDay is a date as the API carries it: 00:00 UTC of the day, in epoch milliseconds.
+func utcDay(y int, m time.Month, d int) int64 {
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC).UnixMilli()
+}
+
 func TestSearchAgentsWorkingSchedulePeriod(t *testing.T) {
 	svc := &searchRecorder{}
-	req := &pb.SearchAgentsWorkingScheduleRequest{WorkingScheduleId: 7, Date: &pb.DateRange{From: "2026-11-01", To: "2026-11-30"}}
+	req := &pb.SearchAgentsWorkingScheduleRequest{WorkingScheduleId: 7, Date: &pb.DateRange{From: utcDay(2026, 11, 1), To: utcDay(2026, 11, 30)}}
 
 	if _, err := NewAgentWorkingSchedule(svc).SearchAgentsWorkingSchedule(searchCtx(), req); err != nil {
 		t.Fatal(err)
@@ -64,12 +67,6 @@ func TestSearchAgentsWorkingSchedulePeriod(t *testing.T) {
 
 	if want := time.Date(2026, 11, 30, 0, 0, 0, 0, time.UTC); !d.To.Valid || !d.To.Time.Equal(want) {
 		t.Errorf("to = %+v, want %s", d.To, want)
-	}
-
-	// The validator passes any YYYY-MM-DD; a day that does not exist stops here.
-	req.Date.To = "2026-02-30"
-	if _, err := NewAgentWorkingSchedule(svc).SearchAgentsWorkingSchedule(searchCtx(), req); !errors.Is(err, ErrDate) {
-		t.Errorf("err = %v, want ErrDate", err)
 	}
 }
 
@@ -84,12 +81,7 @@ func TestSearchAgentsWorkingScheduleResponse(t *testing.T) {
 		return v
 	}
 	day := func(s string) pgtype.Date {
-		d, err := model.ParseDate(s)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return d
+		return pgtype.Date{Time: at(s + "T00:00:00Z"), Valid: true}
 	}
 	run := int64(44)
 	dayOff := model.AgentAbsenceTypeDayOff
@@ -122,21 +114,21 @@ func TestSearchAgentsWorkingScheduleResponse(t *testing.T) {
 	}
 
 	cells := out.GetItems()[0].GetSchedule()
-	if len(cells) != 2 || cells[0].GetDate() != "2026-11-02" || !cells[0].GetLocked() || len(cells[0].GetShifts()) != 2 {
+	if len(cells) != 2 || cells[0].GetDate() != utcDay(2026, 11, 2) || !cells[0].GetLocked() || len(cells[0].GetShifts()) != 2 {
 		t.Fatalf("cells = %v, want 2026-11-02 locked with both shifts, then 2026-11-04", cells)
 	}
 
 	night := cells[0].GetShifts()[1]
-	if night.GetStartAt() != at("2026-11-02T20:00:00Z").UnixMilli() || night.GetWorkingDate() != "2026-11-02" ||
+	if night.GetStartAt() != at("2026-11-02T20:00:00Z").UnixMilli() || night.GetWorkingDate() != utcDay(2026, 11, 2) ||
 		night.GetSource() != pb.ShiftSource_SHIFT_SOURCE_PLANNER || night.GetPlannerRunId() != 44 {
 		t.Errorf("night shift = %v", night)
 	}
 
-	if cells[1].GetDate() != "2026-11-04" || cells[1].GetAbsence() != pb.AbsenceType_ABSENCE_TYPE_DAYOFF || len(cells[1].GetShifts()) != 0 {
+	if cells[1].GetDate() != utcDay(2026, 11, 4) || cells[1].GetAbsence() != pb.AbsenceType_ABSENCE_TYPE_DAYOFF || len(cells[1].GetShifts()) != 0 {
 		t.Errorf("absent cell = %v", cells[1])
 	}
 
-	if h := out.GetHolidays(); len(h) != 1 || h[0].GetDate() != "2026-11-20" {
+	if h := out.GetHolidays(); len(h) != 1 || h[0].GetDate() != utcDay(2026, 11, 20) {
 		t.Errorf("holidays = %v", h)
 	}
 

@@ -57,6 +57,9 @@ INSERT INTO wfm.agent_working_schedule_skill (domain_id, agent_working_schedule_
 VALUES (1, 10, 1, NULL, true), (1, 11, 2, 3, false);
 INSERT INTO wfm.agent_absence (domain_id, created_by, updated_by, absent_at, agent_id, absence_type_id)
 VALUES (1, 1, 1, '2026-11-04', 2, 1);
+-- A vacation on the same day, written a day earlier: the later day off is what the cell shows.
+INSERT INTO wfm.agent_absence (domain_id, created_by, updated_by, absent_at, agent_id, absence_type_id, updated_at)
+VALUES (1, 1, 1, '2026-11-04', 2, 2, now() - interval '1 day');
 DELETE FROM directory.wbt_user WHERE id = 9;`
 
 func day(d int) time.Time { return time.Date(2026, 11, d, 0, 0, 0, 0, time.UTC) }
@@ -129,7 +132,7 @@ func TestSearchAgentWorkingScheduleOnPostgres(t *testing.T) {
 	s := NewAgentWorkingSchedule(db)
 
 	period := func(from, to int) *model.FilterBetween {
-		return &model.FilterBetween{From: model.NewTimestamp(day(from).Unix()), To: model.NewTimestamp(day(to).Unix())}
+		return &model.FilterBetween{From: model.TimestampFromMillis(day(from).UnixMilli()), To: model.TimestampFromMillis(day(to).UnixMilli())}
 	}
 
 	olena := "Ole*"
@@ -213,8 +216,8 @@ func TestHolidaysOnPostgres(t *testing.T) {
 	search := &model.AgentWorkingScheduleSearch{
 		WorkingScheduleID: 1,
 		SearchItem: model.SearchItem{Date: &model.FilterBetween{
-			From: model.NewTimestamp(day(1).Unix()),
-			To:   model.NewTimestamp(day(30).Unix()),
+			From: model.TimestampFromMillis(day(1).UnixMilli()),
+			To:   model.TimestampFromMillis(day(30).UnixMilli()),
 		}},
 	}
 

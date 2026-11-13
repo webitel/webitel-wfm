@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgtype"
-
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
@@ -24,16 +22,6 @@ func NewAgentWorkingSchedule(service service.AgentWorkingScheduleManager) *Agent
 }
 
 func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, req *pb.SearchAgentsWorkingScheduleRequest) (*pb.SearchAgentsWorkingScheduleResponse, error) {
-	from, err := parseDate("date.from", req.GetDate().GetFrom())
-	if err != nil {
-		return nil, err
-	}
-
-	to, err := parseDate("date.to", req.GetDate().GetTo())
-	if err != nil {
-		return nil, err
-	}
-
 	s := grpccontext.FromContext(ctx)
 	search := &model.AgentWorkingScheduleSearch{
 		WorkingScheduleID: req.GetWorkingScheduleId(),
@@ -43,8 +31,8 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		SearchItem: model.SearchItem{
 			Search: req.Q,
 			Date: &model.FilterBetween{
-				From: pgtype.Timestamp{Time: from.Time, Valid: from.Valid},
-				To:   pgtype.Timestamp{Time: to.Time, Valid: to.Valid},
+				From: model.DayStart(model.DateFromMillis(req.GetDate().GetFrom())),
+				To:   model.DayStart(model.DateFromMillis(req.GetDate().GetTo())),
 			},
 		},
 	}

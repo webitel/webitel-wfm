@@ -15,7 +15,7 @@ type Holiday struct {
 
 func (h *Holiday) MarshalProto() *pb.Holiday {
 	return &pb.Holiday{
-		Date: FormatDate(h.Date),
+		Date: DateMillis(h.Date),
 		Name: h.Name,
 	}
 }

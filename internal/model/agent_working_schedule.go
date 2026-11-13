@@ -76,7 +76,7 @@ func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
 		UpdatedBy:   a.UpdatedBy.MarshalProto(),
 		StartAt:     a.StartAt.UnixMilli(),
 		EndAt:       a.EndAt.UnixMilli(),
-		WorkingDate: FormatDate(a.WorkingDate),
+		WorkingDate: DateMillis(a.WorkingDate),
 		Source:      pb.ShiftSource(a.Source),
 		Pauses:      pauses,
 		Skills:      skills,
@@ -103,7 +103,7 @@ func (a *AgentSchedule) MarshalProto() *pb.AgentSchedule {
 		shifts = append(shifts, shift.MarshalProto())
 	}
 
-	out := &pb.AgentSchedule{Date: FormatDate(a.Date), Locked: a.Locked, Shifts: shifts}
+	out := &pb.AgentSchedule{Date: DateMillis(a.Date), Locked: a.Locked, Shifts: shifts}
 	if a.Absence != nil {
 		out.Absence = pb.AbsenceType(*a.Absence)
 	}

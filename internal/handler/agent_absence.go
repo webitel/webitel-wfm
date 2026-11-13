@@ -27,12 +27,7 @@ func (a *AgentAbsence) CreateAgentAbsence(ctx context.Context, req *pb.CreateAge
 		return nil, err
 	}
 
-	in, err := unmarshalAbsenceProto(req.GetItem())
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := a.service.CreateAgentAbsence(ctx, read, in)
+	out, err := a.service.CreateAgentAbsence(ctx, read, unmarshalAbsenceProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -82,12 +77,7 @@ func (a *AgentAbsence) UpdateAgentAbsence(ctx context.Context, req *pb.UpdateAge
 		return nil, err
 	}
 
-	in, err := unmarshalAbsenceProto(req.GetItem())
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := a.service.UpdateAgentAbsence(ctx, read, in)
+	out, err := a.service.UpdateAgentAbsence(ctx, read, unmarshalAbsenceProto(req.GetItem()))
 	if err != nil {
 		return nil, err
 	}
@@ -114,12 +104,7 @@ func (a *AgentAbsence) CreateAgentsAbsences(ctx context.Context, req *pb.CreateA
 		return nil, err
 	}
 
-	in, err := unmarshalAgentsAbsencesBulk(req.GetAgentIds(), req.GetItems())
-	if err != nil {
-		return nil, err
-	}
-
-	out, err := a.service.CreateAgentsAbsences(ctx, search, in)
+	out, err := a.service.CreateAgentsAbsences(ctx, search, unmarshalAgentsAbsencesBulk(req.GetAgentIds(), req.GetItems()))
 	if err != nil {
 		return nil, err
 	}
@@ -149,34 +134,22 @@ func (a *AgentAbsence) SearchAgentsAbsences(ctx context.Context, req *pb.SearchA
 	return &pb.SearchAgentsAbsencesResponse{Items: marshalAgentsAbsences(out), Next: next}, nil
 }
 
-func unmarshalAbsenceProto(in *pb.Absence) (*model.Absence, error) {
-	absentAt, err := parseDate("item.absent_at", in.GetAbsentAt())
-	if err != nil {
-		return nil, err
-	}
-
+func unmarshalAbsenceProto(in *pb.Absence) *model.Absence {
 	return &model.Absence{
 		DomainRecord: model.DomainRecord{
 			ID: in.GetId(),
 		},
-		AbsentAt:    absentAt,
+		AbsentAt:    model.DateFromMillis(in.GetAbsentAt()),
 		AbsenceType: model.AgentAbsenceType(in.GetTypeId()),
-	}, nil
+	}
 }
 
-func unmarshalAgentsAbsencesBulk(agentIDs []int64, in []*pb.CreateAgentsAbsencesRequestAbsentType) ([]*model.AgentAbsences, error) {
+func unmarshalAgentsAbsencesBulk(agentIDs []int64, in []*pb.CreateAgentsAbsencesRequestAbsentType) []*model.AgentAbsences {
 	absences := make([]*model.Absence, 0, len(in))
 	for _, absence := range in {
-		start, err := parseDate("items.date_from", absence.GetDateFrom())
-		if err != nil {
-			return nil, err
-		}
+		start := model.DateFromMillis(absence.GetDateFrom())
 
-		end, err := parseDate("items.date_to", absence.GetDateTo())
-		if err != nil {
-			return nil, err
-		}
-
+		end := model.DateFromMillis(absence.GetDateTo())
 		for d := start; !d.Time.After(end.Time); d.Time = d.Time.AddDate(0, 0, 1) {
 			item := &model.Absence{
 				AbsentAt:    d,
@@ -197,7 +170,7 @@ func unmarshalAgentsAbsencesBulk(agentIDs []int64, in []*pb.CreateAgentsAbsences
 		})
 	}
 
-	return out, nil
+	return out
 }
 
 func marshalAgentsAbsences(in []*model.AgentAbsences) []*pb.AgentAbsences {

@@ -20,13 +20,16 @@ FROM wfm.working_schedule ws
          LEFT JOIN LATERAL (
     SELECT x.date                                                                      AS date
          , coalesce(bool_or(x.locked), false)                                          AS locked
-         , max(x.absence)                                                              AS absence
+         -- One absence a day (Core design 1.4): the last one written wins until WFM-96 keys them by date.
+         , (array_agg(x.absence ORDER BY x.written_at DESC, x.absence DESC)
+            FILTER ( WHERE x.absence IS NOT NULL ))[1]                                 AS absence
          , jsonb_agg(x.shift ORDER BY x.start_at) FILTER ( WHERE x.shift IS NOT NULL ) AS shifts
     FROM (SELECT aa.absent_at         AS date
                , NULL::boolean        AS locked
                , aa.absence_type_id   AS absence
                , NULL::jsonb          AS shift
                , NULL::timestamptz    AS start_at
+               , aa.updated_at        AS written_at
           FROM wfm.agent_absence aa
           WHERE aa.domain_id = ws.domain_id
             AND aa.agent_id = wsa.agent_id
@@ -35,7 +38,7 @@ FROM wfm.working_schedule ws
           UNION ALL
 
           -- A shift on the date in another active schedule (state 3) locks it, as in WFM-94.
-          SELECT aws.schedule_at, true, NULL, NULL, NULL
+          SELECT aws.schedule_at, true, NULL, NULL, NULL, NULL
           FROM wfm.agent_working_schedule aws
                    INNER JOIN wfm.working_schedule_agent wsa2 ON wsa2.id = aws.working_schedule_agent_id
                    INNER JOIN wfm.working_schedule ws2 ON ws2.id = wsa2.working_schedule_id
@@ -65,6 +68,7 @@ FROM wfm.working_schedule ws
                   , 'pauses', p.pauses
                   , 'skills', k.skills)
                , aws.start_at
+               , NULL
           FROM wfm.agent_working_schedule aws
                    LEFT JOIN directory.wbt_user c ON c.id = aws.created_by
                    LEFT JOIN directory.wbt_user u ON u.id = aws.updated_by

@@ -111,7 +111,7 @@ func TestSearchAgentsWorkingScheduleParallelReads(t *testing.T) {
 // A search without a period, or with one bound missing, covers the
 // schedule's own period — as the schedule forecast does.
 func TestSearchAgentsWorkingScheduleWithoutPeriod(t *testing.T) {
-	from := model.NewTimestamp(time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC).Unix())
+	from := model.TimestampFromMillis(time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC).UnixMilli())
 
 	for name, tc := range map[string]struct {
 		date     *model.FilterBetween
@@ -134,8 +134,12 @@ func TestSearchAgentsWorkingScheduleWithoutPeriod(t *testing.T) {
 			}
 
 			got := shifts.searched.SearchItem.Date
-			if !got.From.Time.Equal(tc.wantFrom) || !got.To.Time.Equal(periodEnd) {
-				t.Errorf("period = %s..%s, want %s..%s", got.From.Time, got.To.Time, tc.wantFrom, periodEnd)
+			wall := func(at time.Time) string { return at.Format(time.DateTime) }
+
+			// pgx sends the wall clock: a bound in the server's zone moves the day west of UTC.
+			if got.From.Time.Location() != time.UTC || got.To.Time.Location() != time.UTC ||
+				wall(got.From.Time) != wall(tc.wantFrom) || wall(got.To.Time) != wall(periodEnd) {
+				t.Errorf("period sent as %s..%s, want %s..%s", wall(got.From.Time), wall(got.To.Time), wall(tc.wantFrom), wall(periodEnd))
 			}
 		})
 	}
