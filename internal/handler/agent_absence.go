@@ -139,7 +139,7 @@ func unmarshalAbsenceProto(in *pb.Absence) *model.Absence {
 		DomainRecord: model.DomainRecord{
 			ID: in.GetId(),
 		},
-		AbsentAt:    model.NewDate(in.GetAbsentAt()),
+		AbsentAt:    model.DateFromMillis(in.GetAbsentAt()),
 		AbsenceType: model.AgentAbsenceType(in.GetTypeId()),
 	}
 }
@@ -147,9 +147,9 @@ func unmarshalAbsenceProto(in *pb.Absence) *model.Absence {
 func unmarshalAgentsAbsencesBulk(agentIDs []int64, in []*pb.CreateAgentsAbsencesRequestAbsentType) []*model.AgentAbsences {
 	absences := make([]*model.Absence, 0, len(in))
 	for _, absence := range in {
-		start := model.NewDate(absence.GetDateFrom())
+		start := model.DateFromMillis(absence.GetDateFrom())
 
-		end := model.NewDate(absence.GetDateTo())
+		end := model.DateFromMillis(absence.GetDateTo())
 		for d := start; !d.Time.After(end.Time); d.Time = d.Time.AddDate(0, 0, 1) {
 			item := &model.Absence{
 				AbsentAt:    d,

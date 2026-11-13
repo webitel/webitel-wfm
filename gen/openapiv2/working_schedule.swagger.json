@@ -374,7 +374,8 @@
                     },
                     "startDateAt": {
                       "type": "string",
-                      "format": "int64"
+                      "format": "int64",
+                      "description": "The first and the last day of the schedule, dates as in DateRange: 00:00 UTC of the\nday, epoch milliseconds."
                     },
                     "endDateAt": {
                       "type": "string",
@@ -606,7 +607,8 @@
         },
         "startDateAt": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "The first and the last day of the schedule, dates as in DateRange: 00:00 UTC of the\nday, epoch milliseconds."
         },
         "endDateAt": {
           "type": "string",

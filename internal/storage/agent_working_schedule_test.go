@@ -14,8 +14,8 @@ func TestSearchAgentWorkingScheduleAppliesPeriod(t *testing.T) {
 	db, sql, args := newSQLStore()
 	a := &AgentWorkingSchedule{db: db}
 
-	from := model.NewTimestamp(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).Unix())
-	to := model.NewTimestamp(time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC).Unix())
+	from := model.TimestampFromMillis(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	to := model.TimestampFromMillis(time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC).UnixMilli())
 	search := &model.AgentWorkingScheduleSearch{
 		WorkingScheduleID: 7,
 		SearchItem:        model.SearchItem{Date: &model.FilterBetween{From: from, To: to}},

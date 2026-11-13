@@ -28,8 +28,9 @@ $$;
 
 CREATE TABLE flow.calendar_timezones (id BIGINT PRIMARY KEY, sys_name TEXT NOT NULL);
 CREATE TYPE flow.calendar_except_date AS (name TEXT, date BIGINT, repeat BOOLEAN, disabled BOOLEAN);
+CREATE TYPE flow.calendar_accept_time AS (disabled BOOLEAN, day SMALLINT, start_time_of_day SMALLINT, end_time_of_day SMALLINT, special BOOLEAN);
 CREATE TABLE flow.calendar (
     id BIGINT PRIMARY KEY, domain_id BIGINT NOT NULL, name TEXT,
     timezone_id BIGINT REFERENCES flow.calendar_timezones (id),
-    excepts flow.calendar_except_date[], UNIQUE (domain_id, id)
+    excepts flow.calendar_except_date[], accepts flow.calendar_accept_time[], UNIQUE (domain_id, id)
 );

@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"cmp"
 	"context"
+	"slices"
+	"time"
 
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql/builder"
@@ -19,9 +22,9 @@ const (
 
 type AgentWorkingScheduleManager interface {
 	CreateShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, in []*model.Shift) ([]int64, error)
-	CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, workingScheduleID int64, in []*model.AgentWorkingSchedule) ([]*model.AgentWorkingSchedule, error)
 	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error)
 	Holidays(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.Holiday, error)
+	ScheduleCalendar(ctx context.Context, user *model.SignedInUser, scheduleID int64) (*model.ScheduleCalendar, error)
 }
 
 type AgentWorkingSchedule struct {
@@ -32,72 +35,6 @@ func NewAgentWorkingSchedule(db dbsql.Store) *AgentWorkingSchedule {
 	return &AgentWorkingSchedule{
 		db: db,
 	}
-}
-
-func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, workingScheduleID int64, in []*model.AgentWorkingSchedule) ([]*model.AgentWorkingSchedule, error) {
-	batch := a.db.Primary().Batch()
-
-	for _, agent := range in {
-		for _, shift := range agent.Schedule {
-			columns := []map[string]any{
-				{
-					"domain_id":                 user.DomainID,
-					"created_by":                user.ID,
-					"working_schedule_agent_id": builder.Format("(SELECT id::bigint FROM wfm.working_schedule_agent WHERE domain_id = $? AND working_schedule_id = $? AND agent_id = $?)", user.DomainID, workingScheduleID, agent.Agent.ID),
-					"schedule_at":               shift.Date,
-					"start_min":                 shift.Shift.Start,
-					"end_min":                   shift.Shift.End,
-				},
-			}
-
-			cte := builder.CTE(builder.With("schedule").As(builder.Insert(agentWorkingScheduleTable, columns).SQL("RETURNING id")))
-
-			if l := len(shift.Shift.Pauses); l > 0 {
-				pauses := make([]map[string]any, 0, l)
-				for _, pause := range shift.Shift.Pauses {
-					pauses = append(pauses, map[string]any{
-						"domain_id":                 user.DomainID,
-						"created_by":                user.ID,
-						"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM schedule)"),
-						"pause_cause_id":            pause.Cause.SafeID(),
-						"start_min":                 pause.Start,
-						"end_min":                   pause.End,
-					})
-				}
-
-				cte.With(builder.With("pauses").As(builder.Insert(agentWorkingSchedulePauseTable, pauses).SQL("RETURNING id")))
-			}
-
-			if l := len(shift.Shift.Skills); l > 0 {
-				skills := make([]map[string]any, 0, l)
-				for _, skill := range shift.Shift.Skills {
-					skills = append(skills, map[string]any{
-						"domain_id":                 user.DomainID,
-						"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM schedule)"),
-						"skill_id":                  skill.Skill.ID,
-						"capacity":                  skill.Capacity,
-					})
-				}
-
-				cte.With(builder.With("skills").As(builder.Insert(agentWorkingScheduleSkillTable, skills).SQL("RETURNING id")))
-			}
-
-			sql, args := builder.Select("distinct schedule.id").With(cte.Builder()).From(cte.Tables()...).Build()
-			batch.Queue(sql, args...)
-		}
-	}
-
-	var ids []int64
-	if err := batch.Select(ctx, &ids); err != nil {
-		return nil, err
-	}
-
-	out, err := a.SearchAgentWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{WorkingScheduleID: workingScheduleID, IDs: ids})
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
 }
 
 func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error) {
@@ -117,7 +54,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		}
 	}
 
-	sb.Select("agent AS agent", "jsonb_agg(schedule.*) FILTER (WHERE "+sb.And(cells...)+") AS schedule")
+	sb.Select("agent AS agent", "jsonb_agg(schedule.* ORDER BY date) FILTER (WHERE "+sb.And(cells...)+") AS schedule")
 
 	if len(search.AgentIDs) > 0 {
 		in := make([]any, 0, len(search.AgentIDs))
@@ -132,15 +69,6 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		sb.Where(sb.ILike("(agent ->> 'name')::text", search.SearchItem.SearchBy()))
 	}
 
-	if len(search.IDs) > 0 {
-		in := make([]any, 0, len(search.IDs))
-		for _, id := range search.IDs {
-			in = append(in, id)
-		}
-
-		sb.Where(sb.In("(shift ->> 'id')::bigint", in...))
-	}
-
 	sql, args := sb.From(agentWorkingScheduleView+" AS schedule").
 		Where(sb.Equal("domain_id", user.DomainID),
 			sb.Equal("working_schedule_id", search.WorkingScheduleID),
@@ -148,8 +76,7 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		GroupBy("agent").
 		Build()
 
-	// The calendar is reread after every edit, and shift create returns its own
-	// rows through here; a standby may not have replicated them yet.
+	// The calendar is reread after every edit; a standby may not have replicated it yet.
 	var items []*model.AgentWorkingSchedule
 	if err := a.db.Primary().Select(ctx, &items, sql, args...); err != nil {
 		return nil, err
@@ -172,4 +99,50 @@ func (a *AgentWorkingSchedule) Holidays(ctx context.Context, user *model.SignedI
 	}
 
 	return items, nil
+}
+
+// calendarAccept is a range of flow.calendar.accepts, where day 0 is Monday.
+type calendarAccept struct {
+	Disabled bool  `json:"disabled"`
+	Day      int   `json:"day"`
+	Start    int16 `json:"start_time_of_day"`
+	End      int16 `json:"end_time_of_day"`
+	Special  bool  `json:"special"`
+}
+
+func (a *AgentWorkingSchedule) ScheduleCalendar(ctx context.Context, user *model.SignedInUser, scheduleID int64) (*model.ScheduleCalendar, error) {
+	q := builder.Select("tz.sys_name AS time_zone", "to_jsonb(c.accepts) AS accepts").
+		From(builder.WorkingScheduleTable.Name()+" ws").
+		Join("flow.calendar c", "c.id = ws.calendar_id").
+		Join("flow.calendar_timezones tz", "tz.id = c.timezone_id")
+	sql, args := q.Where(q.Equal("ws.domain_id", user.DomainID), q.Equal("ws.id", scheduleID)).Build()
+
+	var row struct {
+		TimeZone string           `db:"time_zone"`
+		Accepts  []calendarAccept `db:"accepts"`
+	}
+
+	if err := a.db.Primary().Get(ctx, &row, sql, args...); err != nil {
+		return nil, err
+	}
+
+	out := &model.ScheduleCalendar{TimeZone: row.TimeZone}
+	for day := range out.Week {
+		out.Week[day].Day = time.Weekday(day)
+	}
+
+	for _, accept := range row.Accepts {
+		if accept.Disabled || accept.Special {
+			continue
+		}
+
+		day := &out.Week[(accept.Day+1)%7]
+		day.Ranges = append(day.Ranges, model.CalendarRange{Start: accept.Start, End: accept.End})
+	}
+
+	for day := range out.Week {
+		slices.SortFunc(out.Week[day].Ranges, func(a, b model.CalendarRange) int { return cmp.Compare(a.Start, b.Start) })
+	}
+
+	return out, nil
 }
