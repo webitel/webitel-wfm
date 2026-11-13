@@ -108,9 +108,8 @@ func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) 
 		return nil, err
 	}
 
-	writable := []model.WorkingScheduleState{model.WorkingScheduleStateDraft, model.WorkingScheduleStatePending, model.WorkingScheduleStateActive}
-	if !slices.Contains(writable, schedule.State) {
-		return nil, errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", schedule.State.String()))
+	if err := shiftsWritable(schedule.State); err != nil {
+		return nil, err
 	}
 
 	zone, err := time.LoadLocation(schedule.TimeZone)
@@ -121,6 +120,59 @@ func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) 
 	schedule.zone = zone
 
 	return &schedule, nil
+}
+
+func shiftsWritable(state model.WorkingScheduleState) error {
+	writable := []model.WorkingScheduleState{model.WorkingScheduleStateDraft, model.WorkingScheduleStatePending, model.WorkingScheduleStateActive}
+	if !slices.Contains(writable, state) {
+		return errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", state.String()))
+	}
+
+	return nil
+}
+
+// FOR NO KEY UPDATE: shift writes take this row FOR SHARE, so they and a delete wait for each other.
+const deleteShiftsLockSQL = `
+SELECT ws.state
+FROM wfm.working_schedule ws
+WHERE ws.domain_id = $1
+  AND ws.id = $2
+FOR NO KEY UPDATE`
+
+const deleteShiftsSQL = `
+WITH deleted AS (
+    DELETE
+    FROM wfm.agent_working_schedule aws
+        USING wfm.working_schedule_agent wsa
+    WHERE wsa.id = aws.working_schedule_agent_id
+      AND wsa.working_schedule_id = $1
+      AND aws.schedule_at BETWEEN $2::date AND $3::date
+      AND ($4::boolean OR wsa.agent_id = ANY ($5::bigint[]))
+    RETURNING aws.id)
+SELECT id
+FROM deleted
+ORDER BY id`
+
+// deleteShifts deletes a schedule's shifts by working date, of the agents given or of all when none are.
+// A caller that also takes agents' locks takes them first, as CreateShifts does.
+func deleteShifts(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, from, to time.Time, agents []int64) ([]int64, error) {
+	var schedule struct {
+		State model.WorkingScheduleState `db:"state"`
+	}
+	if err := tx.Primary().Get(ctx, &schedule, deleteShiftsLockSQL, domainID, scheduleID); err != nil {
+		return nil, err
+	}
+
+	if err := shiftsWritable(schedule.State); err != nil {
+		return nil, err
+	}
+
+	var ids []int64
+	if err := tx.Primary().Select(ctx, &ids, deleteShiftsSQL, scheduleID, from, to, len(agents) == 0, agents); err != nil {
+		return nil, err
+	}
+
+	return ids, nil
 }
 
 // Other schedules count only when active (EP_05).
