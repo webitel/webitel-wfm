@@ -144,3 +144,25 @@ func TestSearchAgentsWorkingScheduleWithoutPeriod(t *testing.T) {
 		})
 	}
 }
+
+// The storage reads one agent more than the page; the service tells there is a next
+// page by it and drops it, and takes the total from any row.
+func TestSearchAgentsWorkingSchedulePage(t *testing.T) {
+	ctx, user := signedIn()
+	shifts := &shiftStore{agents: []*model.AgentWorkingSchedule{
+		{Agent: model.LookupItem{ID: 10}, Total: 5},
+		{Agent: model.LookupItem{ID: 11}, Total: 5},
+	}}
+
+	out, err := NewAgentWorkingSchedule(shifts, scheduleStore{}, nil).SearchAgentsWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
+		WorkingScheduleID: 7,
+		SearchItem:        model.SearchItem{Date: &model.FilterBetween{}, Size: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !out.Next || len(out.Items) != 1 || out.Items[0].Agent.ID != 10 || out.Total != 5 {
+		t.Errorf("next = %v, items = %d, total = %d; want a next page, agent 10 alone, 5 in all", out.Next, len(out.Items), out.Total)
+	}
+}

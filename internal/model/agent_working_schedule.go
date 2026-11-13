@@ -114,6 +114,9 @@ func (a *AgentSchedule) MarshalProto() *pb.AgentSchedule {
 type AgentWorkingSchedule struct {
 	Agent    LookupItem       `json:"agent" db:"agent,json"`
 	Schedule []*AgentSchedule `json:"schedule,omitempty" db:"schedule,json"`
+
+	// Total is the number of agents that match the search, on all pages.
+	Total int64 `json:"-" db:"total"`
 }
 
 func (a *AgentWorkingSchedule) MarshalProto() *pb.AgentWorkingSchedule {
@@ -132,6 +135,8 @@ func (a *AgentWorkingSchedule) MarshalProto() *pb.AgentWorkingSchedule {
 // the agents' cells, the holidays of the period, and the calendar's zone and week.
 type AgentWorkingScheduleCalendar struct {
 	Items    []*AgentWorkingSchedule
+	Total    int64
+	Next     bool
 	Holidays []*Holiday
 	Calendar *ScheduleCalendar
 }
