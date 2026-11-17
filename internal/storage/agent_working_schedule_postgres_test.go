@@ -82,8 +82,6 @@ func cells(t *testing.T, in []*model.AgentWorkingSchedule) []string {
 		return *l.Name
 	}
 
-	slices.SortFunc(in, func(a, b *model.AgentWorkingSchedule) int { return int(a.Agent.ID - b.Agent.ID) })
-
 	var out []string
 
 	for _, agent := range in {
@@ -147,6 +145,7 @@ func TestSearchAgentWorkingScheduleOnPostgres(t *testing.T) {
 			name:   "the month",
 			search: model.AgentWorkingScheduleSearch{SearchItem: model.SearchItem{Date: period(1, 30)}},
 			want: []string{
+				"Ihor -",
 				"Olena 2026-11-02" +
 					" | 10 09:00-13:00 on 11-02 v1 src1 by admin pause 11:00-11:30 Lunch skill Inbound capfalse on=true" +
 					" | 11 14:00-18:00 on 11-02 v1 src1 by admin skill Collection captrue on=false",
@@ -154,23 +153,22 @@ func TestSearchAgentWorkingScheduleOnPostgres(t *testing.T) {
 				"Olena 2026-11-05 locked",
 				"Olena 2026-11-09 | 13 09:00-17:00 on 11-09 v1 src1 by ",
 				"Taras 2026-11-04 absent 1",
-				"Ihor -",
 			},
 		},
 		{
 			name:   "a period of a few days",
 			search: model.AgentWorkingScheduleSearch{SearchItem: model.SearchItem{Date: period(3, 5)}},
 			want: []string{
+				"Ihor -",
 				"Olena 2026-11-03 | 12 22:00-06:00 on 11-03 v1 src2 run44 by admin",
 				"Olena 2026-11-05 locked",
 				"Taras 2026-11-04 absent 1",
-				"Ihor -",
 			},
 		},
 		{
 			name:   "a period with nothing in it lists every agent",
 			search: model.AgentWorkingScheduleSearch{SearchItem: model.SearchItem{Date: period(10, 12)}},
-			want:   []string{"Olena -", "Taras -", "Ihor -"},
+			want:   []string{"Ihor -", "Olena -", "Taras -"},
 		},
 		{
 			name:   "by name",
@@ -182,6 +180,21 @@ func TestSearchAgentWorkingScheduleOnPostgres(t *testing.T) {
 			schedule: 2,
 			search:   model.AgentWorkingScheduleSearch{SearchItem: model.SearchItem{Date: period(1, 30)}},
 			want:     []string{"Olena 2026-11-05 | 20 09:00-17:00 on 11-05 v1 src1 by admin"},
+		},
+		{
+			name:   "a page reads one agent more, to tell there is a next one",
+			search: model.AgentWorkingScheduleSearch{SearchItem: model.SearchItem{Date: period(10, 12), Size: 1}},
+			want:   []string{"Ihor -", "Olena -"},
+		},
+		{
+			name:   "the last page",
+			search: model.AgentWorkingScheduleSearch{SearchItem: model.SearchItem{Date: period(10, 12), Size: 2, Page: 2}},
+			want:   []string{"Taras -"},
+		},
+		{
+			name:   "a page past the last one is empty",
+			search: model.AgentWorkingScheduleSearch{SearchItem: model.SearchItem{Date: period(10, 12), Size: 2, Page: 3}},
+			want:   nil,
 		},
 		{
 			name:   "by agent",
@@ -208,6 +221,72 @@ func TestSearchAgentWorkingScheduleOnPostgres(t *testing.T) {
 	other, err := s.SearchAgentWorkingSchedule(ctx, &model.SignedInUser{ID: 1, DomainID: 2}, &model.AgentWorkingScheduleSearch{WorkingScheduleID: 1, SearchItem: model.SearchItem{Date: period(1, 30)}})
 	if err != nil || len(other) != 0 {
 		t.Errorf("another domain: %v, %v; want nothing", cells(t, other), err)
+	}
+}
+
+// total counts every agent the search matches, whatever the page.
+func TestSearchAgentWorkingScheduleTotalOnPostgres(t *testing.T) {
+	db, _ := newPostgres(t, calendarSeed)
+	ctx := context.Background()
+	user := &model.SignedInUser{ID: 1, DomainID: 1}
+	olena := "Ole*"
+
+	for name, tc := range map[string]struct {
+		item model.SearchItem
+		want int64
+	}{
+		"the second page": {item: model.SearchItem{Size: 2, Page: 2}, want: 3},
+		"by name":         {item: model.SearchItem{Search: &olena}, want: 1},
+	} {
+		got, err := NewAgentWorkingSchedule(db).SearchAgentWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{WorkingScheduleID: 1, SearchItem: tc.item})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(got) == 0 || got[0].Total != tc.want {
+			t.Errorf("%s: %d rows, total %v, want %d", name, len(got), got, tc.want)
+		}
+	}
+}
+
+// Agents of one name come in the order of their ids, so the pages neither repeat nor skip one.
+func TestSearchAgentWorkingSchedulePagesOfNamesakesOnPostgres(t *testing.T) {
+	db, _ := newPostgres(t, calendarSeed+`
+INSERT INTO directory.wbt_user (id, dc, name) SELECT 100 + i, 1, 'Namesake' FROM generate_series(0, 19) i ORDER BY (i * 7) % 20;
+INSERT INTO call_center.cc_agent (id, domain_id, user_id) SELECT 100 + i, 1, 100 + i FROM generate_series(0, 19) i ORDER BY (i * 7) % 20;
+INSERT INTO wfm.working_schedule_agent (id, domain_id, working_schedule_id, agent_id)
+SELECT 100 + i, 1, 1, 100 + i FROM generate_series(0, 19) i ORDER BY (i * 7) % 20;`)
+	user := &model.SignedInUser{ID: 1, DomainID: 1}
+	namesake := "Namesake"
+
+	var ids []int64
+
+	for page := int32(1); ; page++ {
+		got, err := NewAgentWorkingSchedule(db).SearchAgentWorkingSchedule(context.Background(), user, &model.AgentWorkingScheduleSearch{
+			WorkingScheduleID: 1,
+			SearchItem:        model.SearchItem{Search: &namesake, Size: 3, Page: page},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		next, items := model.ListResult(3+1, got)
+		for _, agent := range items {
+			ids = append(ids, agent.Agent.ID)
+		}
+
+		if !next {
+			break
+		}
+	}
+
+	want := make([]int64, 0, 20)
+	for id := range int64(20) {
+		want = append(want, 100+id)
+	}
+
+	if !slices.Equal(ids, want) {
+		t.Errorf("pages listed agents %v, want 100..119 once each", ids)
 	}
 }
 

@@ -29,6 +29,8 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		TeamIDs:           req.GetTeamId(),
 		SkillIDs:          req.GetSkillId(),
 		SearchItem: model.SearchItem{
+			Page:   req.GetPage(),
+			Size:   req.GetSize(),
 			Search: req.Q,
 			Date: &model.FilterBetween{
 				From: model.DayStart(model.DateFromMillis(req.GetDate().GetFrom())),
@@ -45,7 +47,8 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 	return &pb.SearchAgentsWorkingScheduleResponse{
 		Holidays: marshalAgentWorkingScheduleHolidayBulkProto(out.Holidays),
 		Items:    marshalAgentWorkingScheduleBulkProto(out.Items),
-		Total:    int64(len(out.Items)),
+		Total:    out.Total,
+		Next:     out.Next,
 		Calendar: out.Calendar.MarshalProto(),
 	}, nil
 }

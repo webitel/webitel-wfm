@@ -122,6 +122,17 @@ paths:
                   in: query
                   schema:
                     type: string
+                - name: page
+                  in: query
+                  description: A page of agents, ordered by name and then by id; the filters apply first.
+                  schema:
+                    type: integer
+                    format: int32
+                - name: size
+                  in: query
+                  schema:
+                    type: integer
+                    format: int32
             responses:
                 "200":
                     description: OK
@@ -1790,6 +1801,9 @@ components:
                         $ref: '#/components/schemas/AgentWorkingSchedule'
                 total:
                     type: string
+                    description: Agents that match the filters, on all pages; 0 on a page past the last one.
+                next:
+                    type: boolean
                 calendar:
                     allOf:
                         - $ref: '#/components/schemas/ScheduleCalendar'

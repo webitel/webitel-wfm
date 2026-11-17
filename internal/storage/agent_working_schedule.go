@@ -54,7 +54,9 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 		}
 	}
 
-	sb.Select("agent AS agent", "jsonb_agg(schedule.* ORDER BY date) FILTER (WHERE "+sb.And(cells...)+") AS schedule")
+	// total counts the agents before LIMIT; a page past the last one has no row to carry it.
+	sb.Select("agent AS agent", "jsonb_agg(schedule.* ORDER BY date) FILTER (WHERE "+sb.And(cells...)+") AS schedule",
+		"count(*) OVER () AS total")
 
 	if len(search.AgentIDs) > 0 {
 		in := make([]any, 0, len(search.AgentIDs))
@@ -74,6 +76,9 @@ func (a *AgentWorkingSchedule) SearchAgentWorkingSchedule(ctx context.Context, u
 			sb.Equal("working_schedule_id", search.WorkingScheduleID),
 		).
 		GroupBy("agent").
+		OrderBy("agent ->> 'name'", "(agent ->> 'id')::bigint").
+		Limit(int(search.SearchItem.Limit())).
+		Offset(int(search.SearchItem.Offset())).
 		Build()
 
 	// The calendar is reread after every edit; a standby may not have replicated it yet.

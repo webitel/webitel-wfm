@@ -51,7 +51,8 @@ func (s *SearchItem) Offset() int32 {
 		page = s.Page
 	}
 
-	return s.Size * (page - 1)
+	// The page size Limit uses, also when the request left it out.
+	return (s.Limit() - 1) * (page - 1)
 }
 
 func (s *SearchItem) OrderBy(table string) string {

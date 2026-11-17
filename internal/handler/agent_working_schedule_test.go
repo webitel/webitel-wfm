@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
@@ -138,3 +139,48 @@ func TestSearchAgentsWorkingScheduleResponse(t *testing.T) {
 		t.Errorf("calendar = %v, want Kyiv with all 7 days and Monday's two ranges", out.GetCalendar())
 	}
 }
+
+func TestSearchAgentsWorkingSchedulePage(t *testing.T) {
+	svc := &searchRecorder{out: &model.AgentWorkingScheduleCalendar{Total: 7, Next: true}}
+
+	out, err := NewAgentWorkingSchedule(svc).SearchAgentsWorkingSchedule(searchCtx(), &pb.SearchAgentsWorkingScheduleRequest{WorkingScheduleId: 7, Page: ptr(int32(2)), Size: ptr(int32(20))})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if item := svc.search.SearchItem; item.Page != 2 || item.Size != 20 {
+		t.Errorf("page %d size %d reach the service, want 2 and 20", item.Page, item.Size)
+	}
+
+	if out.GetTotal() != 7 || !out.GetNext() {
+		t.Errorf("total = %d, next = %v; want 7 and a next page", out.GetTotal(), out.GetNext())
+	}
+}
+
+// page and size count from 1, as in the other WFM searches; both may be left out.
+func TestValidatorTakesPagesFromOne(t *testing.T) {
+	v, err := protovalidate.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	day := &pb.DateRange{From: utcDay(2026, 11, 20), To: utcDay(2026, 11, 20)}
+
+	for name, tc := range map[string]struct {
+		page, size *int32
+		ok         bool
+	}{
+		"left out":       {ok: true},
+		"the first page": {page: ptr(int32(1)), size: ptr(int32(1)), ok: true},
+		"page 0":         {page: ptr(int32(0))},
+		"size 0":         {size: ptr(int32(0))},
+		"negative size":  {size: ptr(int32(-1))},
+	} {
+		err := v.Validate(&pb.SearchAgentsWorkingScheduleRequest{WorkingScheduleId: 7, Date: day, Page: tc.page, Size: tc.size})
+		if (err == nil) != tc.ok {
+			t.Errorf("%s: err = %v, want valid %v", name, err, tc.ok)
+		}
+	}
+}
+
+func ptr[T any](v T) *T { return &v }

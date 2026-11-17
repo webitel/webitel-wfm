@@ -109,5 +109,11 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		return nil, err
 	}
 
+	if len(out.Items) > 0 {
+		out.Total = out.Items[0].Total
+	}
+
+	out.Next, out.Items = model.ListResult(search.SearchItem.Limit(), out.Items)
+
 	return &out, nil
 }

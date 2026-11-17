@@ -455,8 +455,11 @@ type SearchAgentsWorkingScheduleRequest struct {
 	TeamId            []int64                `protobuf:"varint,4,rep,packed,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
 	SkillId           []int64                `protobuf:"varint,5,rep,packed,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
 	Q                 *string                `protobuf:"bytes,6,opt,name=q,proto3,oneof" json:"q,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// A page of agents, ordered by name and then by id; the filters apply first.
+	Page          *int32 `protobuf:"varint,8,opt,name=page,proto3,oneof" json:"page,omitempty"`
+	Size          *int32 `protobuf:"varint,9,opt,name=size,proto3,oneof" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchAgentsWorkingScheduleRequest) Reset() {
@@ -531,11 +534,27 @@ func (x *SearchAgentsWorkingScheduleRequest) GetQ() string {
 	return ""
 }
 
+func (x *SearchAgentsWorkingScheduleRequest) GetPage() int32 {
+	if x != nil && x.Page != nil {
+		return *x.Page
+	}
+	return 0
+}
+
+func (x *SearchAgentsWorkingScheduleRequest) GetSize() int32 {
+	if x != nil && x.Size != nil {
+		return *x.Size
+	}
+	return 0
+}
+
 type SearchAgentsWorkingScheduleResponse struct {
 	state    protoimpl.MessageState  `protogen:"open.v1"`
 	Holidays []*Holiday              `protobuf:"bytes,1,rep,name=holidays,proto3" json:"holidays,omitempty"`
 	Items    []*AgentWorkingSchedule `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
-	Total    int64                   `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
+	// Agents that match the filters, on all pages; 0 on a page past the last one.
+	Total int64 `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
+	Next  bool  `protobuf:"varint,5,opt,name=next,proto3" json:"next,omitempty"`
 	// The calendar of the schedule, to tell working days from days off and to show
 	// times in its zone.
 	Calendar      *ScheduleCalendar `protobuf:"bytes,4,opt,name=calendar,proto3" json:"calendar,omitempty"`
@@ -592,6 +611,13 @@ func (x *SearchAgentsWorkingScheduleResponse) GetTotal() int64 {
 		return x.Total
 	}
 	return 0
+}
+
+func (x *SearchAgentsWorkingScheduleResponse) GetNext() bool {
+	if x != nil {
+		return x.Next
+	}
+	return false
 }
 
 func (x *SearchAgentsWorkingScheduleResponse) GetCalendar() *ScheduleCalendar {
@@ -1282,19 +1308,24 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"SkippedDay\x12'\n" +
 	"\x05agent\x18\x01 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12\x12\n" +
 	"\x04date\x18\x04 \x01(\x03R\x04date\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reasonJ\x04\b\x02\x10\x03\"\xf8\x01\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reasonJ\x04\b\x02\x10\x03\"\xce\x02\n" +
 	"\"SearchAgentsWorkingScheduleRequest\x12.\n" +
 	"\x13working_schedule_id\x18\x01 \x01(\x03R\x11workingScheduleId\x12*\n" +
 	"\x04date\x18\x02 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x12#\n" +
 	"\rsupervisor_id\x18\x03 \x03(\x03R\fsupervisorId\x12\x17\n" +
 	"\ateam_id\x18\x04 \x03(\x03R\x06teamId\x12\x19\n" +
 	"\bskill_id\x18\x05 \x03(\x03R\askillId\x12\x11\n" +
-	"\x01q\x18\x06 \x01(\tH\x00R\x01q\x88\x01\x01B\x04\n" +
-	"\x02_qJ\x04\b\a\x10\b\"\xc9\x01\n" +
+	"\x01q\x18\x06 \x01(\tH\x00R\x01q\x88\x01\x01\x12 \n" +
+	"\x04page\x18\b \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x04page\x88\x01\x01\x12 \n" +
+	"\x04size\x18\t \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x02R\x04size\x88\x01\x01B\x04\n" +
+	"\x02_qB\a\n" +
+	"\x05_pageB\a\n" +
+	"\x05_sizeJ\x04\b\a\x10\b\"\xdd\x01\n" +
 	"#SearchAgentsWorkingScheduleResponse\x12(\n" +
 	"\bholidays\x18\x01 \x03(\v2\f.wfm.HolidayR\bholidays\x12/\n" +
 	"\x05items\x18\x02 \x03(\v2\x19.wfm.AgentWorkingScheduleR\x05items\x12\x14\n" +
-	"\x05total\x18\x03 \x01(\x03R\x05total\x121\n" +
+	"\x05total\x18\x03 \x01(\x03R\x05total\x12\x12\n" +
+	"\x04next\x18\x05 \x01(\bR\x04next\x121\n" +
 	"\bcalendar\x18\x04 \x01(\v2\x15.wfm.ScheduleCalendarR\bcalendar\"\xaf\x01\n" +
 	"\x10ScheduleCalendar\x12\x1b\n" +
 	"\ttime_zone\x18\x01 \x01(\tR\btimeZone\x123\n" +
