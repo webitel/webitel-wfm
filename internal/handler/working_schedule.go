@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"slices"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 	"github.com/webitel/webitel-go-kit/pkg/etag"
@@ -157,10 +156,6 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 	for _, agent := range req.GetAgents() {
 		agents = append(agents, agent.GetId())
 	}
-
-	// The access check compares engine's answer with the list, so a repeated id would fail it.
-	slices.Sort(agents)
-	agents = slices.Compact(agents)
 
 	items, err := w.service.UpdateWorkingScheduleAddAgents(ctx, read, agents)
 	if err != nil {

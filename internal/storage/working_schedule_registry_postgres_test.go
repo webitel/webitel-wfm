@@ -11,7 +11,7 @@ import (
 )
 
 func TestSearchWorkingSchedulesSortsOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	ctx := userCtx(1, 1)
 	s := &WorkingSchedule{db: db}
 
@@ -51,7 +51,7 @@ func TestSearchWorkingSchedulesSortsOnPostgres(t *testing.T) {
 }
 
 func TestSearchWorkingSchedulesRefusesOtherSortsOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	ctx := userCtx(1, 1)
 	s := &WorkingSchedule{db: db}
 
@@ -70,12 +70,24 @@ func TestSearchWorkingSchedulesRefusesOtherSortsOnPostgres(t *testing.T) {
 }
 
 func TestWorkingScheduleCountsItsAgentsOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	ctx := userCtx(1, 1)
 	s := &WorkingSchedule{db: db}
-	want := map[int64]int64{1: 3, 2: 1, 3: 2, 4: 1}
+	counts := map[int64]int64{1: 3, 2: 1, 3: 2, 4: 1}
 
-	for _, mask := range [][]string{nil, {"id", "name"}, {"id", "agents"}} {
+	cases := []struct {
+		mask  []string
+		count bool
+	}{
+		{mask: nil, count: true},
+		{mask: []string{"id", "total_agents"}, count: true},
+		{mask: []string{"id", "name"}},
+		{mask: []string{"id", "agents"}},
+	}
+
+	for _, c := range cases {
+		mask := c.mask
+
 		search, err := options.NewSearch(ctx, options.WithFields(mask))
 		if err != nil {
 			t.Fatal(err)
@@ -86,18 +98,23 @@ func TestWorkingScheduleCountsItsAgentsOnPostgres(t *testing.T) {
 			t.Fatalf("%v: %v", mask, err)
 		}
 
-		if len(items) != len(want) {
-			t.Fatalf("%v: %d schedules, want %d", mask, len(items), len(want))
+		if len(items) != len(counts) {
+			t.Fatalf("%v: %d schedules, want %d", mask, len(items), len(counts))
 		}
 
 		for _, item := range items {
-			if got := item.MarshalProto().GetTotalAgents(); got != want[item.ID] {
-				t.Errorf("%v: schedule %d has %d agents, want %d", mask, item.ID, got, want[item.ID])
+			want := int64(0)
+			if c.count {
+				want = counts[item.ID]
+			}
+
+			if got := item.MarshalProto().GetTotalAgents(); got != want {
+				t.Errorf("%v: schedule %d has %d agents, want %d", mask, item.ID, got, want)
 			}
 		}
 	}
 
-	read, err := options.NewRead(ctx, options.WithID(3), options.WithFields([]string{"name"}))
+	read, err := options.NewRead(ctx, options.WithID(3), options.WithFields([]string{"name", "total_agents"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +130,7 @@ func TestWorkingScheduleCountsItsAgentsOnPostgres(t *testing.T) {
 }
 
 func TestRemoveAgentTakesTheirShiftsOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := userCtx(1, 1)
 	s := &WorkingSchedule{db: db}
 

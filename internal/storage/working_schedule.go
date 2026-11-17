@@ -192,9 +192,7 @@ func (w *WorkingSchedule) search(ctx context.Context, node dbsql.Node, search *o
 // workingScheduleColumns turns a field mask into view columns: etag is built
 // from id and ver, and scany rejects a column selected twice.
 func workingScheduleColumns(mask []string) []string {
-	columns := make([]string, 0, len(mask)+2)
-	columns = append(columns, "total_agents")
-
+	columns := make([]string, 0, len(mask)+1)
 	for _, f := range mask {
 		if f == "etag" {
 			columns = append(columns, "id", "ver")

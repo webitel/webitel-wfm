@@ -188,6 +188,9 @@ func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *optio
 }
 
 func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, read *options.Read, agentIDs []int64) ([]*model.LookupItem, error) {
+	// A repeated id would fail the match with engine's answer below.
+	agentIDs = slices.Compact(slices.Sorted(slices.Values(agentIDs)))
+
 	agents, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{IDs: agentIDs})
 	if err != nil {
 		return nil, err
