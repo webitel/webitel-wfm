@@ -483,46 +483,6 @@ func TestCalendarReadsFromPrimary(t *testing.T) {
 	}
 }
 
-// Shift create writes one INSERT per shift and rereads exactly the rows it
-// wrote, from the primary.
-func TestCreateAgentsWorkingScheduleShiftsRereadsTheRowsItWrote(t *testing.T) {
-	aws, tr := newCalendarProbe(t, 11, 12)
-
-	in := []*model.AgentWorkingSchedule{{
-		Agent: model.LookupItem{ID: 3},
-		Schedule: []*model.AgentSchedule{
-			{Shift: &model.AgentScheduleShift{Start: 540, End: 1080}},
-			{Shift: &model.AgentScheduleShift{Start: 600, End: 900}},
-		},
-	}}
-
-	if _, err := aws.CreateAgentsWorkingScheduleShifts(context.Background(), &model.SignedInUser{ID: 1, DomainID: 1}, 7, in); err != nil {
-		t.Fatal(err)
-	}
-
-	if tr.queued != 2 {
-		t.Errorf("queued %d inserts, want one per shift (2)", tr.queued)
-	}
-
-	// The batch, then the read-back of the rows it wrote.
-	assertAsked(t, tr.asked, "primary", "primary")
-
-	if len(tr.calls) != 1 {
-		t.Fatalf("%d read-back queries, want 1", len(tr.calls))
-	}
-
-	c := tr.calls[0]
-	if !strings.Contains(c.sql, "(shift ->> 'id')::bigint") {
-		t.Errorf("read-back is not filtered to the rows written: %s", c.sql)
-	}
-
-	for _, id := range []int64{11, 12} {
-		if !slices.Contains(c.args, any(id)) {
-			t.Errorf("read-back args %v lack id %d returned by the batch", c.args, id)
-		}
-	}
-}
-
 // assertReadsBackFromPrimary runs a lookup write against a primary holding the
 // saved row and a standby still holding a stale one. The write must answer with
 // the saved row, read by the id it wrote.

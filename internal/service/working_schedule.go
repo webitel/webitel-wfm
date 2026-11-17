@@ -96,11 +96,11 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, read 
 	}
 
 	if !date.From.Valid {
-		date.From = model.NewTimestamp(ws.StartDateAt.Time.Unix())
+		date.From = model.DayStart(ws.StartDateAt)
 	}
 
 	if !date.To.Valid {
-		date.To = model.NewTimestamp(ws.EndDateAt.Time.Unix())
+		date.To = model.DayStart(ws.EndDateAt)
 	}
 
 	period := timeutils.NewPeriod(date.From.Time, date.To.Time, timeutils.IncludeAll)
