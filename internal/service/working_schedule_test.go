@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc/codes"
@@ -82,10 +83,15 @@ func TestUpdateWorkingScheduleRefusesAStaleVersion(t *testing.T) {
 type forecastStore struct {
 	storage.ForecastCalculationManager
 
-	rows []*model.ForecastCalculationResult
+	rows   []*model.ForecastCalculationResult
+	period *model.FilterBetween
 }
 
-func (f forecastStore) ExecuteForecastCalculation(context.Context, *model.SignedInUser, int64, int64, *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
+func (f forecastStore) ExecuteForecastCalculation(_ context.Context, _ *model.SignedInUser, _, _ int64, period *model.FilterBetween) ([]*model.ForecastCalculationResult, error) {
+	if f.period != nil {
+		*f.period = *period
+	}
+
 	return f.rows, nil
 }
 
@@ -121,6 +127,31 @@ func TestReadWorkingScheduleForecast(t *testing.T) {
 
 	if len(out) != 1 || *out[0].Agents != agents {
 		t.Errorf("forecast = %v, want one hour with %d agents", out, agents)
+	}
+}
+
+// Without a period the forecast covers the schedule's days, sent as UTC midnights: pgx
+// sends the wall clock, so a bound in the server's zone moves the day west of UTC.
+func TestReadWorkingScheduleForecastDefaultPeriod(t *testing.T) {
+	ctx, _ := signedIn()
+
+	read, err := options.NewRead(ctx, options.WithID(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got model.FilterBetween
+
+	eng := newEngine(t, &fakeEngine{team: &enginepb.AgentTeam{Id: 5, Name: "team", ForecastCalculation: &enginepb.Lookup{Id: 3}}})
+	svc := NewWorkingSchedule(scheduleStore{}, eng, NewForecastCalculation(forecastStore{period: &got}))
+
+	if _, err := svc.ReadWorkingScheduleForecast(ctx, read, &model.FilterBetween{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if from, to := got.From.Time.Format(time.DateTime), got.To.Time.Format(time.DateTime); got.From.Time.Location() != time.UTC ||
+		got.To.Time.Location() != time.UTC || from != "2026-10-01 00:00:00" || to != "2026-10-31 00:00:00" {
+		t.Errorf("period sent as %s..%s, want 2026-10-01 00:00:00..2026-10-31 00:00:00", from, to)
 	}
 }
 
