@@ -42,6 +42,21 @@ func TestWorkingScheduleStateKeepsItsName(t *testing.T) {
 	}
 }
 
+// The bounds of a schedule are calendar dates both ways: 00:00 UTC of the day, in ms.
+func TestWorkingScheduleDatesAreCalendarDates(t *testing.T) {
+	from, to := utcDay(2026, 11, 1), utcDay(2026, 11, 30)
+
+	in := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{StartDateAt: from, EndDateAt: to})
+	if in.StartDateAt.Time.Day() != 1 || in.EndDateAt.Time.Day() != 30 {
+		t.Errorf("dates come in as %s..%s", in.StartDateAt.Time, in.EndDateAt.Time)
+	}
+
+	out := in.MarshalProto()
+	if out.GetStartDateAt() != from || out.GetEndDateAt() != to {
+		t.Errorf("dates go back out as %d..%d, want %d..%d", out.GetStartDateAt(), out.GetEndDateAt(), from, to)
+	}
+}
+
 // The etag carries the id and version the row was read at. A row whose mask
 // left ver out has none: a token built from 0 would only cause false conflicts.
 func TestWorkingScheduleEtagCarriesTheVersion(t *testing.T) {

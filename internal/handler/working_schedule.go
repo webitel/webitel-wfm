@@ -64,8 +64,8 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 	date := &model.FilterBetween{}
 	if v := req.GetDate(); v != nil {
 		date = &model.FilterBetween{
-			From: model.NewTimestamp(v.GetFrom()),
-			To:   model.NewTimestamp(v.GetTo()),
+			From: model.TimestampFromMillis(v.GetFrom()),
+			To:   model.TimestampFromMillis(v.GetTo()),
 		}
 	}
 
@@ -77,7 +77,7 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 	out := make(map[int64]*pb.WorkingScheduleForecast)
 
 	for _, i := range items {
-		day := timeutils.Date(i.Timestamp.Time).Unix()
+		day := timeutils.Date(i.Timestamp.Time).UnixMilli()
 		if _, ok := out[day]; !ok {
 			out[day] = &pb.WorkingScheduleForecast{Forecast: make([]*pb.WorkingScheduleForecast_Forecast, 0)}
 		}
@@ -201,8 +201,8 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedul
 		State:                model.WorkingScheduleState(in.GetState().Number()),
 		Team:                 model.LookupItem{ID: in.GetTeam().GetId()},
 		Calendar:             model.LookupItem{ID: in.GetCalendar().GetId()},
-		StartDateAt:          model.NewDate(in.GetStartDateAt()),
-		EndDateAt:            model.NewDate(in.GetEndDateAt()),
+		StartDateAt:          model.DateFromMillis(in.GetStartDateAt()),
+		EndDateAt:            model.DateFromMillis(in.GetEndDateAt()),
 		StartTimeAt:          in.GetStartTimeAt(),
 		EndTimeAt:            in.GetEndTimeAt(),
 		ExtraSkills:          skills,

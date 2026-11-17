@@ -31,7 +31,7 @@ func (a *Absence) MarshalProto() *pb.Absence {
 		Id:        a.ID,
 		DomainId:  a.DomainID,
 		TypeId:    pb.AbsenceType(a.AbsenceType),
-		AbsentAt:  a.AbsentAt.Time.UnixMilli(),
+		AbsentAt:  DateMillis(a.AbsentAt),
 		CreatedAt: a.CreatedAt.Time.UnixMilli(),
 		CreatedBy: a.CreatedBy.MarshalProto(),
 		UpdatedAt: a.UpdatedAt.Time.UnixMilli(),
