@@ -22,6 +22,11 @@ func (s WorkingScheduleState) String() string {
 	return []string{"unspecified", "draft", "pending", "active", "archived"}[s]
 }
 
+// ShiftsWritable: an archived schedule is read only.
+func (s WorkingScheduleState) ShiftsWritable() bool {
+	return s == WorkingScheduleStateDraft || s == WorkingScheduleStatePending || s == WorkingScheduleStateActive
+}
+
 type WorkingSchedule struct {
 	DomainRecord
 

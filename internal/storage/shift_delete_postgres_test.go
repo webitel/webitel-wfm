@@ -94,7 +94,7 @@ func without(all, gone []int64) []int64 {
 }
 
 func TestDeleteShiftsOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	shifts := seedShiftsToDelete(t, db)
 	before := allShifts(t, ctx, db.Primary())
@@ -102,19 +102,12 @@ func TestDeleteShiftsOnPostgres(t *testing.T) {
 	cases := []struct {
 		name     string
 		from, to string
-		agents   []int64
 		want     []string
 	}{
 		{
-			name: "every agent over the whole schedule",
+			name: "the whole schedule",
 			from: "2026-10-01", to: "2026-11-30",
 			want: []string{"1 on 2nd", "1 on 3rd", "1 night of 5th", "2 on 3rd", "2 on 6th", "2 early on 8th"},
-		},
-		{
-			name: "one agent",
-			from: "2026-10-01", to: "2026-11-30",
-			agents: []int64{2},
-			want:   []string{"2 on 3rd", "2 on 6th", "2 early on 8th"},
 		},
 		{
 			name: "both ends are in the period",
@@ -141,12 +134,6 @@ func TestDeleteShiftsOnPostgres(t *testing.T) {
 			from: "2026-11-07", to: "2026-11-07",
 		},
 		{
-			name: "agents with and without shifts here",
-			from: "2026-11-01", to: "2026-11-30",
-			agents: []int64{1, 3, 4},
-			want:   []string{"1 on 2nd", "1 on 3rd", "1 night of 5th"},
-		},
-		{
 			name: "a period with no shifts",
 			from: "2026-11-20", to: "2026-11-30",
 		},
@@ -158,7 +145,7 @@ func TestDeleteShiftsOnPostgres(t *testing.T) {
 			from, to := workingDate(t, c.from), workingDate(t, c.to)
 
 			err := db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
-				got, err := deleteShifts(ctx, tx, 1, 1, from, to, c.agents)
+				got, err := deleteShifts(ctx, tx, 1, 1, from, to)
 				if err != nil {
 					t.Fatalf("delete: %v", err)
 				}
@@ -196,14 +183,14 @@ func TestDeleteShiftsOnPostgres(t *testing.T) {
 }
 
 func TestDeleteShiftsInTheCallersTransactionOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	shifts := seedShiftsToDelete(t, db)
 	before := allShifts(t, ctx, db.Primary())
 	from, to := workingDate(t, "2026-11-01"), workingDate(t, "2026-11-30")
 
 	err := db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
-		if _, err := deleteShifts(ctx, tx, 1, 1, from, to, []int64{2}); err != nil {
+		if _, err := deleteShifts(ctx, tx, 1, 1, from, to); err != nil {
 			return err
 		}
 
@@ -222,7 +209,7 @@ func TestDeleteShiftsInTheCallersTransactionOnPostgres(t *testing.T) {
 	err = db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
 		var err error
 
-		deleted, err = deleteShifts(ctx, tx, 1, 1, from, to, []int64{2})
+		deleted, err = deleteShifts(ctx, tx, 1, 1, from, to)
 
 		return err
 	})
@@ -230,7 +217,7 @@ func TestDeleteShiftsInTheCallersTransactionOnPostgres(t *testing.T) {
 		t.Fatalf("tx: %v", err)
 	}
 
-	want := idsOf(shifts, "2 on 3rd", "2 on 6th", "2 early on 8th")
+	want := idsOf(shifts, "1 on 2nd", "1 on 3rd", "1 night of 5th", "2 on 3rd", "2 on 6th", "2 early on 8th")
 	if !slices.Equal(deleted, want) {
 		t.Errorf("deleted %v, want %v", deleted, want)
 	}
@@ -246,7 +233,7 @@ func TestDeleteShiftsInTheCallersTransactionOnPostgres(t *testing.T) {
 }
 
 func TestDeleteShiftsRefusesOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 
 	seedShiftsToDelete(t, db)
@@ -274,7 +261,7 @@ VALUES (1, 1, 5, '2026-11-20', '2026-11-20 09:00+02', '2026-11-20 17:00+02')`); 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			err := db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
-				_, err := deleteShifts(ctx, tx, c.domain, c.schedule, from, to, nil)
+				_, err := deleteShifts(ctx, tx, c.domain, c.schedule, from, to)
 
 				return err
 			})
@@ -295,7 +282,7 @@ VALUES (1, 1, 5, '2026-11-20', '2026-11-20 09:00+02', '2026-11-20 17:00+02')`); 
 }
 
 func TestDeleteShiftsOfEveryWritableStateOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 
 	if _, err := conn.Exec(ctx, "UPDATE wfm.working_schedule SET state = 2 WHERE id = 3"); err != nil {
@@ -316,7 +303,7 @@ func TestDeleteShiftsOfEveryWritableStateOnPostgres(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			err := db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
-				got, err := deleteShifts(ctx, tx, 1, c.schedule, from, to, nil)
+				got, err := deleteShifts(ctx, tx, 1, c.schedule, from, to)
 				if err != nil {
 					return err
 				}
@@ -355,7 +342,7 @@ func waitForLockWait(t *testing.T, ctx context.Context, db dbsql.Store) bool {
 }
 
 func TestDeleteShiftsHoldsShiftWritesOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
 
@@ -369,7 +356,7 @@ func TestDeleteShiftsHoldsShiftWritesOnPostgres(t *testing.T) {
 
 	go func() {
 		deleteDone <- db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
-			_, err := deleteShifts(ctx, tx, 1, 1, from, to, nil)
+			_, err := deleteShifts(ctx, tx, 1, 1, from, to)
 
 			close(deleted)
 
@@ -429,7 +416,7 @@ func TestDeleteShiftsHoldsShiftWritesOnPostgres(t *testing.T) {
 }
 
 func TestDeleteShiftsWaitsForAShiftWriteOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 
 	seedShiftsToDelete(t, db)
@@ -466,7 +453,7 @@ VALUES (1, 1, 1, '2026-11-20', '2026-11-20 09:00+02', '2026-11-20 17:00+02') RET
 		r.err = db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
 			var err error
 
-			r.ids, err = deleteShifts(ctx, tx, 1, 1, from, to, nil)
+			r.ids, err = deleteShifts(ctx, tx, 1, 1, from, to)
 
 			return err
 		})
