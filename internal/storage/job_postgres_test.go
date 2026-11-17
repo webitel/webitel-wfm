@@ -66,7 +66,7 @@ func jobByID(t *testing.T, conn *pgx.Conn, id int64) *model.Job {
 }
 
 func TestEnqueueJobOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -113,7 +113,7 @@ func TestEnqueueJobOnPostgres(t *testing.T) {
 }
 
 func TestEnqueueJobOnceUnderRaceOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	jobs := NewJob(db)
 
 	const callers = 8
@@ -151,7 +151,7 @@ func TestEnqueueJobOnceUnderRaceOnPostgres(t *testing.T) {
 }
 
 func TestClaimJobOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -183,7 +183,7 @@ func TestClaimJobOnPostgres(t *testing.T) {
 }
 
 func TestClaimJobSkipsALockedRowOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -211,7 +211,7 @@ func TestClaimJobSkipsALockedRowOnPostgres(t *testing.T) {
 }
 
 func TestClaimJobOnceUnderRaceOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	jobs := NewJob(db)
 
 	const total, claimers = 30, 8
@@ -259,7 +259,7 @@ func TestClaimJobOnceUnderRaceOnPostgres(t *testing.T) {
 }
 
 func TestFinishJobOnlyByItsOwnerOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -309,7 +309,7 @@ func TestFinishJobOnlyByItsOwnerOnPostgres(t *testing.T) {
 }
 
 func TestRequeueJobOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -352,7 +352,7 @@ func TestRequeueJobOnPostgres(t *testing.T) {
 }
 
 func TestRecoverExpiredJobsOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -386,7 +386,7 @@ func TestRecoverExpiredJobsOnPostgres(t *testing.T) {
 }
 
 func TestLastJobOfScheduleOnPostgres(t *testing.T) {
-	db, _ := newPostgres(t)
+	db, _ := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -415,7 +415,7 @@ func TestLastJobOfScheduleOnPostgres(t *testing.T) {
 }
 
 func TestJobOfALostLeaseStaysWithItsNewOwnerOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
@@ -442,7 +442,7 @@ func TestJobOfALostLeaseStaysWithItsNewOwnerOnPostgres(t *testing.T) {
 }
 
 func TestCompleteJobInTheCallersTransactionOnPostgres(t *testing.T) {
-	db, conn := newPostgres(t)
+	db, conn := newPostgres(t, shiftSeed)
 	ctx := context.Background()
 	jobs := NewJob(db)
 
