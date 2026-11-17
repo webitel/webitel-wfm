@@ -50,6 +50,7 @@
           },
           {
             "name": "date.to",
+            "description": "The last day, included.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -131,7 +132,8 @@
               "type": "object",
               "properties": {
                 "date": {
-                  "$ref": "#/definitions/wfmFilterBetween"
+                  "$ref": "#/definitions/wfmDateRange",
+                  "description": "Date from and Date to of the modal."
                 },
                 "agents": {
                   "type": "array",
@@ -140,14 +142,31 @@
                     "$ref": "#/definitions/wfmLookupEntity"
                   }
                 },
-                "items": {
+                "days": {
                   "type": "object",
                   "additionalProperties": {
-                    "$ref": "#/definitions/wfmAgentScheduleShift"
+                    "$ref": "#/definitions/wfmShiftTemplateDay"
                   },
-                  "description": "Map key is a day of week: 0 - Sunday, ..., 6 - Saturday."
+                  "description": "Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the\nmap, one switched off in the modal, gets no shifts."
+                },
+                "pauses": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "$ref": "#/definitions/wfmShiftTemplatePause"
+                  },
+                  "description": "Pauses of every day. Each belongs to the range that contains it; a pause outside\nevery range of a day refuses the request."
+                },
+                "skills": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "$ref": "#/definitions/wfmAgentScheduleShiftSkill"
+                  },
+                  "description": "Skills switched on for the time of every shift the request creates. Different\nskills for different ranges take separate requests."
                 }
-              }
+              },
+              "description": "The Add shifts modal: a weekly template the server expands into shifts over a range\nof dates (WFM-103). Hours are wall-clock minutes from midnight in the time zone of\nthe schedule's calendar, so a shift keeps its hours across a daylight saving change."
             }
           }
         ],
@@ -201,16 +220,22 @@
       "properties": {
         "date": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
         },
         "locked": {
           "type": "boolean"
         },
         "absence": {
-          "$ref": "#/definitions/wfmAbsenceType"
+          "$ref": "#/definitions/wfmAbsenceType",
+          "description": "A day has an absence or shifts, not both."
         },
-        "shift": {
-          "$ref": "#/definitions/wfmAgentScheduleShift"
+        "shifts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmAgentScheduleShift"
+          }
         }
       }
     },
@@ -239,11 +264,12 @@
         "updatedBy": {
           "$ref": "#/definitions/wfmLookupEntity"
         },
-        "start": {
+        "startAt": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "Epoch milliseconds. The shift ends right before end_at, so the next one can start at end_at."
         },
-        "end": {
+        "endAt": {
           "type": "string",
           "format": "int64"
         },
@@ -260,6 +286,24 @@
             "type": "object",
             "$ref": "#/definitions/wfmAgentScheduleShiftSkill"
           }
+        },
+        "workingDate": {
+          "type": "string",
+          "format": "int64",
+          "description": "Set by the server. The working date, a date as in DateRange: the day the shift starts\non in the time zone of the schedule's calendar, so a night shift belongs to the day it\nstarts. 00:00 UTC of that day, epoch milliseconds."
+        },
+        "etag": {
+          "type": "string",
+          "description": "Version of the shift, returned by every read. Editing a shift requires it (WFM-99)."
+        },
+        "source": {
+          "$ref": "#/definitions/wfmShiftSource",
+          "description": "Set by the server."
+        },
+        "plannerRunId": {
+          "type": "string",
+          "format": "int64",
+          "description": "Set by the server for a planner's shift: the planning run that wrote it."
         }
       }
     },
@@ -288,11 +332,12 @@
         "updatedBy": {
           "$ref": "#/definitions/wfmLookupEntity"
         },
-        "start": {
+        "startAt": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "Epoch milliseconds, inside the shift."
         },
-        "end": {
+        "endAt": {
           "type": "string",
           "format": "int64"
         },
@@ -307,14 +352,11 @@
         "skill": {
           "$ref": "#/definitions/wfmLookupEntity"
         },
-        "capacity": {
-          "type": "string",
-          "format": "int64"
-        },
         "enabled": {
           "type": "boolean"
         }
-      }
+      },
+      "description": "AgentScheduleShiftSkill switches a skill the agent already has on or off for the time\nof the shift, with the agent's own capacity (WFM-114)."
     },
     "wfmAgentWorkingSchedule": {
       "type": "object",
@@ -331,6 +373,32 @@
         }
       }
     },
+    "wfmCalendarDay": {
+      "type": "object",
+      "properties": {
+        "ranges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmCalendarRange"
+          },
+          "description": "Working hours, wall-clock minutes from midnight in the calendar's zone."
+        }
+      }
+    },
+    "wfmCalendarRange": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "end": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "wfmCreateAgentsWorkingScheduleShiftsResponse": {
       "type": "object",
       "properties": {
@@ -340,10 +408,18 @@
             "type": "object",
             "$ref": "#/definitions/wfmAgentWorkingSchedule"
           }
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmSkippedDay"
+          },
+          "description": "Days the request left without shifts, and why: an absence, or a date another\nactive schedule locks (WFM-103)."
         }
       }
     },
-    "wfmFilterBetween": {
+    "wfmDateRange": {
       "type": "object",
       "properties": {
         "from": {
@@ -352,16 +428,19 @@
         },
         "to": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "The last day, included."
         }
-      }
+      },
+      "description": "DateRange is an inclusive range of calendar dates. A date anywhere in WFM is a day, not\nan instant: 00:00 UTC of that day in epoch milliseconds, the same for every client\nwhatever its time zone. Any other value is refused, so a local midnight shows up as\nan error instead of a day shifted by the client's offset."
     },
     "wfmHoliday": {
       "type": "object",
       "properties": {
         "date": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "A date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
         },
         "name": {
           "type": "string"
@@ -377,6 +456,22 @@
         },
         "name": {
           "type": "string"
+        }
+      }
+    },
+    "wfmScheduleCalendar": {
+      "type": "object",
+      "properties": {
+        "timeZone": {
+          "type": "string",
+          "description": "IANA name, such as \"Europe/Kyiv\"."
+        },
+        "week": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/wfmCalendarDay"
+          },
+          "description": "Map key is a day of week as in the Add shifts template: 0 - Sunday, ..., 6 - Saturday.\nEvery day is present; a day without ranges is a day off."
         }
       }
     },
@@ -400,6 +495,82 @@
         "total": {
           "type": "string",
           "format": "int64"
+        },
+        "calendar": {
+          "$ref": "#/definitions/wfmScheduleCalendar",
+          "description": "The calendar of the schedule, to tell working days from days off and to show\ntimes in its zone."
+        }
+      }
+    },
+    "wfmShiftSource": {
+      "type": "string",
+      "enum": [
+        "SHIFT_SOURCE_UNSPECIFIED",
+        "SHIFT_SOURCE_MANUAL",
+        "SHIFT_SOURCE_PLANNER"
+      ],
+      "default": "SHIFT_SOURCE_UNSPECIFIED"
+    },
+    "wfmShiftTemplateDay": {
+      "type": "object",
+      "properties": {
+        "ranges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmShiftTemplateRange"
+          }
+        }
+      },
+      "description": "ShiftTemplateDay holds the shifts of one day of week, several when the agent works\non different skills at different hours."
+    },
+    "wfmShiftTemplatePause": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Minutes from midnight."
+        },
+        "duration": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Minutes."
+        },
+        "cause": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        }
+      },
+      "description": "ShiftTemplatePause is a pause of every day at a wall-clock time. In a range that\ncrosses midnight, a pause after 00:00 belongs to the shift of the previous day."
+    },
+    "wfmShiftTemplateRange": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "end": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "description": "ShiftTemplateRange is one shift of a day, in minutes from midnight. An end before the\nstart crosses midnight: 1320 to 360 is 22:00 to 06:00, a shift of the day it starts on."
+    },
+    "wfmSkippedDay": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "date": {
+          "type": "string",
+          "format": "int64",
+          "description": "A date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
+        },
+        "reason": {
+          "type": "string",
+          "description": "An error id, \u003clayer\u003e.\u003centity\u003e.\u003cwhat\u003e."
         }
       }
     }
