@@ -108,8 +108,7 @@ func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) 
 		return nil, err
 	}
 
-	writable := []model.WorkingScheduleState{model.WorkingScheduleStateDraft, model.WorkingScheduleStatePending, model.WorkingScheduleStateActive}
-	if !slices.Contains(writable, schedule.State) {
+	if !schedule.State.ShiftsWritable() {
 		return nil, errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", schedule.State.String()))
 	}
 
@@ -121,6 +120,49 @@ func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) 
 	schedule.zone = zone
 
 	return &schedule, nil
+}
+
+// FOR NO KEY UPDATE: shift writes take this row FOR SHARE, so they and a delete wait for each other.
+const deleteShiftsLockSQL = `
+SELECT ws.state
+FROM wfm.working_schedule ws
+WHERE ws.domain_id = $1
+  AND ws.id = $2
+FOR NO KEY UPDATE`
+
+const deleteShiftsSQL = `
+WITH deleted AS (
+    DELETE
+    FROM wfm.agent_working_schedule aws
+        USING wfm.working_schedule_agent wsa
+    WHERE wsa.id = aws.working_schedule_agent_id
+      AND wsa.working_schedule_id = $1
+      AND aws.schedule_at BETWEEN $2::date AND $3::date
+    RETURNING aws.id)
+SELECT id
+FROM deleted
+ORDER BY id`
+
+// deleteShifts deletes the schedule's shifts by working date; removing an agent takes theirs through the foreign key.
+// A caller that also takes agents' locks takes them first, as CreateShifts does.
+func deleteShifts(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, from, to time.Time) ([]int64, error) {
+	var schedule struct {
+		State model.WorkingScheduleState `db:"state"`
+	}
+	if err := tx.Primary().Get(ctx, &schedule, deleteShiftsLockSQL, domainID, scheduleID); err != nil {
+		return nil, err
+	}
+
+	if !schedule.State.ShiftsWritable() {
+		return nil, errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", schedule.State.String()))
+	}
+
+	var ids []int64
+	if err := tx.Primary().Select(ctx, &ids, deleteShiftsSQL, scheduleID, from, to); err != nil {
+		return nil, err
+	}
+
+	return ids, nil
 }
 
 // Other schedules count only when active (EP_05).
