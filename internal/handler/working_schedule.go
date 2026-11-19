@@ -170,7 +170,7 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 	return &pb.UpdateWorkingScheduleAddAgentsResponse{Agents: out}, nil
 }
 
-func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgents(ctx context.Context, req *pb.UpdateWorkingScheduleRemoveAgentRequest) (*pb.UpdateWorkingScheduleRemoveAgentResponse, error) {
+func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, req *pb.UpdateWorkingScheduleRemoveAgentRequest) (*pb.UpdateWorkingScheduleRemoveAgentResponse, error) {
 	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
 	if err != nil {
 		return nil, err

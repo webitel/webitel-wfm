@@ -11,6 +11,8 @@ import (
 	"github.com/webitel/webitel-wfm/internal/model"
 )
 
+const agentsPageSize = 1000
+
 type AgentService struct {
 	cli gogrpc.AgentServiceClient
 }
@@ -29,8 +31,9 @@ func (a *AgentService) Agent(ctx context.Context, id int64) (int64, error) {
 }
 
 func (a *AgentService) Agents(ctx context.Context, search *model.AgentSearch) ([]int64, error) {
+	// Engine answers an unsized search with 40 agents.
 	req := &pb.SearchAgentRequest{
-		Size:   -1,
+		Size:   agentsPageSize,
 		Fields: []string{"id"},
 	}
 
@@ -70,15 +73,20 @@ func (a *AgentService) Agents(ctx context.Context, search *model.AgentSearch) ([
 		req.SkillId = ids
 	}
 
-	agents, err := a.cli.SearchAgent(ctx, req)
-	if err != nil {
-		return nil, webitel.ParseError(err)
-	}
+	var ids []int64
 
-	ids := make([]int64, 0, len(agents.GetItems()))
-	for _, id := range agents.GetItems() {
-		ids = append(ids, id.GetId())
-	}
+	for req.Page = 1; ; req.Page++ {
+		agents, err := a.cli.SearchAgent(ctx, req)
+		if err != nil {
+			return nil, webitel.ParseError(err)
+		}
 
-	return ids, nil
+		for _, agent := range agents.GetItems() {
+			ids = append(ids, agent.GetId())
+		}
+
+		if !agents.GetNext() || len(agents.GetItems()) == 0 {
+			return ids, nil
+		}
+	}
 }
