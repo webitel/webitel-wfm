@@ -19,6 +19,11 @@ var ErrWorkingScheduleVersionConflict = errors.Aborted("working schedule was cha
 
 var ErrWorkingScheduleSort = errors.InvalidArgument("working schedules sort by name or state only", errors.WithID("storage.working_schedule.sort"))
 
+var (
+	ErrWorkingScheduleActive   = errors.FailedPrecondition("an active working schedule is not deleted; change its state first", errors.WithID("storage.working_schedule.active"))
+	ErrWorkingScheduleArchived = errors.FailedPrecondition("an archived working schedule is read only", errors.WithID("storage.working_schedule.archived"))
+)
+
 // The sort goes into SQL, so only these; states sort as Active, Pending, Draft, Archived (US_05.01).
 var workingScheduleOrder = map[string]string{
 	"name":  "name",
@@ -266,18 +271,52 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 }
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *options.Read) (int64, error) {
-	db := builder.Delete(builder.WorkingScheduleTable.Name())
-	clauses := []string{
-		db.Equal("domain_id", read.User().DomainID),
-		db.Equal("id", read.ID()),
-	}
+	err := w.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		state, err := lockState(ctx, tx, read, "UPDATE")
+		if err != nil {
+			return err
+		}
 
-	sql, args := db.Where(clauses...).Build()
-	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
+		if state == model.WorkingScheduleStateActive {
+			return ErrWorkingScheduleActive
+		}
+
+		db := builder.Delete(builder.WorkingScheduleTable.Name())
+		sql, args := db.Where(db.Equal("domain_id", read.User().DomainID), db.Equal("id", read.ID())).Build()
+
+		return tx.Primary().Exec(ctx, sql, args...)
+	})
+	if err != nil {
 		return 0, err
 	}
 
 	return read.ID(), nil
+}
+
+// lockState reads the schedule's state under a row lock, so a state change waits for the caller's transaction.
+func lockState(ctx context.Context, tx dbsql.Tx, read *options.Read, lock string) (model.WorkingScheduleState, error) {
+	var schedule struct {
+		State model.WorkingScheduleState `db:"state"`
+	}
+
+	err := tx.Primary().Get(ctx, &schedule, "SELECT state FROM wfm.working_schedule WHERE domain_id = $1 AND id = $2 FOR "+lock,
+		read.User().DomainID, read.ID())
+
+	return schedule.State, err
+}
+
+// writableAgents locks the schedule FOR SHARE, as shift writes do, and refuses an archived one.
+func writableAgents(ctx context.Context, tx dbsql.Tx, read *options.Read) error {
+	state, err := lockState(ctx, tx, read, "SHARE")
+	if err != nil {
+		return err
+	}
+
+	if state == model.WorkingScheduleStateArchived {
+		return ErrWorkingScheduleArchived
+	}
+
+	return nil
 }
 
 // skipAgentInSchedule makes adding an agent the schedule already has a no-op. It names no
@@ -294,12 +333,24 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 		})
 	}
 
-	sql, args := builder.Insert(builder.WorkingScheduleAgentTable.Name(), columns).SQL(skipAgentInSchedule).Build()
-	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
-		return nil, err
-	}
+	var out *model.WorkingSchedule
 
-	out, err := w.read(ctx, w.db.Primary(), read)
+	err := w.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		if err := writableAgents(ctx, tx, read); err != nil {
+			return err
+		}
+
+		sql, args := builder.Insert(builder.WorkingScheduleAgentTable.Name(), columns).SQL(skipAgentInSchedule).Build()
+		if err := tx.Primary().Exec(ctx, sql, args...); err != nil {
+			return err
+		}
+
+		var err error
+
+		out, err = w.read(ctx, tx.Primary(), read)
+
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -308,14 +359,21 @@ func (w *WorkingSchedule) UpdateWorkingScheduleAddAgents(ctx context.Context, re
 }
 
 func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, read *options.Read, agentID int64) (int64, error) {
-	db := builder.Delete(builder.WorkingScheduleAgentTable.Name())
-	sql, args := db.Where(
-		db.Equal("domain_id", read.User().DomainID),
-		db.Equal("working_schedule_id", read.ID()),
-		db.Equal("agent_id", agentID),
-	).Build()
+	err := w.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		if err := writableAgents(ctx, tx, read); err != nil {
+			return err
+		}
 
-	if err := w.db.Primary().Exec(ctx, sql, args...); err != nil {
+		db := builder.Delete(builder.WorkingScheduleAgentTable.Name())
+		sql, args := db.Where(
+			db.Equal("domain_id", read.User().DomainID),
+			db.Equal("working_schedule_id", read.ID()),
+			db.Equal("agent_id", agentID),
+		).Build()
+
+		return tx.Primary().Exec(ctx, sql, args...)
+	})
+	if err != nil {
 		return 0, err
 	}
 
