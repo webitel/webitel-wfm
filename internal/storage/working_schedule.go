@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 
@@ -48,7 +49,7 @@ type WorkingSchedule struct {
 }
 
 func NewWorkingSchedule(db dbsql.Store) *WorkingSchedule {
-	dbsql.RegisterConstraint("working_schedule_check", "start_date_at should be lower that end_date_at")
+	dbsql.RegisterConstraint("working_schedule_check", "start_date_at should not be after end_date_at")
 
 	return &WorkingSchedule{db: db}
 }
@@ -216,6 +217,12 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 	schedule := map[string]any{
 		"updated_by":             user.ID,
 		"name":                   in.Name,
+		"team_id":                in.Team.SafeID(),
+		"calendar_id":            in.Calendar.SafeID(),
+		"start_date_at":          in.StartDateAt,
+		"end_date_at":            in.EndDateAt,
+		"start_time_at":          in.StartTimeAt,
+		"end_time_at":            in.EndTimeAt,
 		"block_outside_activity": in.BlockOutsideActivity,
 		"ver":                    builder.Format("ver + 1"),
 	}
@@ -252,23 +259,82 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		return nil, err
 	}
 
-	var id int64
-	if err := w.db.Primary().Get(ctx, &id, sql, args...); err != nil {
-		if !errors.Is(err, dbsql.ErrNoRows) {
-			return nil, err
+	var out *model.WorkingSchedule
+
+	err = w.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		var old struct {
+			Team     int64     `db:"team_id"`
+			Calendar int64     `db:"calendar_id"`
+			Start    time.Time `db:"start_date_at"`
+			End      time.Time `db:"end_date_at"`
+		}
+		if err := tx.Primary().Get(ctx, &old, lockHeaderSQL, user.DomainID, in.ID); err != nil {
+			return err
 		}
 
-		// Zero rows is ambiguous: the read tells a gone row (NotFound, also for
-		// another domain) from one at another version.
-		if _, err := w.read(ctx, w.db.Primary(), read); err != nil {
-			return nil, err
+		var id int64
+		if err := tx.Primary().Get(ctx, &id, sql, args...); err != nil {
+			// The row is locked above, so only its version can differ.
+			if errors.Is(err, dbsql.ErrNoRows) {
+				return ErrWorkingScheduleVersionConflict
+			}
+
+			return err
 		}
 
-		return nil, ErrWorkingScheduleVersionConflict
+		// The time scale, the name and the skills keep the shifts.
+		switch {
+		case old.Team != in.Team.ID:
+			// The new team's agents replace every agent; removing one takes their shifts through the foreign key.
+			if err := tx.Primary().Exec(ctx, "DELETE FROM wfm.working_schedule_agent WHERE domain_id = $1 AND working_schedule_id = $2", user.DomainID, in.ID); err != nil {
+				return err
+			}
+
+			agents := make([]int64, 0, len(in.Agents))
+			for _, a := range in.Agents {
+				agents = append(agents, a.ID)
+			}
+
+			if err := tx.Primary().Exec(ctx, `INSERT INTO wfm.working_schedule_agent (domain_id, working_schedule_id, agent_id)
+SELECT $1, $2, unnest($3::int8[]) `+skipAgentInSchedule, user.DomainID, in.ID, agents); err != nil {
+				return err
+			}
+		case old.Calendar != in.Calendar.ID:
+			// A new calendar moves the working dates.
+			if _, err := deleteShifts(ctx, tx, user.DomainID, in.ID, old.Start, old.End); err != nil {
+				return err
+			}
+		case in.StartDateAt.Time.After(old.Start) || in.EndDateAt.Time.Before(old.End):
+			// The shifts outside the new dates go; a range ending before it starts deletes nothing.
+			if _, err := deleteShifts(ctx, tx, user.DomainID, in.ID, old.Start, in.StartDateAt.Time.AddDate(0, 0, -1)); err != nil {
+				return err
+			}
+
+			if _, err := deleteShifts(ctx, tx, user.DomainID, in.ID, in.EndDateAt.Time.AddDate(0, 0, 1), old.End); err != nil {
+				return err
+			}
+		}
+
+		var err error
+
+		out, err = w.read(ctx, tx.Primary(), read)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return w.read(ctx, w.db.Primary(), read)
+	return out, nil
 }
+
+// FOR UPDATE: the header read here is the one the update after it replaces.
+const lockHeaderSQL = `
+SELECT team_id, calendar_id, start_date_at, end_date_at
+FROM wfm.working_schedule
+WHERE domain_id = $1
+  AND id = $2
+FOR UPDATE`
 
 func (w *WorkingSchedule) DeleteWorkingSchedule(ctx context.Context, read *options.Read) (int64, error) {
 	err := w.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {

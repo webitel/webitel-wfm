@@ -195,6 +195,12 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedul
 		agents = append(agents, &model.LookupItem{ID: agent.GetId()})
 	}
 
+	// An empty time scale is the whole day.
+	endTime := in.GetEndTimeAt()
+	if in.GetStartTimeAt() == 0 && endTime == 0 {
+		endTime = 1440
+	}
+
 	return &model.WorkingSchedule{
 		DomainRecord:         model.DomainRecord{ID: in.GetId()},
 		Name:                 in.GetName(),
@@ -204,7 +210,7 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedul
 		StartDateAt:          model.DateFromMillis(in.GetStartDateAt()),
 		EndDateAt:            model.DateFromMillis(in.GetEndDateAt()),
 		StartTimeAt:          in.GetStartTimeAt(),
-		EndTimeAt:            in.GetEndTimeAt(),
+		EndTimeAt:            endTime,
 		ExtraSkills:          skills,
 		BlockOutsideActivity: in.GetBlockOutsideActivity(),
 		Agents:               agents,

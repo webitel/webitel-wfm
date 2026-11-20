@@ -51,12 +51,33 @@ func NewWorkingSchedule(storage storage.WorkingScheduleManager, engine *engine.C
 }
 
 func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
-	agentIDs, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{TeamIDs: []int64{in.Team.ID}})
+	if err := in.Validate(); err != nil {
+		return nil, err
+	}
+
+	agents, err := w.teamAgents(ctx, user.DomainID, in.Team.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	deactivated, err := w.storage.DeactivatedAgents(ctx, user.DomainID, agentIDs)
+	in.Agents = agents
+
+	out, err := w.storage.CreateWorkingSchedule(ctx, user, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// teamAgents are the team's agents the user can read, without deactivated users.
+func (w *WorkingSchedule) teamAgents(ctx context.Context, domainID, teamID int64) ([]*model.LookupItem, error) {
+	agentIDs, err := w.engine.AgentService().Agents(ctx, &model.AgentSearch{TeamIDs: []int64{teamID}})
+	if err != nil {
+		return nil, err
+	}
+
+	deactivated, err := w.storage.DeactivatedAgents(ctx, domainID, agentIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -70,14 +91,7 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 		agents = append(agents, &model.LookupItem{ID: a})
 	}
 
-	in.Agents = agents
-
-	out, err := w.storage.CreateWorkingSchedule(ctx, user, in)
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
+	return agents, nil
 }
 
 func (w *WorkingSchedule) ReadWorkingSchedule(ctx context.Context, read *options.Read) (*model.WorkingSchedule, error) {
@@ -137,6 +151,10 @@ func (w *WorkingSchedule) SearchWorkingSchedule(ctx context.Context, search *opt
 }
 
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
+	if err := in.Validate(); err != nil {
+		return nil, err
+	}
+
 	read, err := options.NewRead(ctx, options.WithID(in.ID))
 	if err != nil {
 		return nil, err
@@ -147,8 +165,7 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		return nil, err
 	}
 
-	// Before the team/calendar branch, which never reaches the storage guard, and
-	// before the state check, so a stale client rereads and sees the true state.
+	// Before the state check, so a stale client rereads first; a state change bumps ver, so the storage guard covers a racing one.
 	if item.Ver != in.Ver {
 		return nil, storage.ErrWorkingScheduleVersionConflict
 	}
@@ -157,17 +174,11 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model
 		return nil, errors.Wrap(ErrWorkingScheduleUpdateDraft, errors.WithValue("state", item.State.String()))
 	}
 
-	if item.Team.ID != in.Team.ID || item.Calendar.ID != in.Calendar.ID {
-		if _, err := w.DeleteWorkingSchedule(ctx, read); err != nil {
+	// The storage replaces the agents with these only when the team changes.
+	if item.Team.ID != in.Team.ID {
+		if in.Agents, err = w.teamAgents(ctx, user.DomainID, in.Team.ID); err != nil {
 			return nil, err
 		}
-
-		out, err := w.CreateWorkingSchedule(ctx, user, item)
-		if err != nil {
-			return nil, err
-		}
-
-		return out, nil
 	}
 
 	out, err := w.storage.UpdateWorkingSchedule(ctx, user, in)
