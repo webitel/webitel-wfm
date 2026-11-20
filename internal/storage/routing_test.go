@@ -70,6 +70,8 @@ func (p probeNode[T]) Get(_ context.Context, dest any, sql string, args ...any) 
 	case **string: // a name lookup such as to_regproc: found
 		name := "found"
 		*out = &name
+	case *shiftSchedule: // the schedule lock: a draft takes every write
+		out.State = model.WorkingScheduleStateDraft
 	}
 
 	return nil
@@ -117,6 +119,15 @@ type probeStore[T any] struct {
 
 func (p *probeStore[T]) Primary() dbsql.Node          { return p.primary }
 func (p *probeStore[T]) StandbyPreferred() dbsql.Node { return p.standby }
+
+// InTx runs fn on the same nodes: the tests check which role a query reaches, not the transaction.
+func (p *probeStore[T]) InTx(ctx context.Context, fn func(context.Context, dbsql.Tx) error) error {
+	return fn(ctx, probeTx[T]{p})
+}
+
+type probeTx[T any] struct{ *probeStore[T] }
+
+func (probeTx[T]) Lock(context.Context, ...dbsql.LockKey) error { return nil }
 
 // newProbeStore wires nodes onto canned rows. primaryRows and standbyRows are
 // separate so a test can simulate replication lag; batchIDs is what a batch or
@@ -231,8 +242,8 @@ func TestUpdateWorkingScheduleAddAgentsReadsBackFromPrimary(t *testing.T) {
 		t.Errorf("add agents returned %+v, want the agent just added: the read-back went to a lagging standby", out)
 	}
 
-	// The INSERT, then the read-back.
-	assertAsked(t, tr.asked, "primary", "primary")
+	// The state lock, the INSERT, then the read-back.
+	assertAsked(t, tr.asked, "primary", "primary", "primary")
 }
 
 // A client rereads the schedule by id straight after saving, so that read
@@ -444,7 +455,8 @@ func TestWorkingScheduleWritesRunOnPrimary(t *testing.T) {
 				t.Errorf("returned %d, want %d", got, tc.want)
 			}
 
-			assertAsked(t, tr.asked, "primary")
+			// The state lock, then the write.
+			assertAsked(t, tr.asked, "primary", "primary")
 		})
 	}
 }

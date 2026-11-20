@@ -53,9 +53,13 @@ func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.Sig
 			return err
 		}
 
-		schedule, err := lockSchedule(ctx, tx, user.DomainID, scheduleID)
+		schedule, err := lockSchedule(ctx, tx, user.DomainID, scheduleID, lockShare)
 		if err != nil {
 			return err
+		}
+
+		if !schedule.State.ShiftsWritable() {
+			return errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", schedule.State.String()))
 		}
 
 		violations, err := shiftViolations(ctx, tx, schedule, in)
@@ -96,20 +100,29 @@ func (s *shiftSchedule) date(shift *model.Shift) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) (*shiftSchedule, error) {
+// rowLock is how a write locks the schedule row, so a state change waits for the write's transaction.
+type rowLock string
+
+const (
+	// lockShare: shift and agent writes run side by side.
+	lockShare rowLock = "SHARE"
+	// lockNoKeyUpdate: deleting shifts waits for shift writes, not for inserts that only reference the schedule.
+	lockNoKeyUpdate rowLock = "NO KEY UPDATE"
+	// lockUpdate: two deletes of one schedule queue up instead of deadlocking on the DELETE.
+	lockUpdate rowLock = "UPDATE"
+)
+
+// lockSchedule reads the schedule under a row lock; the caller checks its state.
+func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, lock rowLock) (*shiftSchedule, error) {
 	q := builder.Select("ws.state", "ws.start_date_at", "ws.end_date_at", "tz.sys_name AS time_zone").
 		From("wfm.working_schedule ws").
 		Join("flow.calendar c", "c.id = ws.calendar_id").
 		Join("flow.calendar_timezones tz", "tz.id = c.timezone_id")
-	sql, args := q.Where(q.Equal("ws.domain_id", domainID), q.Equal("ws.id", scheduleID)).ForShare("ws").Build()
+	sql, args := q.Where(q.Equal("ws.domain_id", domainID), q.Equal("ws.id", scheduleID)).SQL("FOR " + string(lock) + " OF ws").Build()
 
 	schedule := shiftSchedule{ID: scheduleID, DomainID: domainID}
 	if err := tx.Primary().Get(ctx, &schedule, sql, args...); err != nil {
 		return nil, err
-	}
-
-	if !schedule.State.ShiftsWritable() {
-		return nil, errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", schedule.State.String()))
 	}
 
 	zone, err := time.LoadLocation(schedule.TimeZone)
@@ -121,14 +134,6 @@ func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64) 
 
 	return &schedule, nil
 }
-
-// FOR NO KEY UPDATE: shift writes take this row FOR SHARE, so they and a delete wait for each other.
-const deleteShiftsLockSQL = `
-SELECT ws.state
-FROM wfm.working_schedule ws
-WHERE ws.domain_id = $1
-  AND ws.id = $2
-FOR NO KEY UPDATE`
 
 const deleteShiftsSQL = `
 WITH deleted AS (
@@ -146,10 +151,8 @@ ORDER BY id`
 // deleteShifts deletes the schedule's shifts by working date; removing an agent takes theirs through the foreign key.
 // A caller that also takes agents' locks takes them first, as CreateShifts does.
 func deleteShifts(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, from, to time.Time) ([]int64, error) {
-	var schedule struct {
-		State model.WorkingScheduleState `db:"state"`
-	}
-	if err := tx.Primary().Get(ctx, &schedule, deleteShiftsLockSQL, domainID, scheduleID); err != nil {
+	schedule, err := lockSchedule(ctx, tx, domainID, scheduleID, lockNoKeyUpdate)
+	if err != nil {
 		return nil, err
 	}
 
