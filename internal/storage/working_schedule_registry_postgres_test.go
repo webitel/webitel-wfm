@@ -7,6 +7,7 @@ import (
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 
+	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 )
 
@@ -150,8 +151,8 @@ func TestRemoveAgentTakesTheirShiftsOnPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.UpdateWorkingScheduleRemoveAgent(userCtx(2, 2), other, 1); err != nil {
-		t.Fatal(err)
+	if _, err := s.UpdateWorkingScheduleRemoveAgent(userCtx(2, 2), other, 1); !errors.Is(err, dbsql.ErrNoRows) {
+		t.Fatalf("another domain: %v, want %v", err, dbsql.ErrNoRows)
 	}
 
 	if n := count("SELECT count(*) FROM wfm.working_schedule_agent WHERE working_schedule_id = 2 AND agent_id = 1"); n != 1 {
