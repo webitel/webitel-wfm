@@ -57,6 +57,16 @@ func TestWorkingScheduleDatesAreCalendarDates(t *testing.T) {
 	}
 }
 
+func TestWorkingScheduleEmptyTimeScaleIsTheWholeDay(t *testing.T) {
+	if in := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{}); in.StartTimeAt != 0 || in.EndTimeAt != 1440 {
+		t.Errorf("an empty scale comes in as %d..%d, want 0..1440", in.StartTimeAt, in.EndTimeAt)
+	}
+
+	if in := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{StartTimeAt: 1320, EndTimeAt: 360}); in.StartTimeAt != 1320 || in.EndTimeAt != 360 {
+		t.Errorf("a scale past midnight comes in as %d..%d", in.StartTimeAt, in.EndTimeAt)
+	}
+}
+
 // The etag carries the id and version the row was read at. A row whose mask
 // left ver out has none: a token built from 0 would only cause false conflicts.
 func TestWorkingScheduleEtagCarriesTheVersion(t *testing.T) {

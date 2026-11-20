@@ -192,8 +192,8 @@ func TestUpdateWorkingScheduleReadsBackFromPrimary(t *testing.T) {
 		t.Errorf("update returned %q, want %q: the read-back went to a lagging standby", out.Name, "renamed")
 	}
 
-	// The UPDATE, then the read-back.
-	assertAsked(t, tr.asked, "primary", "primary")
+	// The header lock, the UPDATE, then the read-back.
+	assertAsked(t, tr.asked, "primary", "primary", "primary")
 }
 
 func TestCreateWorkingScheduleReadsBackFromPrimary(t *testing.T) {
