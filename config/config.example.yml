@@ -5,6 +5,9 @@
 service:
   addr: "127.0.0.1:10031"
   probe_addr: "127.0.0.1:10033"
+  # Defaults to wfm@<hostname>. Set it when two instances share a host: the id owns the
+  # leader key and job leases, so it must be unique per instance and survive a restart.
+  # node_id: "wfm@host-1"
 
 log:
   level: "debug"
@@ -23,3 +26,11 @@ consul:
 
 pubsub:
   url: "amqp://webitel:webitel@127.0.0.1:25672/"
+
+# The instance that holds the consul key service/wfm/leader runs background jobs.
+leader_election:
+  session_ttl: "15s"
+  lock_delay: "1s"
+  retry_interval: "10s"
+  error_cooldown: "5s"
+  monitor_interval: "5s"

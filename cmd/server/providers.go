@@ -12,6 +12,7 @@ import (
 
 	"github.com/webitel/webitel-go-kit/appconfig"
 	"github.com/webitel/webitel-go-kit/infra/discovery"
+	"github.com/webitel/webitel-go-kit/infra/discovery/consul"
 	"github.com/webitel/webitel-go-kit/infra/health"
 	healthhttp "github.com/webitel/webitel-go-kit/infra/health/http"
 	"github.com/webitel/webitel-go-kit/infra/pgw"
@@ -19,15 +20,15 @@ import (
 	rabbitslog "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq/pkg/adapter/slog"
 
 	"github.com/webitel/webitel-wfm/config"
+	"github.com/webitel/webitel-wfm/infra/leader"
 	"github.com/webitel/webitel-wfm/infra/storage/dbsql"
 	"github.com/webitel/webitel-wfm/infra/webitel/auth"
 	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/internal/model"
 
-	// Drivers register themselves on import: the consul discovery provider, and
-	// the OTel exporters that OTEL_*_EXPORTER selects at runtime.
-	_ "github.com/webitel/webitel-go-kit/infra/discovery/consul"
+	// Drivers register themselves on import: the consul discovery provider (with
+	// the import above), and the OTel exporters that OTEL_*_EXPORTER selects at runtime.
 	_ "github.com/webitel/webitel-go-kit/infra/otel/sdk/log/otlp"
 	_ "github.com/webitel/webitel-go-kit/infra/otel/sdk/log/stdout"
 	_ "github.com/webitel/webitel-go-kit/infra/otel/sdk/metric/otlp"
@@ -105,6 +106,22 @@ func registerService(lc fx.Lifecycle, cfg *config.Config, log *slog.Logger, dp d
 			return dp.Deregister(ctx, instance)
 		},
 	})
+}
+
+func ProvideLeaderElector(cfg *config.Config, log *slog.Logger) (consul.LeadershipElector, error) {
+	election := cfg.LeaderElection
+
+	return consul.NewLeaderElector(cfg.Consul.Addr, model.ServiceName, cfg.Service.NodeID, log,
+		consul.WithSessionTTL(election.SessionTTL),
+		consul.WithLockDelay(election.LockDelay),
+		consul.WithRetryInterval(election.RetryInterval),
+		consul.WithErrorCooldown(election.ErrorCooldown),
+		consul.WithMonitorInterval(election.MonitorInterval),
+	)
+}
+
+func startLeader(h *health.Registry, r *leader.Runner) {
+	h.Liveness("leader-runner", r.HealthCheck)
 }
 
 func ProvideStorage(lc fx.Lifecycle, cfg *config.Config, h *health.Registry) (dbsql.Store, error) {
