@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 
+	"github.com/webitel/webitel-wfm/infra/webitel/engine"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/storage"
@@ -35,12 +37,6 @@ func (s *versionedStore) ReadWorkingSchedule(_ context.Context, read *options.Re
 	}, nil
 }
 
-func (s *versionedStore) DeleteWorkingSchedule(context.Context, *options.Read) (int64, error) {
-	s.writes = append(s.writes, "delete")
-
-	return 0, nil
-}
-
 func (s *versionedStore) UpdateWorkingSchedule(_ context.Context, _ *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
 	s.writes = append(s.writes, "update")
 
@@ -48,9 +44,8 @@ func (s *versionedStore) UpdateWorkingSchedule(_ context.Context, _ *model.Signe
 }
 
 // A save made against an older version is refused before anything else looks at
-// the row: before the team/calendar branch, which deletes and recreates it
-// without reaching the storage guard, and before the state check, so the client
-// rereads first and then sees the true state.
+// the row: before engine is asked for a new team's agents, and before the state
+// check, so the client rereads first and then sees the true state.
 func TestUpdateWorkingScheduleRefusesAStaleVersion(t *testing.T) {
 	for name, state := range map[string]model.WorkingScheduleState{
 		"draft with a changed team": model.WorkingScheduleStateDraft,
@@ -62,8 +57,11 @@ func TestUpdateWorkingScheduleRefusesAStaleVersion(t *testing.T) {
 
 			in := &model.WorkingSchedule{
 				DomainRecord: model.DomainRecord{ID: 7},
+				Name:         "schedule",
 				Team:         model.LookupItem{ID: 9},
 				Calendar:     model.LookupItem{ID: 6},
+				StartDateAt:  model.DateFromMillis(1),
+				EndDateAt:    model.DateFromMillis(1),
 				Ver:          1,
 			}
 
@@ -117,6 +115,72 @@ func readWorkingScheduleForecast(t *testing.T, rows ...*model.ForecastCalculatio
 
 // The schedule forecast runs the team's forecast procedure, which needs the
 // forecast service wired into the schedule service.
+func (s *versionedStore) DeactivatedAgents(context.Context, int64, []int64) ([]int64, error) {
+	return []int64{7}, nil
+}
+
+// A header without a team, a calendar or dates is refused before engine or the storage is asked.
+func TestWorkingScheduleHeaderIsValidatedFirst(t *testing.T) {
+	ctx, user := signedIn()
+	svc := NewWorkingSchedule(&versionedStore{state: model.WorkingScheduleStateDraft}, nil, nil)
+	in := &model.WorkingSchedule{DomainRecord: model.DomainRecord{ID: 7}, Calendar: model.LookupItem{ID: 6}, Ver: 2}
+
+	if _, err := svc.CreateWorkingSchedule(ctx, user, in); !errors.Is(err, model.ErrWorkingScheduleHeader) {
+		t.Errorf("create: %v, want %v", err, model.ErrWorkingScheduleHeader)
+	}
+
+	if _, err := svc.UpdateWorkingSchedule(ctx, user, in); !errors.Is(err, model.ErrWorkingScheduleHeader) {
+		t.Errorf("update: %v, want %v", err, model.ErrWorkingScheduleHeader)
+	}
+}
+
+// Only a new team asks engine for agents; the storage takes them in place of the old ones.
+func TestUpdateWorkingScheduleTakesTheNewTeamsAgents(t *testing.T) {
+	ctx, user := signedIn()
+	day := model.DateFromMillis(86400000)
+
+	for name, c := range map[string]struct {
+		team   int64
+		engine *fakeEngine
+		want   []int64
+	}{
+		"same team, engine is not asked":      {team: 5, want: []int64{1}},
+		"new team, without deactivated users": {team: 9, engine: &fakeEngine{agents: []int64{3, 7}}, want: []int64{3}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var eng *engine.Client
+			if c.engine != nil {
+				eng = newEngine(t, c.engine)
+			}
+
+			in := &model.WorkingSchedule{
+				DomainRecord: model.DomainRecord{ID: 7},
+				Name:         "schedule",
+				Team:         model.LookupItem{ID: c.team},
+				Calendar:     model.LookupItem{ID: 6},
+				StartDateAt:  day,
+				EndDateAt:    day,
+				Agents:       []*model.LookupItem{{ID: 1}},
+				Ver:          2,
+			}
+
+			out, err := NewWorkingSchedule(&versionedStore{state: model.WorkingScheduleStateDraft}, eng, nil).UpdateWorkingSchedule(ctx, user, in)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := make([]int64, 0, len(out.Agents))
+			for _, a := range out.Agents {
+				got = append(got, a.ID)
+			}
+
+			if !slices.Equal(got, c.want) {
+				t.Errorf("agents %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
 func TestReadWorkingScheduleForecast(t *testing.T) {
 	agents := int64(4)
 
