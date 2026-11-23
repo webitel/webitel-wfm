@@ -6,6 +6,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
+
+	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
 // Violation is one broken business rule: which operator, on which day, and why.
@@ -15,9 +17,18 @@ type Violation struct {
 	Reason     string      `json:"reason"` // a reason id, <layer>.<entity>.<what>
 }
 
+func (v Violation) MarshalProto() *pb.Violation {
+	out := &pb.Violation{Date: DateMillis(v.Date), Reason: v.Reason}
+	if v.OperatorID != 0 {
+		out.Agent = &pb.LookupEntity{Id: v.OperatorID}
+	}
+
+	return out
+}
+
 type refusalKey string
 
-// Not a plain string, so the error interceptor keeps the list out of the client's detail; the log still gets it.
+// Not a plain string, so the error interceptor writes the list as JSON, not as "key = value" text.
 const violationsKey refusalKey = "violations"
 
 // Refuse attaches violations to a refusal: an errors.FailedPrecondition sentinel with its own id.

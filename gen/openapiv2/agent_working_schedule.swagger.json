@@ -18,6 +18,7 @@
   "paths": {
     "/wfm/agents/working_schedules/{workingScheduleId}": {
       "get": {
+        "summary": "A page of the schedule's agents with their days, and the holidays and working week of the\nschedule's calendar.",
         "operationId": "AgentWorkingScheduleService_SearchAgentsWorkingSchedule",
         "responses": {
           "200": {
@@ -116,6 +117,8 @@
         ]
       },
       "post": {
+        "summary": "Expands a weekly template into shifts for several agents over a range of dates. Days with\nan absence and days another active schedule locks are skipped and returned in skipped; the\nrest is written.",
+        "description": "Refusals of the whole request: storage.shift.refused with violations - a shift overlaps\nanother shift of the agent, or the agent or the date is not of this schedule;\nstorage.working_schedule.archived; service.request.too_large - more than the limit, sized for\na team of 200 agents over a month.",
         "operationId": "AgentWorkingScheduleService_CreateAgentsWorkingScheduleShifts",
         "responses": {
           "200": {
@@ -148,7 +151,7 @@
               "properties": {
                 "date": {
                   "$ref": "#/definitions/wfmDateRange",
-                  "description": "Date from and Date to of the modal."
+                  "description": "Both ends included."
                 },
                 "agents": {
                   "type": "array",
@@ -162,7 +165,7 @@
                   "additionalProperties": {
                     "$ref": "#/definitions/wfmShiftTemplateDay"
                   },
-                  "description": "Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the\nmap, one switched off in the modal, gets no shifts."
+                  "description": "Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the map gets\nno shifts."
                 },
                 "pauses": {
                   "type": "array",
@@ -181,7 +184,169 @@
                   "description": "Skills switched on for the time of every shift the request creates. Different\nskills for different ranges take separate requests."
                 }
               },
-              "description": "The Add shifts modal: a weekly template the server expands into shifts over a range\nof dates (WFM-103). Hours are wall-clock minutes from midnight in the time zone of\nthe schedule's calendar, so a shift keeps its hours across a daylight saving change."
+              "description": "A weekly template the server expands into shifts over a range of dates. Hours are\nwall-clock minutes from midnight in the time zone of the schedule's calendar, so a shift\nkeeps its hours across a daylight saving change."
+            }
+          }
+        ],
+        "tags": [
+          "AgentWorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/agents/working_schedules/{workingScheduleId}/shifts/{id}": {
+      "delete": {
+        "summary": "Deletes a shift with its pauses and skills. Refusals as in UpdateAgentWorkingScheduleShift,\nexcept the shift rules.",
+        "operationId": "AgentWorkingScheduleService_DeleteAgentWorkingScheduleShift",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmDeleteAgentWorkingScheduleShiftResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "workingScheduleId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "etag",
+            "description": "The etag from a read.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentWorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/agents/working_schedules/{workingScheduleId}/shifts/{shift.id}": {
+      "put": {
+        "summary": "Replaces one shift whole: its time, and the pauses and skills of the request replace the\nexisting ones, so a pause is deleted by sending the shift without it. Needs the etag from a\nread; the response carries the shift with the new etag. Allowed in a draft, pending or\nactive schedule.",
+        "description": "Refusals: storage.shift.version_conflict (409) - the shift changed since the read;\nstorage.shift.refused with violations - the rules of CreateAgentsWorkingScheduleShifts, plus\nan absence or a locked date; storage.working_schedule.archived; dbsql.query.no_rows (404) -\nthe shift is gone.",
+        "operationId": "AgentWorkingScheduleService_UpdateAgentWorkingScheduleShift",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmUpdateAgentWorkingScheduleShiftResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "workingScheduleId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "shift.id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "shift": {
+                  "type": "object",
+                  "properties": {
+                    "domainId": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "createdBy": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "updatedBy": {
+                      "$ref": "#/definitions/wfmLookupEntity"
+                    },
+                    "startAt": {
+                      "type": "string",
+                      "format": "int64",
+                      "description": "Epoch milliseconds. The shift ends right before end_at, so the next one can start at end_at."
+                    },
+                    "endAt": {
+                      "type": "string",
+                      "format": "int64"
+                    },
+                    "pauses": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/wfmAgentScheduleShiftPause"
+                      }
+                    },
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/wfmAgentScheduleShiftSkill"
+                      }
+                    },
+                    "workingDate": {
+                      "type": "string",
+                      "format": "int64",
+                      "description": "Set by the server. The working date, a date as in DateRange: the day the shift starts\non in the time zone of the schedule's calendar, so a night shift belongs to the day it\nstarts. 00:00 UTC of that day, epoch milliseconds."
+                    },
+                    "etag": {
+                      "type": "string",
+                      "description": "Version of the shift, returned by every read. Editing and deleting a shift require it."
+                    },
+                    "source": {
+                      "$ref": "#/definitions/wfmShiftSource",
+                      "description": "Set by the server."
+                    },
+                    "plannerRunId": {
+                      "type": "string",
+                      "format": "int64",
+                      "description": "Set by the server for a planner's shift: the planning run that wrote it."
+                    }
+                  },
+                  "description": "The shift with its id and the etag from a read. start_at, end_at, pauses and skills are\nwritten; the server sets the rest.",
+                  "title": "The shift with its id and the etag from a read. start_at, end_at, pauses and skills are\nwritten; the server sets the rest."
+                }
+              }
             }
           }
         ],
@@ -239,11 +404,17 @@
           "description": "The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
         },
         "locked": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "The agent has shifts in another active schedule on this date, so no shift goes here."
         },
         "absence": {
           "$ref": "#/definitions/wfmAbsenceType",
           "description": "A day has an absence or shifts, not both."
+        },
+        "absenceId": {
+          "type": "string",
+          "format": "int64",
+          "description": "Id of the absence, to delete it."
         },
         "shifts": {
           "type": "array",
@@ -309,7 +480,7 @@
         },
         "etag": {
           "type": "string",
-          "description": "Version of the shift, returned by every read. Editing a shift requires it (WFM-99)."
+          "description": "Version of the shift, returned by every read. Editing and deleting a shift require it."
         },
         "source": {
           "$ref": "#/definitions/wfmShiftSource",
@@ -428,9 +599,9 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/wfmSkippedDay"
+            "$ref": "#/definitions/wfmViolation"
           },
-          "description": "Days the request left without shifts, and why: an absence, or a date another\nactive schedule locks (WFM-103)."
+          "description": "Days the request left without shifts, and why: storage.shift.absence, or\nstorage.shift.locked_date with the schedule that holds the date."
         }
       }
     },
@@ -448,6 +619,15 @@
         }
       },
       "description": "DateRange is an inclusive range of calendar dates. A date anywhere in WFM is a day, not\nan instant: 00:00 UTC of that day in epoch milliseconds, the same for every client\nwhatever its time zone. Any other value is refused, so a local midnight shows up as\nan error instead of a day shifted by the client's offset."
+    },
+    "wfmDeleteAgentWorkingScheduleShiftResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
     },
     "wfmHoliday": {
       "type": "object",
@@ -576,22 +756,51 @@
       },
       "description": "ShiftTemplateRange is one shift of a day, in minutes from midnight. An end before the\nstart crosses midnight: 1320 to 360 is 22:00 to 06:00, a shift of the day it starts on."
     },
-    "wfmSkippedDay": {
+    "wfmUpdateAgentWorkingScheduleShiftResponse": {
+      "type": "object",
+      "properties": {
+        "shift": {
+          "$ref": "#/definitions/wfmAgentScheduleShift"
+        }
+      }
+    },
+    "wfmViolation": {
       "type": "object",
       "properties": {
         "agent": {
-          "$ref": "#/definitions/wfmLookupEntity"
+          "$ref": "#/definitions/wfmLookupEntity",
+          "description": "Absent when the rule is about the schedule as a whole."
         },
         "date": {
           "type": "string",
           "format": "int64",
-          "description": "A date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
+          "description": "A date as in DateRange: 00:00 UTC of the day, epoch milliseconds. Absent when the rule is\nabout the schedule as a whole."
         },
         "reason": {
           "type": "string",
-          "description": "An error id, \u003clayer\u003e.\u003centity\u003e.\u003cwhat\u003e."
+          "description": "The reason id, \u003clayer\u003e.\u003centity\u003e.\u003cwhat\u003e."
+        },
+        "schedule": {
+          "$ref": "#/definitions/wfmLookupEntity",
+          "description": "The other schedule the rule is about, if any."
+        },
+        "shiftId": {
+          "type": "string",
+          "format": "int64",
+          "description": "The existing shift the rule is about, if any: the one an absence deletes, or the one a new\nshift overlaps. Absent when the overlap is between two new shifts of the same request."
+        },
+        "startAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "Start and end of that shift, epoch milliseconds."
+        },
+        "endAt": {
+          "type": "string",
+          "format": "int64"
         }
-      }
+      },
+      "description": "A WFM error has the body {\"id\", \"code\", \"status\", \"detail\"}. Errors are told apart by id, not\nby HTTP status: 400 is both a validation error and a business refusal, 409 both a version\nconflict and a duplicate. detail is a fallback text for people; a refusal with violations\nputs JSON there instead: {\"text\": \"...\", \"violations\": [Violation, ...]}, with the field names\nof this API.\n\nCommon to every WFM method: interceptor.validate (400) - an invalid request;\ninterceptor.auth.license and interceptor.auth.permission (403) - no WFM license or no right on\nthe object class; service.agent.access (403) - no access to the agent, never 404;\ndbsql.query.no_rows (404) - the record is gone; storage.working_schedule.archived (400) - a\nwrite to an archived schedule, which is read-only. After a version conflict (409) the record\nhas to be read again.",
+      "title": "Violation is one broken rule: which agent, on which date, why, and which other schedule\nor shift is in the way. A refusal lists the rules it broke; reasons are told apart by id:\n  storage.shift.agent_not_in_schedule - the agent is not in the schedule\n  storage.shift.agent_deactivated - the agent's user is deactivated\n  storage.shift.outside_schedule - the date is outside the schedule's period\n  storage.shift.absence - the agent has an absence on the date\n  storage.shift.locked_date - the agent has shifts in another active schedule on the date\n  storage.shift.overlap - the shift overlaps another shift of the agent, a night one included\n  storage.absence.shift - the agent has a shift on the date in a draft, pending or active\n    schedule, which the absence deletes once confirmed\n  storage.working_schedule.team_active - the team already has an active schedule on\n    overlapping dates; no agent or date"
     }
   }
 }

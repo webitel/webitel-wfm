@@ -9,8 +9,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
+
+	"github.com/webitel/webitel-wfm/internal/model"
 )
 
 type rpcError struct {
@@ -36,6 +39,23 @@ func ErrUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 			for k, v := range vals {
 				if key, ok := k.(string); ok {
 					e.Detail += "; " + key + " = " + fmt.Sprintf("%v", v)
+				}
+			}
+
+			// The gateway passes on only detail, so violations travel in it as JSON, written as the gateway writes the API.
+			if vs := model.ViolationsOf(err); len(vs) > 0 {
+				refusal := struct {
+					Text       string            `json:"text"`
+					Violations []json.RawMessage `json:"violations"`
+				}{Text: e.Detail}
+
+				for _, v := range vs {
+					b, _ := protojson.MarshalOptions{UseProtoNames: true}.Marshal(v.MarshalProto())
+					refusal.Violations = append(refusal.Violations, b)
+				}
+
+				if b, jerr := json.Marshal(refusal); jerr == nil {
+					e.Detail = string(b)
 				}
 			}
 

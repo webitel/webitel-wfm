@@ -73,17 +73,17 @@ func (ShiftSource) EnumDescriptor() ([]byte, []int) {
 	return file_agent_working_schedule_proto_rawDescGZIP(), []int{0}
 }
 
-// The Add shifts modal: a weekly template the server expands into shifts over a range
-// of dates (WFM-103). Hours are wall-clock minutes from midnight in the time zone of
-// the schedule's calendar, so a shift keeps its hours across a daylight saving change.
+// A weekly template the server expands into shifts over a range of dates. Hours are
+// wall-clock minutes from midnight in the time zone of the schedule's calendar, so a shift
+// keeps its hours across a daylight saving change.
 type CreateAgentsWorkingScheduleShiftsRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	WorkingScheduleId int64                  `protobuf:"varint,1,opt,name=working_schedule_id,json=workingScheduleId,proto3" json:"working_schedule_id,omitempty"`
-	// Date from and Date to of the modal.
+	// Both ends included.
 	Date   *DateRange      `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
 	Agents []*LookupEntity `protobuf:"bytes,3,rep,name=agents,proto3" json:"agents,omitempty"`
-	// Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the
-	// map, one switched off in the modal, gets no shifts.
+	// Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the map gets
+	// no shifts.
 	Days map[int64]*ShiftTemplateDay `protobuf:"bytes,6,rep,name=days,proto3" json:"days,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Pauses of every day. Each belongs to the range that contains it; a pause outside
 	// every range of a day refuses the request.
@@ -334,9 +334,9 @@ func (x *ShiftTemplatePause) GetCause() *LookupEntity {
 type CreateAgentsWorkingScheduleShiftsResponse struct {
 	state protoimpl.MessageState  `protogen:"open.v1"`
 	Items []*AgentWorkingSchedule `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	// Days the request left without shifts, and why: an absence, or a date another
-	// active schedule locks (WFM-103).
-	Skipped       []*SkippedDay `protobuf:"bytes,2,rep,name=skipped,proto3" json:"skipped,omitempty"`
+	// Days the request left without shifts, and why: storage.shift.absence, or
+	// storage.shift.locked_date with the schedule that holds the date.
+	Skipped       []*Violation `protobuf:"bytes,2,rep,name=skipped,proto3" json:"skipped,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -378,38 +378,37 @@ func (x *CreateAgentsWorkingScheduleShiftsResponse) GetItems() []*AgentWorkingSc
 	return nil
 }
 
-func (x *CreateAgentsWorkingScheduleShiftsResponse) GetSkipped() []*SkippedDay {
+func (x *CreateAgentsWorkingScheduleShiftsResponse) GetSkipped() []*Violation {
 	if x != nil {
 		return x.Skipped
 	}
 	return nil
 }
 
-type SkippedDay struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Agent *LookupEntity          `protobuf:"bytes,1,opt,name=agent,proto3" json:"agent,omitempty"`
-	// A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.
-	Date int64 `protobuf:"varint,4,opt,name=date,proto3" json:"date,omitempty"`
-	// An error id, <layer>.<entity>.<what>.
-	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+type UpdateAgentWorkingScheduleShiftRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	WorkingScheduleId int64                  `protobuf:"varint,1,opt,name=working_schedule_id,json=workingScheduleId,proto3" json:"working_schedule_id,omitempty"`
+	// The shift with its id and the etag from a read. start_at, end_at, pauses and skills are
+	// written; the server sets the rest.
+	Shift         *AgentScheduleShift `protobuf:"bytes,2,opt,name=shift,proto3" json:"shift,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SkippedDay) Reset() {
-	*x = SkippedDay{}
+func (x *UpdateAgentWorkingScheduleShiftRequest) Reset() {
+	*x = UpdateAgentWorkingScheduleShiftRequest{}
 	mi := &file_agent_working_schedule_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SkippedDay) String() string {
+func (x *UpdateAgentWorkingScheduleShiftRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SkippedDay) ProtoMessage() {}
+func (*UpdateAgentWorkingScheduleShiftRequest) ProtoMessage() {}
 
-func (x *SkippedDay) ProtoReflect() protoreflect.Message {
+func (x *UpdateAgentWorkingScheduleShiftRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_agent_working_schedule_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -421,30 +420,172 @@ func (x *SkippedDay) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SkippedDay.ProtoReflect.Descriptor instead.
-func (*SkippedDay) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateAgentWorkingScheduleShiftRequest.ProtoReflect.Descriptor instead.
+func (*UpdateAgentWorkingScheduleShiftRequest) Descriptor() ([]byte, []int) {
 	return file_agent_working_schedule_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *SkippedDay) GetAgent() *LookupEntity {
+func (x *UpdateAgentWorkingScheduleShiftRequest) GetWorkingScheduleId() int64 {
 	if x != nil {
-		return x.Agent
-	}
-	return nil
-}
-
-func (x *SkippedDay) GetDate() int64 {
-	if x != nil {
-		return x.Date
+		return x.WorkingScheduleId
 	}
 	return 0
 }
 
-func (x *SkippedDay) GetReason() string {
+func (x *UpdateAgentWorkingScheduleShiftRequest) GetShift() *AgentScheduleShift {
 	if x != nil {
-		return x.Reason
+		return x.Shift
+	}
+	return nil
+}
+
+type UpdateAgentWorkingScheduleShiftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Shift         *AgentScheduleShift    `protobuf:"bytes,1,opt,name=shift,proto3" json:"shift,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAgentWorkingScheduleShiftResponse) Reset() {
+	*x = UpdateAgentWorkingScheduleShiftResponse{}
+	mi := &file_agent_working_schedule_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAgentWorkingScheduleShiftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAgentWorkingScheduleShiftResponse) ProtoMessage() {}
+
+func (x *UpdateAgentWorkingScheduleShiftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_working_schedule_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAgentWorkingScheduleShiftResponse.ProtoReflect.Descriptor instead.
+func (*UpdateAgentWorkingScheduleShiftResponse) Descriptor() ([]byte, []int) {
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UpdateAgentWorkingScheduleShiftResponse) GetShift() *AgentScheduleShift {
+	if x != nil {
+		return x.Shift
+	}
+	return nil
+}
+
+type DeleteAgentWorkingScheduleShiftRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	WorkingScheduleId int64                  `protobuf:"varint,1,opt,name=working_schedule_id,json=workingScheduleId,proto3" json:"working_schedule_id,omitempty"`
+	Id                int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	// The etag from a read.
+	Etag          string `protobuf:"bytes,3,opt,name=etag,proto3" json:"etag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAgentWorkingScheduleShiftRequest) Reset() {
+	*x = DeleteAgentWorkingScheduleShiftRequest{}
+	mi := &file_agent_working_schedule_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAgentWorkingScheduleShiftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAgentWorkingScheduleShiftRequest) ProtoMessage() {}
+
+func (x *DeleteAgentWorkingScheduleShiftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_working_schedule_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAgentWorkingScheduleShiftRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAgentWorkingScheduleShiftRequest) Descriptor() ([]byte, []int) {
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteAgentWorkingScheduleShiftRequest) GetWorkingScheduleId() int64 {
+	if x != nil {
+		return x.WorkingScheduleId
+	}
+	return 0
+}
+
+func (x *DeleteAgentWorkingScheduleShiftRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DeleteAgentWorkingScheduleShiftRequest) GetEtag() string {
+	if x != nil {
+		return x.Etag
 	}
 	return ""
+}
+
+type DeleteAgentWorkingScheduleShiftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAgentWorkingScheduleShiftResponse) Reset() {
+	*x = DeleteAgentWorkingScheduleShiftResponse{}
+	mi := &file_agent_working_schedule_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAgentWorkingScheduleShiftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAgentWorkingScheduleShiftResponse) ProtoMessage() {}
+
+func (x *DeleteAgentWorkingScheduleShiftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_working_schedule_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAgentWorkingScheduleShiftResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAgentWorkingScheduleShiftResponse) Descriptor() ([]byte, []int) {
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DeleteAgentWorkingScheduleShiftResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
 }
 
 type SearchAgentsWorkingScheduleRequest struct {
@@ -464,7 +605,7 @@ type SearchAgentsWorkingScheduleRequest struct {
 
 func (x *SearchAgentsWorkingScheduleRequest) Reset() {
 	*x = SearchAgentsWorkingScheduleRequest{}
-	mi := &file_agent_working_schedule_proto_msgTypes[6]
+	mi := &file_agent_working_schedule_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +617,7 @@ func (x *SearchAgentsWorkingScheduleRequest) String() string {
 func (*SearchAgentsWorkingScheduleRequest) ProtoMessage() {}
 
 func (x *SearchAgentsWorkingScheduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[6]
+	mi := &file_agent_working_schedule_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +630,7 @@ func (x *SearchAgentsWorkingScheduleRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use SearchAgentsWorkingScheduleRequest.ProtoReflect.Descriptor instead.
 func (*SearchAgentsWorkingScheduleRequest) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{6}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SearchAgentsWorkingScheduleRequest) GetWorkingScheduleId() int64 {
@@ -564,7 +705,7 @@ type SearchAgentsWorkingScheduleResponse struct {
 
 func (x *SearchAgentsWorkingScheduleResponse) Reset() {
 	*x = SearchAgentsWorkingScheduleResponse{}
-	mi := &file_agent_working_schedule_proto_msgTypes[7]
+	mi := &file_agent_working_schedule_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -576,7 +717,7 @@ func (x *SearchAgentsWorkingScheduleResponse) String() string {
 func (*SearchAgentsWorkingScheduleResponse) ProtoMessage() {}
 
 func (x *SearchAgentsWorkingScheduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[7]
+	mi := &file_agent_working_schedule_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -589,7 +730,7 @@ func (x *SearchAgentsWorkingScheduleResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use SearchAgentsWorkingScheduleResponse.ProtoReflect.Descriptor instead.
 func (*SearchAgentsWorkingScheduleResponse) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{7}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SearchAgentsWorkingScheduleResponse) GetHolidays() []*Holiday {
@@ -640,7 +781,7 @@ type ScheduleCalendar struct {
 
 func (x *ScheduleCalendar) Reset() {
 	*x = ScheduleCalendar{}
-	mi := &file_agent_working_schedule_proto_msgTypes[8]
+	mi := &file_agent_working_schedule_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -652,7 +793,7 @@ func (x *ScheduleCalendar) String() string {
 func (*ScheduleCalendar) ProtoMessage() {}
 
 func (x *ScheduleCalendar) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[8]
+	mi := &file_agent_working_schedule_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +806,7 @@ func (x *ScheduleCalendar) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleCalendar.ProtoReflect.Descriptor instead.
 func (*ScheduleCalendar) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{8}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ScheduleCalendar) GetTimeZone() string {
@@ -692,7 +833,7 @@ type CalendarDay struct {
 
 func (x *CalendarDay) Reset() {
 	*x = CalendarDay{}
-	mi := &file_agent_working_schedule_proto_msgTypes[9]
+	mi := &file_agent_working_schedule_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +845,7 @@ func (x *CalendarDay) String() string {
 func (*CalendarDay) ProtoMessage() {}
 
 func (x *CalendarDay) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[9]
+	mi := &file_agent_working_schedule_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,7 +858,7 @@ func (x *CalendarDay) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CalendarDay.ProtoReflect.Descriptor instead.
 func (*CalendarDay) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{9}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CalendarDay) GetRanges() []*CalendarRange {
@@ -737,7 +878,7 @@ type CalendarRange struct {
 
 func (x *CalendarRange) Reset() {
 	*x = CalendarRange{}
-	mi := &file_agent_working_schedule_proto_msgTypes[10]
+	mi := &file_agent_working_schedule_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -749,7 +890,7 @@ func (x *CalendarRange) String() string {
 func (*CalendarRange) ProtoMessage() {}
 
 func (x *CalendarRange) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[10]
+	mi := &file_agent_working_schedule_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +903,7 @@ func (x *CalendarRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CalendarRange.ProtoReflect.Descriptor instead.
 func (*CalendarRange) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{10}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CalendarRange) GetStart() int32 {
@@ -790,7 +931,7 @@ type Holiday struct {
 
 func (x *Holiday) Reset() {
 	*x = Holiday{}
-	mi := &file_agent_working_schedule_proto_msgTypes[11]
+	mi := &file_agent_working_schedule_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -802,7 +943,7 @@ func (x *Holiday) String() string {
 func (*Holiday) ProtoMessage() {}
 
 func (x *Holiday) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[11]
+	mi := &file_agent_working_schedule_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -815,7 +956,7 @@ func (x *Holiday) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Holiday.ProtoReflect.Descriptor instead.
 func (*Holiday) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{11}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Holiday) GetDate() int64 {
@@ -850,7 +991,7 @@ type AgentScheduleShiftPause struct {
 
 func (x *AgentScheduleShiftPause) Reset() {
 	*x = AgentScheduleShiftPause{}
-	mi := &file_agent_working_schedule_proto_msgTypes[12]
+	mi := &file_agent_working_schedule_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -862,7 +1003,7 @@ func (x *AgentScheduleShiftPause) String() string {
 func (*AgentScheduleShiftPause) ProtoMessage() {}
 
 func (x *AgentScheduleShiftPause) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[12]
+	mi := &file_agent_working_schedule_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -875,7 +1016,7 @@ func (x *AgentScheduleShiftPause) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentScheduleShiftPause.ProtoReflect.Descriptor instead.
 func (*AgentScheduleShiftPause) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{12}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AgentScheduleShiftPause) GetId() int64 {
@@ -953,7 +1094,7 @@ type AgentScheduleShiftSkill struct {
 
 func (x *AgentScheduleShiftSkill) Reset() {
 	*x = AgentScheduleShiftSkill{}
-	mi := &file_agent_working_schedule_proto_msgTypes[13]
+	mi := &file_agent_working_schedule_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -965,7 +1106,7 @@ func (x *AgentScheduleShiftSkill) String() string {
 func (*AgentScheduleShiftSkill) ProtoMessage() {}
 
 func (x *AgentScheduleShiftSkill) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[13]
+	mi := &file_agent_working_schedule_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -978,7 +1119,7 @@ func (x *AgentScheduleShiftSkill) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentScheduleShiftSkill.ProtoReflect.Descriptor instead.
 func (*AgentScheduleShiftSkill) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{13}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *AgentScheduleShiftSkill) GetSkill() *LookupEntity {
@@ -1012,7 +1153,7 @@ type AgentScheduleShift struct {
 	// on in the time zone of the schedule's calendar, so a night shift belongs to the day it
 	// starts. 00:00 UTC of that day, epoch milliseconds.
 	WorkingDate int64 `protobuf:"varint,17,opt,name=working_date,json=workingDate,proto3" json:"working_date,omitempty"`
-	// Version of the shift, returned by every read. Editing a shift requires it (WFM-99).
+	// Version of the shift, returned by every read. Editing and deleting a shift require it.
 	Etag string `protobuf:"bytes,14,opt,name=etag,proto3" json:"etag,omitempty"`
 	// Set by the server.
 	Source ShiftSource `protobuf:"varint,15,opt,name=source,proto3,enum=wfm.ShiftSource" json:"source,omitempty"`
@@ -1024,7 +1165,7 @@ type AgentScheduleShift struct {
 
 func (x *AgentScheduleShift) Reset() {
 	*x = AgentScheduleShift{}
-	mi := &file_agent_working_schedule_proto_msgTypes[14]
+	mi := &file_agent_working_schedule_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1036,7 +1177,7 @@ func (x *AgentScheduleShift) String() string {
 func (*AgentScheduleShift) ProtoMessage() {}
 
 func (x *AgentScheduleShift) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[14]
+	mi := &file_agent_working_schedule_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1049,7 +1190,7 @@ func (x *AgentScheduleShift) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentScheduleShift.ProtoReflect.Descriptor instead.
 func (*AgentScheduleShift) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{14}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AgentScheduleShift) GetId() int64 {
@@ -1153,10 +1294,13 @@ func (x *AgentScheduleShift) GetPlannerRunId() int64 {
 type AgentSchedule struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds.
-	Date   int64 `protobuf:"varint,1,opt,name=date,proto3" json:"date,omitempty"`
-	Locked bool  `protobuf:"varint,2,opt,name=locked,proto3" json:"locked,omitempty"`
+	Date int64 `protobuf:"varint,1,opt,name=date,proto3" json:"date,omitempty"`
+	// The agent has shifts in another active schedule on this date, so no shift goes here.
+	Locked bool `protobuf:"varint,2,opt,name=locked,proto3" json:"locked,omitempty"`
 	// A day has an absence or shifts, not both.
-	Absence       AbsenceType           `protobuf:"varint,3,opt,name=absence,proto3,enum=wfm.AbsenceType" json:"absence,omitempty"`
+	Absence AbsenceType `protobuf:"varint,3,opt,name=absence,proto3,enum=wfm.AbsenceType" json:"absence,omitempty"`
+	// Id of the absence, to delete it.
+	AbsenceId     int64                 `protobuf:"varint,7,opt,name=absence_id,json=absenceId,proto3" json:"absence_id,omitempty"`
 	Shifts        []*AgentScheduleShift `protobuf:"bytes,6,rep,name=shifts,proto3" json:"shifts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1164,7 +1308,7 @@ type AgentSchedule struct {
 
 func (x *AgentSchedule) Reset() {
 	*x = AgentSchedule{}
-	mi := &file_agent_working_schedule_proto_msgTypes[15]
+	mi := &file_agent_working_schedule_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1176,7 +1320,7 @@ func (x *AgentSchedule) String() string {
 func (*AgentSchedule) ProtoMessage() {}
 
 func (x *AgentSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[15]
+	mi := &file_agent_working_schedule_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1189,7 +1333,7 @@ func (x *AgentSchedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentSchedule.ProtoReflect.Descriptor instead.
 func (*AgentSchedule) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{15}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AgentSchedule) GetDate() int64 {
@@ -1213,6 +1357,13 @@ func (x *AgentSchedule) GetAbsence() AbsenceType {
 	return AbsenceType_ABSENCE_TYPE_UNSPECIFIED
 }
 
+func (x *AgentSchedule) GetAbsenceId() int64 {
+	if x != nil {
+		return x.AbsenceId
+	}
+	return 0
+}
+
 func (x *AgentSchedule) GetShifts() []*AgentScheduleShift {
 	if x != nil {
 		return x.Shifts
@@ -1230,7 +1381,7 @@ type AgentWorkingSchedule struct {
 
 func (x *AgentWorkingSchedule) Reset() {
 	*x = AgentWorkingSchedule{}
-	mi := &file_agent_working_schedule_proto_msgTypes[16]
+	mi := &file_agent_working_schedule_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1242,7 +1393,7 @@ func (x *AgentWorkingSchedule) String() string {
 func (*AgentWorkingSchedule) ProtoMessage() {}
 
 func (x *AgentWorkingSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_working_schedule_proto_msgTypes[16]
+	mi := &file_agent_working_schedule_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1255,7 +1406,7 @@ func (x *AgentWorkingSchedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentWorkingSchedule.ProtoReflect.Descriptor instead.
 func (*AgentWorkingSchedule) Descriptor() ([]byte, []int) {
-	return file_agent_working_schedule_proto_rawDescGZIP(), []int{16}
+	return file_agent_working_schedule_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *AgentWorkingSchedule) GetAgent() *LookupEntity {
@@ -1276,7 +1427,7 @@ var File_agent_working_schedule_proto protoreflect.FileDescriptor
 
 const file_agent_working_schedule_proto_rawDesc = "" +
 	"\n" +
-	"\x1cagent_working_schedule.proto\x12\x03wfm\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1aproto/webitel/option.proto\x1a\flookup.proto\x1a\ffilter.proto\x1a\x13agent_absence.proto\"\xe7\x03\n" +
+	"\x1cagent_working_schedule.proto\x12\x03wfm\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1aproto/webitel/option.proto\x1a\flookup.proto\x1a\ffilter.proto\x1a\x13agent_absence.proto\x1a\x0fviolation.proto\"\xe7\x03\n" +
 	"(CreateAgentsWorkingScheduleShiftsRequest\x12.\n" +
 	"\x13working_schedule_id\x18\x01 \x01(\x03R\x11workingScheduleId\x12*\n" +
 	"\x04date\x18\x02 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x123\n" +
@@ -1300,15 +1451,21 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x10\xa0\v(\x00R\x05start\x12#\n" +
 	"\bduration\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\bduration\x12,\n" +
 	"\x05cause\x18\x03 \x01(\v2\x11.wfm.LookupEntityH\x00R\x05cause\x88\x01\x01B\b\n" +
-	"\x06_cause\"\x87\x01\n" +
+	"\x06_cause\"\x86\x01\n" +
 	")CreateAgentsWorkingScheduleShiftsResponse\x12/\n" +
-	"\x05items\x18\x01 \x03(\v2\x19.wfm.AgentWorkingScheduleR\x05items\x12)\n" +
-	"\askipped\x18\x02 \x03(\v2\x0f.wfm.SkippedDayR\askipped\"g\n" +
-	"\n" +
-	"SkippedDay\x12'\n" +
-	"\x05agent\x18\x01 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12\x12\n" +
-	"\x04date\x18\x04 \x01(\x03R\x04date\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reasonJ\x04\b\x02\x10\x03\"\xce\x02\n" +
+	"\x05items\x18\x01 \x03(\v2\x19.wfm.AgentWorkingScheduleR\x05items\x12(\n" +
+	"\askipped\x18\x02 \x03(\v2\x0e.wfm.ViolationR\askipped\"\x98\x01\n" +
+	"&UpdateAgentWorkingScheduleShiftRequest\x127\n" +
+	"\x13working_schedule_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11workingScheduleId\x125\n" +
+	"\x05shift\x18\x02 \x01(\v2\x17.wfm.AgentScheduleShiftB\x06\xbaH\x03\xc8\x01\x01R\x05shift\"X\n" +
+	"'UpdateAgentWorkingScheduleShiftResponse\x12-\n" +
+	"\x05shift\x18\x01 \x01(\v2\x17.wfm.AgentScheduleShiftR\x05shift\"\x97\x01\n" +
+	"&DeleteAgentWorkingScheduleShiftRequest\x127\n" +
+	"\x13working_schedule_id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11workingScheduleId\x12\x17\n" +
+	"\x02id\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\x12\x1b\n" +
+	"\x04etag\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04etag\"9\n" +
+	"'DeleteAgentWorkingScheduleShiftResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xce\x02\n" +
 	"\"SearchAgentsWorkingScheduleRequest\x12.\n" +
 	"\x13working_schedule_id\x18\x01 \x01(\x03R\x11workingScheduleId\x12*\n" +
 	"\x04date\x18\x02 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x12#\n" +
@@ -1381,11 +1538,13 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\x04etag\x18\x0e \x01(\tR\x04etag\x12(\n" +
 	"\x06source\x18\x0f \x01(\x0e2\x10.wfm.ShiftSourceR\x06source\x12$\n" +
 	"\x0eplanner_run_id\x18\x10 \x01(\x03R\fplannerRunId:\x8e\x01\xbaH\x8a\x01\x1a\x87\x01\n" +
-	"\x04time\x127a shift ends after it starts and lasts at most 24 hours\x1aFthis.start_at < this.end_at && this.end_at - this.start_at <= 86400000J\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\r\x10\x0e\"\xa4\x01\n" +
+	"\x04time\x127a shift ends after it starts and lasts at most 24 hours\x1aFthis.start_at < this.end_at && this.end_at - this.start_at <= 86400000J\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\r\x10\x0e\"\xc3\x01\n" +
 	"\rAgentSchedule\x12\x12\n" +
 	"\x04date\x18\x01 \x01(\x03R\x04date\x12\x16\n" +
 	"\x06locked\x18\x02 \x01(\bR\x06locked\x12*\n" +
-	"\aabsence\x18\x03 \x01(\x0e2\x10.wfm.AbsenceTypeR\aabsence\x12/\n" +
+	"\aabsence\x18\x03 \x01(\x0e2\x10.wfm.AbsenceTypeR\aabsence\x12\x1d\n" +
+	"\n" +
+	"absence_id\x18\a \x01(\x03R\tabsenceId\x12/\n" +
 	"\x06shifts\x18\x06 \x03(\v2\x17.wfm.AgentScheduleShiftR\x06shiftsJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"o\n" +
 	"\x14AgentWorkingSchedule\x12'\n" +
 	"\x05agent\x18\x01 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12.\n" +
@@ -1393,10 +1552,12 @@ const file_agent_working_schedule_proto_rawDesc = "" +
 	"\vShiftSource\x12\x1c\n" +
 	"\x18SHIFT_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13SHIFT_SOURCE_MANUAL\x10\x01\x12\x18\n" +
-	"\x14SHIFT_SOURCE_PLANNER\x10\x022\xb1\x03\n" +
+	"\x14SHIFT_SOURCE_PLANNER\x10\x022\xd2\x06\n" +
 	"\x1bAgentWorkingScheduleService\x12\xc6\x01\n" +
 	"!CreateAgentsWorkingScheduleShifts\x12-.wfm.CreateAgentsWorkingScheduleShiftsRequest\x1a..wfm.CreateAgentsWorkingScheduleShiftsResponse\"B\x90\xb5\x18\x00\x82\xd3\xe4\x93\x028:\x01*\"3/wfm/agents/working_schedules/{working_schedule_id}\x12\xb1\x01\n" +
-	"\x1bSearchAgentsWorkingSchedule\x12'.wfm.SearchAgentsWorkingScheduleRequest\x1a(.wfm.SearchAgentsWorkingScheduleResponse\"?\x90\xb5\x18\x01\x82\xd3\xe4\x93\x025\x123/wfm/agents/working_schedules/{working_schedule_id}\x1a\x15\x8a\xb5\x18\x11working_schedulesB#Z!github.com/webitel/protos/wfm;wfmb\x06proto3"
+	"\x1bSearchAgentsWorkingSchedule\x12'.wfm.SearchAgentsWorkingScheduleRequest\x1a(.wfm.SearchAgentsWorkingScheduleResponse\"?\x90\xb5\x18\x01\x82\xd3\xe4\x93\x025\x123/wfm/agents/working_schedules/{working_schedule_id}\x12\xd2\x01\n" +
+	"\x1fUpdateAgentWorkingScheduleShift\x12+.wfm.UpdateAgentWorkingScheduleShiftRequest\x1a,.wfm.UpdateAgentWorkingScheduleShiftResponse\"T\x90\xb5\x18\x02\x82\xd3\xe4\x93\x02J:\x01*\x1aE/wfm/agents/working_schedules/{working_schedule_id}/shifts/{shift.id}\x12\xc9\x01\n" +
+	"\x1fDeleteAgentWorkingScheduleShift\x12+.wfm.DeleteAgentWorkingScheduleShiftRequest\x1a,.wfm.DeleteAgentWorkingScheduleShiftResponse\"K\x90\xb5\x18\x02\x82\xd3\xe4\x93\x02A*?/wfm/agents/working_schedules/{working_schedule_id}/shifts/{id}\x1a\x15\x8a\xb5\x18\x11working_schedulesB#Z!github.com/webitel/protos/wfm;wfmb\x06proto3"
 
 var (
 	file_agent_working_schedule_proto_rawDescOnce sync.Once
@@ -1411,7 +1572,7 @@ func file_agent_working_schedule_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_working_schedule_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_agent_working_schedule_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_agent_working_schedule_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_agent_working_schedule_proto_goTypes = []any{
 	(ShiftSource)(0), // 0: wfm.ShiftSource
 	(*CreateAgentsWorkingScheduleShiftsRequest)(nil),  // 1: wfm.CreateAgentsWorkingScheduleShiftsRequest
@@ -1419,65 +1580,74 @@ var file_agent_working_schedule_proto_goTypes = []any{
 	(*ShiftTemplateRange)(nil),                        // 3: wfm.ShiftTemplateRange
 	(*ShiftTemplatePause)(nil),                        // 4: wfm.ShiftTemplatePause
 	(*CreateAgentsWorkingScheduleShiftsResponse)(nil), // 5: wfm.CreateAgentsWorkingScheduleShiftsResponse
-	(*SkippedDay)(nil),                                // 6: wfm.SkippedDay
-	(*SearchAgentsWorkingScheduleRequest)(nil),        // 7: wfm.SearchAgentsWorkingScheduleRequest
-	(*SearchAgentsWorkingScheduleResponse)(nil),       // 8: wfm.SearchAgentsWorkingScheduleResponse
-	(*ScheduleCalendar)(nil),                          // 9: wfm.ScheduleCalendar
-	(*CalendarDay)(nil),                               // 10: wfm.CalendarDay
-	(*CalendarRange)(nil),                             // 11: wfm.CalendarRange
-	(*Holiday)(nil),                                   // 12: wfm.Holiday
-	(*AgentScheduleShiftPause)(nil),                   // 13: wfm.AgentScheduleShiftPause
-	(*AgentScheduleShiftSkill)(nil),                   // 14: wfm.AgentScheduleShiftSkill
-	(*AgentScheduleShift)(nil),                        // 15: wfm.AgentScheduleShift
-	(*AgentSchedule)(nil),                             // 16: wfm.AgentSchedule
-	(*AgentWorkingSchedule)(nil),                      // 17: wfm.AgentWorkingSchedule
-	nil,                                               // 18: wfm.CreateAgentsWorkingScheduleShiftsRequest.DaysEntry
-	nil,                                               // 19: wfm.ScheduleCalendar.WeekEntry
-	(*DateRange)(nil),                                 // 20: wfm.DateRange
-	(*LookupEntity)(nil),                              // 21: wfm.LookupEntity
-	(AbsenceType)(0),                                  // 22: wfm.AbsenceType
+	(*UpdateAgentWorkingScheduleShiftRequest)(nil),    // 6: wfm.UpdateAgentWorkingScheduleShiftRequest
+	(*UpdateAgentWorkingScheduleShiftResponse)(nil),   // 7: wfm.UpdateAgentWorkingScheduleShiftResponse
+	(*DeleteAgentWorkingScheduleShiftRequest)(nil),    // 8: wfm.DeleteAgentWorkingScheduleShiftRequest
+	(*DeleteAgentWorkingScheduleShiftResponse)(nil),   // 9: wfm.DeleteAgentWorkingScheduleShiftResponse
+	(*SearchAgentsWorkingScheduleRequest)(nil),        // 10: wfm.SearchAgentsWorkingScheduleRequest
+	(*SearchAgentsWorkingScheduleResponse)(nil),       // 11: wfm.SearchAgentsWorkingScheduleResponse
+	(*ScheduleCalendar)(nil),                          // 12: wfm.ScheduleCalendar
+	(*CalendarDay)(nil),                               // 13: wfm.CalendarDay
+	(*CalendarRange)(nil),                             // 14: wfm.CalendarRange
+	(*Holiday)(nil),                                   // 15: wfm.Holiday
+	(*AgentScheduleShiftPause)(nil),                   // 16: wfm.AgentScheduleShiftPause
+	(*AgentScheduleShiftSkill)(nil),                   // 17: wfm.AgentScheduleShiftSkill
+	(*AgentScheduleShift)(nil),                        // 18: wfm.AgentScheduleShift
+	(*AgentSchedule)(nil),                             // 19: wfm.AgentSchedule
+	(*AgentWorkingSchedule)(nil),                      // 20: wfm.AgentWorkingSchedule
+	nil,                                               // 21: wfm.CreateAgentsWorkingScheduleShiftsRequest.DaysEntry
+	nil,                                               // 22: wfm.ScheduleCalendar.WeekEntry
+	(*DateRange)(nil),                                 // 23: wfm.DateRange
+	(*LookupEntity)(nil),                              // 24: wfm.LookupEntity
+	(*Violation)(nil),                                 // 25: wfm.Violation
+	(AbsenceType)(0),                                  // 26: wfm.AbsenceType
 }
 var file_agent_working_schedule_proto_depIdxs = []int32{
-	20, // 0: wfm.CreateAgentsWorkingScheduleShiftsRequest.date:type_name -> wfm.DateRange
-	21, // 1: wfm.CreateAgentsWorkingScheduleShiftsRequest.agents:type_name -> wfm.LookupEntity
-	18, // 2: wfm.CreateAgentsWorkingScheduleShiftsRequest.days:type_name -> wfm.CreateAgentsWorkingScheduleShiftsRequest.DaysEntry
+	23, // 0: wfm.CreateAgentsWorkingScheduleShiftsRequest.date:type_name -> wfm.DateRange
+	24, // 1: wfm.CreateAgentsWorkingScheduleShiftsRequest.agents:type_name -> wfm.LookupEntity
+	21, // 2: wfm.CreateAgentsWorkingScheduleShiftsRequest.days:type_name -> wfm.CreateAgentsWorkingScheduleShiftsRequest.DaysEntry
 	4,  // 3: wfm.CreateAgentsWorkingScheduleShiftsRequest.pauses:type_name -> wfm.ShiftTemplatePause
-	14, // 4: wfm.CreateAgentsWorkingScheduleShiftsRequest.skills:type_name -> wfm.AgentScheduleShiftSkill
+	17, // 4: wfm.CreateAgentsWorkingScheduleShiftsRequest.skills:type_name -> wfm.AgentScheduleShiftSkill
 	3,  // 5: wfm.ShiftTemplateDay.ranges:type_name -> wfm.ShiftTemplateRange
-	21, // 6: wfm.ShiftTemplatePause.cause:type_name -> wfm.LookupEntity
-	17, // 7: wfm.CreateAgentsWorkingScheduleShiftsResponse.items:type_name -> wfm.AgentWorkingSchedule
-	6,  // 8: wfm.CreateAgentsWorkingScheduleShiftsResponse.skipped:type_name -> wfm.SkippedDay
-	21, // 9: wfm.SkippedDay.agent:type_name -> wfm.LookupEntity
-	20, // 10: wfm.SearchAgentsWorkingScheduleRequest.date:type_name -> wfm.DateRange
-	12, // 11: wfm.SearchAgentsWorkingScheduleResponse.holidays:type_name -> wfm.Holiday
-	17, // 12: wfm.SearchAgentsWorkingScheduleResponse.items:type_name -> wfm.AgentWorkingSchedule
-	9,  // 13: wfm.SearchAgentsWorkingScheduleResponse.calendar:type_name -> wfm.ScheduleCalendar
-	19, // 14: wfm.ScheduleCalendar.week:type_name -> wfm.ScheduleCalendar.WeekEntry
-	11, // 15: wfm.CalendarDay.ranges:type_name -> wfm.CalendarRange
-	21, // 16: wfm.AgentScheduleShiftPause.created_by:type_name -> wfm.LookupEntity
-	21, // 17: wfm.AgentScheduleShiftPause.updated_by:type_name -> wfm.LookupEntity
-	21, // 18: wfm.AgentScheduleShiftPause.cause:type_name -> wfm.LookupEntity
-	21, // 19: wfm.AgentScheduleShiftSkill.skill:type_name -> wfm.LookupEntity
-	21, // 20: wfm.AgentScheduleShift.created_by:type_name -> wfm.LookupEntity
-	21, // 21: wfm.AgentScheduleShift.updated_by:type_name -> wfm.LookupEntity
-	13, // 22: wfm.AgentScheduleShift.pauses:type_name -> wfm.AgentScheduleShiftPause
-	14, // 23: wfm.AgentScheduleShift.skills:type_name -> wfm.AgentScheduleShiftSkill
-	0,  // 24: wfm.AgentScheduleShift.source:type_name -> wfm.ShiftSource
-	22, // 25: wfm.AgentSchedule.absence:type_name -> wfm.AbsenceType
-	15, // 26: wfm.AgentSchedule.shifts:type_name -> wfm.AgentScheduleShift
-	21, // 27: wfm.AgentWorkingSchedule.agent:type_name -> wfm.LookupEntity
-	16, // 28: wfm.AgentWorkingSchedule.schedule:type_name -> wfm.AgentSchedule
-	2,  // 29: wfm.CreateAgentsWorkingScheduleShiftsRequest.DaysEntry.value:type_name -> wfm.ShiftTemplateDay
-	10, // 30: wfm.ScheduleCalendar.WeekEntry.value:type_name -> wfm.CalendarDay
-	1,  // 31: wfm.AgentWorkingScheduleService.CreateAgentsWorkingScheduleShifts:input_type -> wfm.CreateAgentsWorkingScheduleShiftsRequest
-	7,  // 32: wfm.AgentWorkingScheduleService.SearchAgentsWorkingSchedule:input_type -> wfm.SearchAgentsWorkingScheduleRequest
-	5,  // 33: wfm.AgentWorkingScheduleService.CreateAgentsWorkingScheduleShifts:output_type -> wfm.CreateAgentsWorkingScheduleShiftsResponse
-	8,  // 34: wfm.AgentWorkingScheduleService.SearchAgentsWorkingSchedule:output_type -> wfm.SearchAgentsWorkingScheduleResponse
-	33, // [33:35] is the sub-list for method output_type
-	31, // [31:33] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	24, // 6: wfm.ShiftTemplatePause.cause:type_name -> wfm.LookupEntity
+	20, // 7: wfm.CreateAgentsWorkingScheduleShiftsResponse.items:type_name -> wfm.AgentWorkingSchedule
+	25, // 8: wfm.CreateAgentsWorkingScheduleShiftsResponse.skipped:type_name -> wfm.Violation
+	18, // 9: wfm.UpdateAgentWorkingScheduleShiftRequest.shift:type_name -> wfm.AgentScheduleShift
+	18, // 10: wfm.UpdateAgentWorkingScheduleShiftResponse.shift:type_name -> wfm.AgentScheduleShift
+	23, // 11: wfm.SearchAgentsWorkingScheduleRequest.date:type_name -> wfm.DateRange
+	15, // 12: wfm.SearchAgentsWorkingScheduleResponse.holidays:type_name -> wfm.Holiday
+	20, // 13: wfm.SearchAgentsWorkingScheduleResponse.items:type_name -> wfm.AgentWorkingSchedule
+	12, // 14: wfm.SearchAgentsWorkingScheduleResponse.calendar:type_name -> wfm.ScheduleCalendar
+	22, // 15: wfm.ScheduleCalendar.week:type_name -> wfm.ScheduleCalendar.WeekEntry
+	14, // 16: wfm.CalendarDay.ranges:type_name -> wfm.CalendarRange
+	24, // 17: wfm.AgentScheduleShiftPause.created_by:type_name -> wfm.LookupEntity
+	24, // 18: wfm.AgentScheduleShiftPause.updated_by:type_name -> wfm.LookupEntity
+	24, // 19: wfm.AgentScheduleShiftPause.cause:type_name -> wfm.LookupEntity
+	24, // 20: wfm.AgentScheduleShiftSkill.skill:type_name -> wfm.LookupEntity
+	24, // 21: wfm.AgentScheduleShift.created_by:type_name -> wfm.LookupEntity
+	24, // 22: wfm.AgentScheduleShift.updated_by:type_name -> wfm.LookupEntity
+	16, // 23: wfm.AgentScheduleShift.pauses:type_name -> wfm.AgentScheduleShiftPause
+	17, // 24: wfm.AgentScheduleShift.skills:type_name -> wfm.AgentScheduleShiftSkill
+	0,  // 25: wfm.AgentScheduleShift.source:type_name -> wfm.ShiftSource
+	26, // 26: wfm.AgentSchedule.absence:type_name -> wfm.AbsenceType
+	18, // 27: wfm.AgentSchedule.shifts:type_name -> wfm.AgentScheduleShift
+	24, // 28: wfm.AgentWorkingSchedule.agent:type_name -> wfm.LookupEntity
+	19, // 29: wfm.AgentWorkingSchedule.schedule:type_name -> wfm.AgentSchedule
+	2,  // 30: wfm.CreateAgentsWorkingScheduleShiftsRequest.DaysEntry.value:type_name -> wfm.ShiftTemplateDay
+	13, // 31: wfm.ScheduleCalendar.WeekEntry.value:type_name -> wfm.CalendarDay
+	1,  // 32: wfm.AgentWorkingScheduleService.CreateAgentsWorkingScheduleShifts:input_type -> wfm.CreateAgentsWorkingScheduleShiftsRequest
+	10, // 33: wfm.AgentWorkingScheduleService.SearchAgentsWorkingSchedule:input_type -> wfm.SearchAgentsWorkingScheduleRequest
+	6,  // 34: wfm.AgentWorkingScheduleService.UpdateAgentWorkingScheduleShift:input_type -> wfm.UpdateAgentWorkingScheduleShiftRequest
+	8,  // 35: wfm.AgentWorkingScheduleService.DeleteAgentWorkingScheduleShift:input_type -> wfm.DeleteAgentWorkingScheduleShiftRequest
+	5,  // 36: wfm.AgentWorkingScheduleService.CreateAgentsWorkingScheduleShifts:output_type -> wfm.CreateAgentsWorkingScheduleShiftsResponse
+	11, // 37: wfm.AgentWorkingScheduleService.SearchAgentsWorkingSchedule:output_type -> wfm.SearchAgentsWorkingScheduleResponse
+	7,  // 38: wfm.AgentWorkingScheduleService.UpdateAgentWorkingScheduleShift:output_type -> wfm.UpdateAgentWorkingScheduleShiftResponse
+	9,  // 39: wfm.AgentWorkingScheduleService.DeleteAgentWorkingScheduleShift:output_type -> wfm.DeleteAgentWorkingScheduleShiftResponse
+	36, // [36:40] is the sub-list for method output_type
+	32, // [32:36] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_agent_working_schedule_proto_init() }
@@ -1488,16 +1658,17 @@ func file_agent_working_schedule_proto_init() {
 	file_lookup_proto_init()
 	file_filter_proto_init()
 	file_agent_absence_proto_init()
+	file_violation_proto_init()
 	file_agent_working_schedule_proto_msgTypes[3].OneofWrappers = []any{}
-	file_agent_working_schedule_proto_msgTypes[6].OneofWrappers = []any{}
-	file_agent_working_schedule_proto_msgTypes[12].OneofWrappers = []any{}
+	file_agent_working_schedule_proto_msgTypes[9].OneofWrappers = []any{}
+	file_agent_working_schedule_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_working_schedule_proto_rawDesc), len(file_agent_working_schedule_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

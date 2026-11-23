@@ -10,11 +10,41 @@ paths:
         get:
             tags:
                 - AgentAbsenceService
-            description: Searches absences by filters.
+            description: |-
+                Every agent the user has access to, with or without absences, and their absences over a
+                 period. Ordered by name, then by id.
             operationId: AgentAbsenceService_SearchAgentsAbsences
             parameters:
+                - name: date.from
+                  in: query
+                  schema:
+                    type: string
+                - name: date.to
+                  in: query
+                  description: The last day, included.
+                  schema:
+                    type: string
+                - name: teamId
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                - name: supervisorId
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
+                - name: skillId
+                  in: query
+                  schema:
+                    type: array
+                    items:
+                        type: string
                 - name: q
                   in: query
+                  description: Searches by agent name.
                   schema:
                     type: string
                 - name: page
@@ -29,15 +59,10 @@ paths:
                     format: int32
                 - name: sort
                   in: query
+                  description: +name when absent.
                   schema:
                     type: string
                 - name: fields
-                  in: query
-                  schema:
-                    type: array
-                    items:
-                        type: string
-                - name: filters
                   in: query
                   schema:
                     type: array
@@ -59,7 +84,14 @@ paths:
         post:
             tags:
                 - AgentAbsenceService
-            description: Creates absences for multiple specified agents.
+            description: |-
+                Sets absences of several types over ranges of dates for several agents; each day replaces
+                 the absence it had. Shifts on those days are deleted as in CreateAgentAbsence: without
+                 delete_shifts nothing is written and the refusal lists the shifts of every agent, with it
+                 everything is written.
+
+                 Refusals: service.request.too_large - more than the limit, sized for a team of 200 agents
+                 over a month; service.agent.access (403) - no access to an agent.
             operationId: AgentAbsenceService_CreateAgentsAbsences
             requestBody:
                 content:
@@ -84,6 +116,9 @@ paths:
         get:
             tags:
                 - AgentWorkingScheduleService
+            description: |-
+                A page of the schedule's agents with their days, and the holidays and working week of the
+                 schedule's calendar.
             operationId: AgentWorkingScheduleService_SearchAgentsWorkingSchedule
             parameters:
                 - name: workingScheduleId
@@ -149,6 +184,15 @@ paths:
         post:
             tags:
                 - AgentWorkingScheduleService
+            description: |-
+                Expands a weekly template into shifts for several agents over a range of dates. Days with
+                 an absence and days another active schedule locks are skipped and returned in skipped; the
+                 rest is written.
+
+                 Refusals of the whole request: storage.shift.refused with violations - a shift overlaps
+                 another shift of the agent, or the agent or the date is not of this schedule;
+                 storage.working_schedule.archived; service.request.too_large - more than the limit, sized for
+                 a team of 200 agents over a month.
             operationId: AgentWorkingScheduleService_CreateAgentsWorkingScheduleShifts
             parameters:
                 - name: workingScheduleId
@@ -169,6 +213,88 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/CreateAgentsWorkingScheduleShiftsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/agents/working_schedules/{workingScheduleId}/shifts/{id}:
+        delete:
+            tags:
+                - AgentWorkingScheduleService
+            description: |-
+                Deletes a shift with its pauses and skills. Refusals as in UpdateAgentWorkingScheduleShift,
+                 except the shift rules.
+            operationId: AgentWorkingScheduleService_DeleteAgentWorkingScheduleShift
+            parameters:
+                - name: workingScheduleId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: etag
+                  in: query
+                  description: The etag from a read.
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteAgentWorkingScheduleShiftResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/agents/working_schedules/{workingScheduleId}/shifts/{shift.id}:
+        put:
+            tags:
+                - AgentWorkingScheduleService
+            description: |-
+                Replaces one shift whole: its time, and the pauses and skills of the request replace the
+                 existing ones, so a pause is deleted by sending the shift without it. Needs the etag from a
+                 read; the response carries the shift with the new etag. Allowed in a draft, pending or
+                 active schedule.
+
+                 Refusals: storage.shift.version_conflict (409) - the shift changed since the read;
+                 storage.shift.refused with violations - the rules of CreateAgentsWorkingScheduleShifts, plus
+                 an absence or a locked date; storage.working_schedule.archived; dbsql.query.no_rows (404) -
+                 the shift is gone.
+            operationId: AgentWorkingScheduleService_UpdateAgentWorkingScheduleShift
+            parameters:
+                - name: workingScheduleId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: shift.id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateAgentWorkingScheduleShiftRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateAgentWorkingScheduleShiftResponse'
                 default:
                     description: Default error response
                     content:
@@ -229,7 +355,17 @@ paths:
         post:
             tags:
                 - AgentAbsenceService
-            description: Creates one-day-absence for one agent.
+            description: |-
+                Sets an absence for one day. An agent has one absence a day and a new one replaces the old
+                 one of any type, so adding and changing the type is the same call. Past days are allowed.
+
+                 The agent's shifts on that day in a draft, pending or active schedule are deleted only on
+                 confirmation. Without delete_shifts the call writes nothing and refuses with
+                 storage.absence.shifts_to_delete, listing those shifts as storage.absence.shift violations.
+                 With delete_shifts the shifts, their pauses and skills are deleted in the same transaction
+                 and returned in deleted_shifts. Shifts of an archived schedule stay, next to the absence.
+
+                 Refusals: service.agent.access (403) - no access to the agent.
             operationId: AgentAbsenceService_CreateAgentAbsence
             parameters:
                 - name: agentId
@@ -289,7 +425,7 @@ paths:
         delete:
             tags:
                 - AgentAbsenceService
-            description: Deletes agent concrete absence by its id.
+            description: Deletes an absence by its id; dbsql.query.no_rows (404) if there is none.
             operationId: AgentAbsenceService_DeleteAgentAbsence
             parameters:
                 - name: agentId
@@ -319,7 +455,9 @@ paths:
         put:
             tags:
                 - AgentAbsenceService
-            description: Updates agent concrete absence by its id.
+            description: |-
+                Updates an absence by its id, with the result of CreateAgentAbsence. On a day with shifts it
+                 refuses with storage.absence.shifts_to_delete and has no confirmation.
             operationId: AgentAbsenceService_UpdateAgentAbsence
             parameters:
                 - name: agentId
@@ -1046,6 +1184,7 @@ paths:
         get:
             tags:
                 - WorkingScheduleService
+            description: Searches schedules, each with its number of agents.
             operationId: WorkingScheduleService_SearchWorkingSchedule
             parameters:
                 - name: q
@@ -1064,6 +1203,7 @@ paths:
                     format: int32
                 - name: sort
                   in: query
+                  description: States sort as active, pending, draft, archived.
                   schema:
                     type: string
                 - name: fields
@@ -1088,6 +1228,9 @@ paths:
         post:
             tags:
                 - WorkingScheduleService
+            description: |-
+                A new schedule is always a draft, whatever state the request carries. It gets every agent
+                 of the team the user has access to; agents who join the team later are added by hand.
             operationId: WorkingScheduleService_CreateWorkingSchedule
             requestBody:
                 content:
@@ -1141,6 +1284,9 @@ paths:
         delete:
             tags:
                 - WorkingScheduleService
+            description: |-
+                Deletes the schedule with its shifts, pauses and skills; absences stay. An active schedule
+                 refuses with storage.working_schedule.active until its state changes.
             operationId: WorkingScheduleService_DeleteWorkingSchedule
             parameters:
                 - name: id
@@ -1165,6 +1311,9 @@ paths:
         post:
             tags:
                 - WorkingScheduleService
+            description: |-
+                Adds agents from any team, each once: an agent already in the schedule is skipped. The
+                 response lists the added ones, with names.
             operationId: WorkingScheduleService_UpdateWorkingScheduleAddAgents
             parameters:
                 - name: id
@@ -1195,6 +1344,7 @@ paths:
         delete:
             tags:
                 - WorkingScheduleService
+            description: Removes an agent with their shifts in this schedule; absences stay.
             operationId: WorkingScheduleService_UpdateWorkingScheduleRemoveAgent
             parameters:
                 - name: id
@@ -1220,10 +1370,52 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{id}/block_outside_activity:
+        patch:
+            tags:
+                - WorkingScheduleService
+            description: |-
+                Switches blocking outside a shift on or off in a draft, pending or active schedule, with the
+                 etag from a read; the response carries the schedule with the new etag. After creation it is
+                 the only way to change it. Switched on in an active schedule, it also takes agents who are
+                 online outside their shift offline.
+
+                 Refusals: storage.working_schedule.archived; storage.working_schedule.version_conflict
+                 (409) - the header changed since the read.
+            operationId: WorkingScheduleService_UpdateWorkingScheduleBlockOutsideActivity
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateWorkingScheduleBlockOutsideActivityRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateWorkingScheduleBlockOutsideActivityResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /wfm/lookups/working_schedules/{id}/forecast:
         get:
             tags:
                 - WorkingScheduleService
+            description: |-
+                How many agents each hour of a period needs, from the forecast procedure of the team. The
+                 procedure runs on every call and nothing is stored, so edits of the schedule do not change
+                 the result. A team without a forecast calculation gets no hours.
             operationId: WorkingScheduleService_ReadWorkingScheduleForecast
             parameters:
                 - name: id
@@ -1237,6 +1429,7 @@ paths:
                     type: string
                 - name: date.to
                   in: query
+                  description: The last day, included.
                   schema:
                     type: string
             responses:
@@ -1252,10 +1445,102 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{id}/planned:
+        get:
+            tags:
+                - WorkingScheduleService
+            description: |-
+                How many agents are on a shift and not on a pause, per 15 minutes and per day. It reads
+                 only the schedule, so every edit of it changes the result.
+            operationId: WorkingScheduleService_ReadWorkingSchedulePlanned
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: date.from
+                  in: query
+                  schema:
+                    type: string
+                - name: date.to
+                  in: query
+                  description: The last day, included.
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ReadWorkingSchedulePlannedResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /wfm/lookups/working_schedules/{id}/state:
+        patch:
+            tags:
+                - WorkingScheduleService
+            description: |-
+                Moves the schedule to another state, in any order but out of archived, with the etag from
+                 a read; the response carries the schedule with the new etag.
+
+                 Moving to pending or active needs an answer about unplanned days: dates of the period where
+                 an agent of the schedule has neither a shift nor an absence. Without fill_days_off the call
+                 refuses with service.working_schedule.unplanned_days. The days off are written in the same
+                 transaction, as absences.
+
+                 Moving to active first checks the rules and refuses with
+                 storage.working_schedule.activation_refused and violations:
+                 storage.working_schedule.team_active - the team has another active schedule on overlapping
+                 dates; storage.shift.locked_date or storage.shift.overlap - an agent works in another active
+                 schedule on the same date or at the same time. storage.working_schedule.version_conflict
+                 (409) - the header changed since the read.
+            operationId: WorkingScheduleService_UpdateWorkingScheduleState
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateWorkingScheduleStateRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateWorkingScheduleStateResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /wfm/lookups/working_schedules/{item.id}:
         put:
             tags:
                 - WorkingScheduleService
+            description: |-
+                Updates the header of a draft schedule, with the etag from a read; the response carries the
+                 new etag. A change of the team rebuilds the schedule: every shift is deleted and the agents
+                 become the new team's agents the user has access to, so agents added by hand leave too. A
+                 change of the calendar deletes every shift; a change of the dates deletes the shifts whose
+                 working date falls outside the new period. The time scale, the name and Special time skills
+                 keep the shifts. block_outside_activity is ignored: only
+                 UpdateWorkingScheduleBlockOutsideActivity changes it.
+
+                 Refusals: service.working_schedule.state - not a draft;
+                 storage.working_schedule.version_conflict (409) - the header changed since the read.
             operationId: WorkingScheduleService_UpdateWorkingSchedule
             parameters:
                 - name: item.id
@@ -1322,10 +1607,14 @@ components:
                     description: 'The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
                 locked:
                     type: boolean
+                    description: The agent has shifts in another active schedule on this date, so no shift goes here.
                 absence:
                     type: integer
                     description: A day has an absence or shifts, not both.
                     format: enum
+                absenceId:
+                    type: string
+                    description: Id of the absence, to delete it.
                 shifts:
                     type: array
                     items:
@@ -1366,7 +1655,7 @@ components:
                          starts. 00:00 UTC of that day, epoch milliseconds.
                 etag:
                     type: string
-                    description: Version of the shift, returned by every read. Editing a shift requires it (WFM-99).
+                    description: Version of the shift, returned by every read. Editing and deleting a shift require it.
                 source:
                     type: integer
                     description: Set by the server.
@@ -1446,11 +1735,21 @@ components:
                     type: string
                 item:
                     $ref: '#/components/schemas/Absence'
+                deleteShifts:
+                    type: boolean
+                    description: Deletes the agent's shifts on that day, the ones storage.absence.shifts_to_delete listed.
         CreateAgentAbsenceResponse:
             type: object
             properties:
                 item:
                     $ref: '#/components/schemas/Absence'
+                deletedShifts:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DeletedShift'
+                    description: |-
+                        The shifts deleted. They can differ from the ones the refusal listed if the schedule
+                         changed in between.
         CreateAgentsAbsencesRequest:
             type: object
             properties:
@@ -1462,6 +1761,9 @@ components:
                     type: array
                     items:
                         type: string
+                deleteShifts:
+                    type: boolean
+                    description: As in CreateAgentAbsenceRequest.
         CreateAgentsAbsencesRequest_absentType:
             type: object
             properties:
@@ -1480,6 +1782,11 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/AgentAbsences'
+                deletedShifts:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DeletedShift'
+                    description: As in CreateAgentAbsenceResponse.
         CreateAgentsWorkingScheduleShiftsRequest:
             type: object
             properties:
@@ -1488,7 +1795,7 @@ components:
                 date:
                     allOf:
                         - $ref: '#/components/schemas/DateRange'
-                    description: Date from and Date to of the modal.
+                    description: Both ends included.
                 agents:
                     type: array
                     items:
@@ -1498,8 +1805,8 @@ components:
                     additionalProperties:
                         $ref: '#/components/schemas/ShiftTemplateDay'
                     description: |-
-                        Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the
-                         map, one switched off in the modal, gets no shifts.
+                        Map key is a day of week: 0 - Sunday, ..., 6 - Saturday. A day missing from the map gets
+                         no shifts.
                 pauses:
                     type: array
                     items:
@@ -1515,9 +1822,9 @@ components:
                         Skills switched on for the time of every shift the request creates. Different
                          skills for different ranges take separate requests.
             description: |-
-                The Add shifts modal: a weekly template the server expands into shifts over a range
-                 of dates (WFM-103). Hours are wall-clock minutes from midnight in the time zone of
-                 the schedule's calendar, so a shift keeps its hours across a daylight saving change.
+                A weekly template the server expands into shifts over a range of dates. Hours are
+                 wall-clock minutes from midnight in the time zone of the schedule's calendar, so a shift
+                 keeps its hours across a daylight saving change.
         CreateAgentsWorkingScheduleShiftsResponse:
             type: object
             properties:
@@ -1528,10 +1835,10 @@ components:
                 skipped:
                     type: array
                     items:
-                        $ref: '#/components/schemas/SkippedDay'
+                        $ref: '#/components/schemas/Violation'
                     description: |-
-                        Days the request left without shifts, and why: an absence, or a date another
-                         active schedule locks (WFM-103).
+                        Days the request left without shifts, and why: storage.shift.absence, or
+                         storage.shift.locked_date with the schedule that holds the date.
         CreateForecastCalculationRequest:
             type: object
             properties:
@@ -1600,6 +1907,11 @@ components:
             properties:
                 id:
                     type: string
+        DeleteAgentWorkingScheduleShiftResponse:
+            type: object
+            properties:
+                id:
+                    type: string
         DeleteForecastCalculationResponse:
             type: object
             properties:
@@ -1625,6 +1937,24 @@ components:
             properties:
                 id:
                     type: string
+        DeletedShift:
+            type: object
+            properties:
+                id:
+                    type: string
+                agent:
+                    $ref: '#/components/schemas/LookupEntity'
+                schedule:
+                    $ref: '#/components/schemas/LookupEntity'
+                date:
+                    type: string
+                    description: 'The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
+                startAt:
+                    type: string
+                    description: Epoch milliseconds.
+                endAt:
+                    type: string
+            description: DeletedShift is a shift an absence deleted.
         ExecuteForecastCalculationResponse:
             type: object
             properties:
@@ -1639,6 +1969,79 @@ components:
                     type: string
                 agents:
                     type: string
+        FieldPath:
+            type: object
+            properties:
+                elements:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/FieldPathElement'
+                    description: '`elements` contains each element of the path, starting from the root and recursing downward.'
+            description: |-
+                `FieldPath` provides a path to a nested protobuf field.
+
+                 This message provides enough information to render a dotted field path even without protobuf descriptors.
+                 It also provides enough information to resolve a nested field through unknown wire data.
+        FieldPathElement:
+            type: object
+            properties:
+                fieldNumber:
+                    type: integer
+                    description: '`field_number` is the field number this path element refers to.'
+                    format: int32
+                fieldName:
+                    type: string
+                    description: |-
+                        `field_name` contains the field name this path element refers to.
+                         This can be used to display a human-readable path even if the field number is unknown.
+                fieldType:
+                    type: integer
+                    description: |-
+                        `field_type` specifies the type of this field. When using reflection, this value is not needed.
+
+                         This value is provided to make it possible to traverse unknown fields through wire data.
+                         When traversing wire data, be mindful of both packed[1] and delimited[2] encoding schemes.
+
+                         [1]: https://protobuf.dev/programming-guides/encoding/#packed
+                         [2]: https://protobuf.dev/programming-guides/encoding/#groups
+
+                         N.B.: Although groups are deprecated, the corresponding delimited encoding scheme is not, and
+                         can be explicitly used in Protocol Buffers 2023 Edition.
+                    format: enum
+                keyType:
+                    type: integer
+                    description: |-
+                        `key_type` specifies the map key type of this field. This value is useful when traversing
+                         unknown fields through wire data: specifically, it allows handling the differences between
+                         different integer encodings.
+                    format: enum
+                valueType:
+                    type: integer
+                    description: |-
+                        `value_type` specifies map value type of this field. This is useful if you want to display a
+                         value inside unknown fields through wire data.
+                    format: enum
+                index:
+                    type: string
+                    description: '`index` specifies a 0-based index into a repeated field.'
+                boolKey:
+                    type: boolean
+                    description: '`bool_key` specifies a map key of type bool.'
+                intKey:
+                    type: string
+                    description: '`int_key` specifies a map key of type int32, int64, sint32, sint64, sfixed32 or sfixed64.'
+                uintKey:
+                    type: string
+                    description: '`uint_key` specifies a map key of type uint32, uint64, fixed32 or fixed64.'
+                stringKey:
+                    type: string
+                    description: '`string_key` specifies a map key of type string.'
+            description: |-
+                `FieldPathElement` provides enough information to nest through a single protobuf field.
+
+                 If the selected field is a map or repeated field, the `subscript` value selects a specific element from it.
+                 A path that refers to a value nested under a map key or repeated field index will have a `subscript` value.
+                 The `field_type` field allows unambiguous resolution of a field even if descriptors are not available.
         ForecastCalculation:
             type: object
             properties:
@@ -1664,6 +2067,21 @@ components:
                     type: array
                     items:
                         type: string
+        ForecastHour:
+            type: object
+            properties:
+                date:
+                    type: string
+                    description: |-
+                        The day of the hour in the zone of the schedule's calendar, a date as in DateRange:
+                         00:00 UTC of the day, epoch milliseconds.
+                startAt:
+                    type: string
+                    description: Start of the hour, epoch milliseconds.
+                agents:
+                    type: integer
+                    description: Agents needed.
+                    format: int32
         GoogleProtobufAny:
             type: object
             properties:
@@ -1717,6 +2135,24 @@ components:
                     type: string
                 cause:
                     $ref: '#/components/schemas/LookupEntity'
+        PlannedDay:
+            type: object
+            properties:
+                date:
+                    type: string
+                    description: 'A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
+                agents:
+                    type: integer
+                    format: int32
+        PlannedSlot:
+            type: object
+            properties:
+                startAt:
+                    type: string
+                    description: Start of the slot, epoch milliseconds.
+                agents:
+                    type: integer
+                    format: int32
         ReadAgentAbsenceResponse:
             type: object
             properties:
@@ -1751,9 +2187,24 @@ components:
             type: object
             properties:
                 items:
-                    type: object
-                    additionalProperties:
-                        $ref: '#/components/schemas/WorkingScheduleForecast'
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ForecastHour'
+        ReadWorkingSchedulePlannedResponse:
+            type: object
+            properties:
+                slots:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/PlannedSlot'
+                    description: |-
+                        15-minute slots where at least one agent is on a shift and not on a pause; a slot missing
+                         from the list has 0. An agent counts as away only when a pause covers the whole slot.
+                days:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/PlannedDay'
+                    description: Days where at least one agent has a shift, by working date.
         ReadWorkingScheduleResponse:
             type: object
             properties:
@@ -1786,8 +2237,12 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/AgentAbsences'
+                    description: An agent without absences in the period comes without absences.
                 next:
                     type: boolean
+                total:
+                    type: string
+                    description: Agents that match the filters, on all pages.
         SearchAgentsWorkingScheduleResponse:
             type: object
             properties:
@@ -1925,17 +2380,6 @@ components:
                 end:
                     type: integer
                     format: int32
-        SkippedDay:
-            type: object
-            properties:
-                agent:
-                    $ref: '#/components/schemas/LookupEntity'
-                date:
-                    type: string
-                    description: 'A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.'
-                reason:
-                    type: string
-                    description: An error id, <layer>.<entity>.<what>.
         Status:
             type: object
             properties:
@@ -1976,6 +2420,22 @@ components:
             properties:
                 item:
                     $ref: '#/components/schemas/AgentWorkingConditions'
+        UpdateAgentWorkingScheduleShiftRequest:
+            type: object
+            properties:
+                workingScheduleId:
+                    type: string
+                shift:
+                    allOf:
+                        - $ref: '#/components/schemas/AgentScheduleShift'
+                    description: |-
+                        The shift with its id and the etag from a read. start_at, end_at, pauses and skills are
+                         written; the server sets the rest.
+        UpdateAgentWorkingScheduleShiftResponse:
+            type: object
+            properties:
+                shift:
+                    $ref: '#/components/schemas/AgentScheduleShift'
         UpdateForecastCalculationRequest:
             type: object
             properties:
@@ -2032,6 +2492,21 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/LookupEntity'
+        UpdateWorkingScheduleBlockOutsideActivityRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                blockOutsideActivity:
+                    type: boolean
+                etag:
+                    type: string
+                    description: The etag from a read.
+        UpdateWorkingScheduleBlockOutsideActivityResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingSchedule'
         UpdateWorkingScheduleRemoveAgentResponse:
             type: object
             properties:
@@ -2047,6 +2522,146 @@ components:
             properties:
                 item:
                     $ref: '#/components/schemas/WorkingSchedule'
+        UpdateWorkingScheduleStateRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                state:
+                    type: integer
+                    format: enum
+                etag:
+                    type: string
+                    description: The etag from a read.
+                fillDaysOff:
+                    type: boolean
+                    description: |-
+                        The answer about unplanned days: true fills them with days off, holidays and the calendar's
+                         days off included; false leaves them empty. Absent, the call refuses if there are any.
+        UpdateWorkingScheduleStateResponse:
+            type: object
+            properties:
+                item:
+                    $ref: '#/components/schemas/WorkingSchedule'
+                filledDays:
+                    type: integer
+                    description: Days filled with days off.
+                    format: int32
+        Violation:
+            type: object
+            properties:
+                field:
+                    allOf:
+                        - $ref: '#/components/schemas/FieldPath'
+                    description: |-
+                        `field` is a machine-readable path to the field that failed validation.
+                         This could be a nested field, in which case the path will include all the parent fields leading to the actual field that caused the violation.
+
+                         For example, consider the following message:
+
+                         ```proto
+                         message Message {
+                           bool a = 1 [(buf.validate.field).required = true];
+                         }
+                         ```
+
+                         It could produce the following violation:
+
+                         ```textproto
+                         violation {
+                           field { element { field_number: 1, field_name: "a", field_type: 8 } }
+                           ...
+                         }
+                         ```
+                rule:
+                    allOf:
+                        - $ref: '#/components/schemas/FieldPath'
+                    description: |-
+                        `rule` is a machine-readable path that points to the specific rule that failed validation.
+                         This will be a nested field starting from the FieldRules of the field that failed validation.
+                         For custom rules, this will provide the path of the rule, e.g. `cel[0]`.
+
+                         For example, consider the following message:
+
+                         ```proto
+                         message Message {
+                           bool a = 1 [(buf.validate.field).required = true];
+                           bool b = 2 [(buf.validate.field).cel = {
+                             id: "custom_rule",
+                             expression: "!this ? 'b must be true': ''"
+                           }]
+                         }
+                         ```
+
+                         It could produce the following violations:
+
+                         ```textproto
+                         violation {
+                           rule { element { field_number: 25, field_name: "required", field_type: 8 } }
+                           ...
+                         }
+                         violation {
+                           rule { element { field_number: 23, field_name: "cel", field_type: 11, index: 0 } }
+                           ...
+                         }
+                         ```
+                ruleId:
+                    type: string
+                    description: |-
+                        `rule_id` is the unique identifier of the `Rule` that was not fulfilled.
+                         This is the same `id` that was specified in the `Rule` message, allowing easy tracing of which rule was violated.
+                message:
+                    type: string
+                    description: |-
+                        `message` is a human-readable error message that describes the nature of the violation.
+                         This can be the default error message from the violated `Rule`, or it can be a custom message that gives more context about the violation.
+                forKey:
+                    type: boolean
+                    description: '`for_key` indicates whether the violation was caused by a map key, rather than a value.'
+            description: |-
+                `Violation` represents a single instance where a validation rule, expressed
+                 as a `Rule`, was not met. It provides information about the field that
+                 caused the violation, the specific rule that wasn't fulfilled, and a
+                 human-readable error message.
+
+                 For example, consider the following message:
+
+                 ```proto
+                 message User {
+                     int32 age = 1 [(buf.validate.field).cel = {
+                         id: "user.age",
+                         expression: "this < 18 ? 'User must be at least 18 years old' : ''",
+                     }];
+                 }
+                 ```
+
+                 It could produce the following violation:
+
+                 ```json
+                 {
+                   "ruleId": "user.age",
+                   "message": "User must be at least 18 years old",
+                   "field": {
+                     "elements": [
+                       {
+                         "fieldNumber": 1,
+                         "fieldName": "age",
+                         "fieldType": "TYPE_INT32"
+                       }
+                     ]
+                   },
+                   "rule": {
+                     "elements": [
+                       {
+                         "fieldNumber": 23,
+                         "fieldName": "cel",
+                         "fieldType": "TYPE_MESSAGE",
+                         "index": "0"
+                       }
+                     ]
+                   }
+                 }
+                 ```
         WorkingCondition:
             type: object
             properties:
@@ -2107,6 +2722,7 @@ components:
                     type: string
                 state:
                     type: integer
+                    description: 'Set by the server: a new schedule is a draft, and only UpdateWorkingScheduleState changes it.'
                     format: enum
                 team:
                     $ref: '#/components/schemas/LookupEntity'
@@ -2121,14 +2737,21 @@ components:
                     type: string
                 startTimeAt:
                     type: string
+                    description: |-
+                        The time scale of the schedule, minutes from midnight in the zone of its calendar. Both
+                         absent mean 24 hours; an end before the start crosses midnight. It does not limit shifts.
                 endTimeAt:
                     type: string
                 extraSkills:
                     type: array
                     items:
                         $ref: '#/components/schemas/LookupEntity'
+                    description: Special time skills; the shape may change to a skill group.
                 blockOutsideActivity:
                     type: boolean
+                    description: |-
+                        Off by default. Set on creation; afterwards only UpdateWorkingScheduleBlockOutsideActivity
+                         changes it.
                 agents:
                     type: array
                     items:
@@ -2138,22 +2761,9 @@ components:
                 etag:
                     type: string
                     description: |-
-                        Version of the row, returned by every read. UpdateWorkingSchedule requires
-                         it and refuses with Aborted when the schedule has changed since.
-        WorkingScheduleForecast:
-            type: object
-            properties:
-                forecast:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/WorkingScheduleForecast_Forecast'
-        WorkingScheduleForecast_Forecast:
-            type: object
-            properties:
-                hour:
-                    type: string
-                agents:
-                    type: string
+                        Version of the row, returned by every read. UpdateWorkingSchedule, UpdateWorkingScheduleState
+                         and UpdateWorkingScheduleBlockOutsideActivity require it and refuse with
+                         storage.working_schedule.version_conflict (409) when the schedule has changed since.
 tags:
     - name: AgentAbsenceService
     - name: AgentWorkingConditionsService

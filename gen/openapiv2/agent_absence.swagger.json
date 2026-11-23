@@ -18,7 +18,7 @@
   "paths": {
     "/wfm/agents/absences": {
       "get": {
-        "summary": "Searches absences by filters.",
+        "summary": "Every agent the user has access to, with or without absences, and their absences over a\nperiod. Ordered by name, then by id.",
         "operationId": "AgentAbsenceService_SearchAgentsAbsences",
         "responses": {
           "200": {
@@ -35,6 +35,54 @@
           }
         },
         "parameters": [
+          {
+            "name": "date.from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "date.to",
+            "description": "The last day, included.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "teamId",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "supervisorId",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "skillId",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            },
+            "collectionFormat": "multi"
+          },
           {
             "name": "q",
             "description": "Searches by agent name.",
@@ -58,22 +106,13 @@
           },
           {
             "name": "sort",
+            "description": "+name when absent.",
             "in": "query",
             "required": false,
             "type": "string"
           },
           {
             "name": "fields",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          },
-          {
-            "name": "filters",
             "in": "query",
             "required": false,
             "type": "array",
@@ -88,7 +127,8 @@
         ]
       },
       "post": {
-        "summary": "Creates absences for multiple specified agents.",
+        "summary": "Sets absences of several types over ranges of dates for several agents; each day replaces\nthe absence it had. Shifts on those days are deleted as in CreateAgentAbsence: without\ndelete_shifts nothing is written and the refusal lists the shifts of every agent, with it\neverything is written.",
+        "description": "Refusals: service.request.too_large - more than the limit, sized for a team of 200 agents\nover a month; service.agent.access (403) - no access to an agent.",
         "operationId": "AgentAbsenceService_CreateAgentsAbsences",
         "responses": {
           "200": {
@@ -191,7 +231,8 @@
         ]
       },
       "post": {
-        "summary": "Creates one-day-absence for one agent.",
+        "summary": "Sets an absence for one day. An agent has one absence a day and a new one replaces the old\none of any type, so adding and changing the type is the same call. Past days are allowed.",
+        "description": "The agent's shifts on that day in a draft, pending or active schedule are deleted only on\nconfirmation. Without delete_shifts the call writes nothing and refuses with\nstorage.absence.shifts_to_delete, listing those shifts as storage.absence.shift violations.\nWith delete_shifts the shifts, their pauses and skills are deleted in the same transaction\nand returned in deleted_shifts. Shifts of an archived schedule stay, next to the absence.\n\nRefusals: service.agent.access (403) - no access to the agent.",
         "operationId": "AgentAbsenceService_CreateAgentAbsence",
         "responses": {
           "200": {
@@ -224,6 +265,10 @@
               "properties": {
                 "item": {
                   "$ref": "#/definitions/wfmAbsence"
+                },
+                "deleteShifts": {
+                  "type": "boolean",
+                  "description": "Deletes the agent's shifts on that day, the ones storage.absence.shifts_to_delete listed."
                 }
               }
             }
@@ -273,7 +318,7 @@
         ]
       },
       "delete": {
-        "summary": "Deletes agent concrete absence by its id.",
+        "summary": "Deletes an absence by its id; dbsql.query.no_rows (404) if there is none.",
         "operationId": "AgentAbsenceService_DeleteAgentAbsence",
         "responses": {
           "200": {
@@ -312,7 +357,7 @@
     },
     "/wfm/agents/{agentId}/absences/{item.id}": {
       "put": {
-        "summary": "Updates agent concrete absence by its id.",
+        "summary": "Updates an absence by its id, with the result of CreateAgentAbsence. On a day with shifts it\nrefuses with storage.absence.shifts_to_delete and has no confirmation.",
         "operationId": "AgentAbsenceService_UpdateAgentAbsence",
         "responses": {
           "200": {
@@ -502,6 +547,14 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/wfmAbsence"
+        },
+        "deletedShifts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmDeletedShift"
+          },
+          "description": "The shifts deleted. They can differ from the ones the refusal listed if the schedule\nchanged in between."
         }
       }
     },
@@ -521,6 +574,10 @@
             "type": "string",
             "format": "int64"
           }
+        },
+        "deleteShifts": {
+          "type": "boolean",
+          "description": "As in CreateAgentAbsenceRequest."
         }
       }
     },
@@ -533,8 +590,31 @@
             "type": "object",
             "$ref": "#/definitions/wfmAgentAbsences"
           }
+        },
+        "deletedShifts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmDeletedShift"
+          },
+          "description": "As in CreateAgentAbsenceResponse."
         }
       }
+    },
+    "wfmDateRange": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "format": "int64"
+        },
+        "to": {
+          "type": "string",
+          "format": "int64",
+          "description": "The last day, included."
+        }
+      },
+      "description": "DateRange is an inclusive range of calendar dates. A date anywhere in WFM is a day, not\nan instant: 00:00 UTC of that day in epoch milliseconds, the same for every client\nwhatever its time zone. Any other value is refused, so a local midnight shows up as\nan error instead of a day shifted by the client's offset."
     },
     "wfmDeleteAgentAbsenceResponse": {
       "type": "object",
@@ -544,6 +624,36 @@
           "format": "int64"
         }
       }
+    },
+    "wfmDeletedShift": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "agent": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "schedule": {
+          "$ref": "#/definitions/wfmLookupEntity"
+        },
+        "date": {
+          "type": "string",
+          "format": "int64",
+          "description": "The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
+        },
+        "startAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "Epoch milliseconds."
+        },
+        "endAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "description": "DeletedShift is a shift an absence deleted."
     },
     "wfmLookupEntity": {
       "type": "object",
@@ -585,10 +695,16 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/wfmAgentAbsences"
-          }
+          },
+          "description": "An agent without absences in the period comes without absences."
         },
         "next": {
           "type": "boolean"
+        },
+        "total": {
+          "type": "string",
+          "format": "int64",
+          "description": "Agents that match the filters, on all pages."
         }
       }
     },

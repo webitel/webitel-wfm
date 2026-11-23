@@ -21,14 +21,39 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AgentWorkingScheduleService_CreateAgentsWorkingScheduleShifts_FullMethodName = "/wfm.AgentWorkingScheduleService/CreateAgentsWorkingScheduleShifts"
 	AgentWorkingScheduleService_SearchAgentsWorkingSchedule_FullMethodName       = "/wfm.AgentWorkingScheduleService/SearchAgentsWorkingSchedule"
+	AgentWorkingScheduleService_UpdateAgentWorkingScheduleShift_FullMethodName   = "/wfm.AgentWorkingScheduleService/UpdateAgentWorkingScheduleShift"
+	AgentWorkingScheduleService_DeleteAgentWorkingScheduleShift_FullMethodName   = "/wfm.AgentWorkingScheduleService/DeleteAgentWorkingScheduleShift"
 )
 
 // AgentWorkingScheduleServiceClient is the client API for AgentWorkingScheduleService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AgentWorkingScheduleServiceClient interface {
+	// Expands a weekly template into shifts for several agents over a range of dates. Days with
+	// an absence and days another active schedule locks are skipped and returned in skipped; the
+	// rest is written.
+	//
+	// Refusals of the whole request: storage.shift.refused with violations - a shift overlaps
+	// another shift of the agent, or the agent or the date is not of this schedule;
+	// storage.working_schedule.archived; service.request.too_large - more than the limit, sized for
+	// a team of 200 agents over a month.
 	CreateAgentsWorkingScheduleShifts(ctx context.Context, in *CreateAgentsWorkingScheduleShiftsRequest, opts ...grpc.CallOption) (*CreateAgentsWorkingScheduleShiftsResponse, error)
+	// A page of the schedule's agents with their days, and the holidays and working week of the
+	// schedule's calendar.
 	SearchAgentsWorkingSchedule(ctx context.Context, in *SearchAgentsWorkingScheduleRequest, opts ...grpc.CallOption) (*SearchAgentsWorkingScheduleResponse, error)
+	// Replaces one shift whole: its time, and the pauses and skills of the request replace the
+	// existing ones, so a pause is deleted by sending the shift without it. Needs the etag from a
+	// read; the response carries the shift with the new etag. Allowed in a draft, pending or
+	// active schedule.
+	//
+	// Refusals: storage.shift.version_conflict (409) - the shift changed since the read;
+	// storage.shift.refused with violations - the rules of CreateAgentsWorkingScheduleShifts, plus
+	// an absence or a locked date; storage.working_schedule.archived; dbsql.query.no_rows (404) -
+	// the shift is gone.
+	UpdateAgentWorkingScheduleShift(ctx context.Context, in *UpdateAgentWorkingScheduleShiftRequest, opts ...grpc.CallOption) (*UpdateAgentWorkingScheduleShiftResponse, error)
+	// Deletes a shift with its pauses and skills. Refusals as in UpdateAgentWorkingScheduleShift,
+	// except the shift rules.
+	DeleteAgentWorkingScheduleShift(ctx context.Context, in *DeleteAgentWorkingScheduleShiftRequest, opts ...grpc.CallOption) (*DeleteAgentWorkingScheduleShiftResponse, error)
 }
 
 type agentWorkingScheduleServiceClient struct {
@@ -59,12 +84,55 @@ func (c *agentWorkingScheduleServiceClient) SearchAgentsWorkingSchedule(ctx cont
 	return out, nil
 }
 
+func (c *agentWorkingScheduleServiceClient) UpdateAgentWorkingScheduleShift(ctx context.Context, in *UpdateAgentWorkingScheduleShiftRequest, opts ...grpc.CallOption) (*UpdateAgentWorkingScheduleShiftResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateAgentWorkingScheduleShiftResponse)
+	err := c.cc.Invoke(ctx, AgentWorkingScheduleService_UpdateAgentWorkingScheduleShift_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentWorkingScheduleServiceClient) DeleteAgentWorkingScheduleShift(ctx context.Context, in *DeleteAgentWorkingScheduleShiftRequest, opts ...grpc.CallOption) (*DeleteAgentWorkingScheduleShiftResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteAgentWorkingScheduleShiftResponse)
+	err := c.cc.Invoke(ctx, AgentWorkingScheduleService_DeleteAgentWorkingScheduleShift_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentWorkingScheduleServiceServer is the server API for AgentWorkingScheduleService service.
 // All implementations must embed UnimplementedAgentWorkingScheduleServiceServer
 // for forward compatibility.
 type AgentWorkingScheduleServiceServer interface {
+	// Expands a weekly template into shifts for several agents over a range of dates. Days with
+	// an absence and days another active schedule locks are skipped and returned in skipped; the
+	// rest is written.
+	//
+	// Refusals of the whole request: storage.shift.refused with violations - a shift overlaps
+	// another shift of the agent, or the agent or the date is not of this schedule;
+	// storage.working_schedule.archived; service.request.too_large - more than the limit, sized for
+	// a team of 200 agents over a month.
 	CreateAgentsWorkingScheduleShifts(context.Context, *CreateAgentsWorkingScheduleShiftsRequest) (*CreateAgentsWorkingScheduleShiftsResponse, error)
+	// A page of the schedule's agents with their days, and the holidays and working week of the
+	// schedule's calendar.
 	SearchAgentsWorkingSchedule(context.Context, *SearchAgentsWorkingScheduleRequest) (*SearchAgentsWorkingScheduleResponse, error)
+	// Replaces one shift whole: its time, and the pauses and skills of the request replace the
+	// existing ones, so a pause is deleted by sending the shift without it. Needs the etag from a
+	// read; the response carries the shift with the new etag. Allowed in a draft, pending or
+	// active schedule.
+	//
+	// Refusals: storage.shift.version_conflict (409) - the shift changed since the read;
+	// storage.shift.refused with violations - the rules of CreateAgentsWorkingScheduleShifts, plus
+	// an absence or a locked date; storage.working_schedule.archived; dbsql.query.no_rows (404) -
+	// the shift is gone.
+	UpdateAgentWorkingScheduleShift(context.Context, *UpdateAgentWorkingScheduleShiftRequest) (*UpdateAgentWorkingScheduleShiftResponse, error)
+	// Deletes a shift with its pauses and skills. Refusals as in UpdateAgentWorkingScheduleShift,
+	// except the shift rules.
+	DeleteAgentWorkingScheduleShift(context.Context, *DeleteAgentWorkingScheduleShiftRequest) (*DeleteAgentWorkingScheduleShiftResponse, error)
 	mustEmbedUnimplementedAgentWorkingScheduleServiceServer()
 }
 
@@ -80,6 +148,12 @@ func (UnimplementedAgentWorkingScheduleServiceServer) CreateAgentsWorkingSchedul
 }
 func (UnimplementedAgentWorkingScheduleServiceServer) SearchAgentsWorkingSchedule(context.Context, *SearchAgentsWorkingScheduleRequest) (*SearchAgentsWorkingScheduleResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SearchAgentsWorkingSchedule not implemented")
+}
+func (UnimplementedAgentWorkingScheduleServiceServer) UpdateAgentWorkingScheduleShift(context.Context, *UpdateAgentWorkingScheduleShiftRequest) (*UpdateAgentWorkingScheduleShiftResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateAgentWorkingScheduleShift not implemented")
+}
+func (UnimplementedAgentWorkingScheduleServiceServer) DeleteAgentWorkingScheduleShift(context.Context, *DeleteAgentWorkingScheduleShiftRequest) (*DeleteAgentWorkingScheduleShiftResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteAgentWorkingScheduleShift not implemented")
 }
 func (UnimplementedAgentWorkingScheduleServiceServer) mustEmbedUnimplementedAgentWorkingScheduleServiceServer() {
 }
@@ -139,6 +213,42 @@ func _AgentWorkingScheduleService_SearchAgentsWorkingSchedule_Handler(srv interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentWorkingScheduleService_UpdateAgentWorkingScheduleShift_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateAgentWorkingScheduleShiftRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentWorkingScheduleServiceServer).UpdateAgentWorkingScheduleShift(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentWorkingScheduleService_UpdateAgentWorkingScheduleShift_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentWorkingScheduleServiceServer).UpdateAgentWorkingScheduleShift(ctx, req.(*UpdateAgentWorkingScheduleShiftRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentWorkingScheduleService_DeleteAgentWorkingScheduleShift_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteAgentWorkingScheduleShiftRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentWorkingScheduleServiceServer).DeleteAgentWorkingScheduleShift(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentWorkingScheduleService_DeleteAgentWorkingScheduleShift_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentWorkingScheduleServiceServer).DeleteAgentWorkingScheduleShift(ctx, req.(*DeleteAgentWorkingScheduleShiftRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentWorkingScheduleService_ServiceDesc is the grpc.ServiceDesc for AgentWorkingScheduleService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -153,6 +263,14 @@ var AgentWorkingScheduleService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SearchAgentsWorkingSchedule",
 			Handler:    _AgentWorkingScheduleService_SearchAgentsWorkingSchedule_Handler,
+		},
+		{
+			MethodName: "UpdateAgentWorkingScheduleShift",
+			Handler:    _AgentWorkingScheduleService_UpdateAgentWorkingScheduleShift_Handler,
+		},
+		{
+			MethodName: "DeleteAgentWorkingScheduleShift",
+			Handler:    _AgentWorkingScheduleService_DeleteAgentWorkingScheduleShift_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

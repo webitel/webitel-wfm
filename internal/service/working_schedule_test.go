@@ -95,7 +95,7 @@ func (f forecastStore) ExecuteForecastCalculation(_ context.Context, _ *model.Si
 	return f.rows, nil
 }
 
-func forecastRow(agents *int64) *model.ForecastCalculationResult {
+func forecastRow(agents *int32) *model.ForecastCalculationResult {
 	return &model.ForecastCalculationResult{Timestamp: pgtype.Timestamp{Time: periodStart, Valid: true}, Agents: agents}
 }
 
@@ -118,7 +118,7 @@ func readWorkingScheduleForecast(t *testing.T, rows ...*model.ForecastCalculatio
 // The schedule forecast runs the team's forecast procedure, which needs the
 // forecast service wired into the schedule service.
 func TestReadWorkingScheduleForecast(t *testing.T) {
-	agents := int64(4)
+	agents := int32(4)
 
 	out, err := readWorkingScheduleForecast(t, forecastRow(&agents))
 	if err != nil {
@@ -158,7 +158,7 @@ func TestReadWorkingScheduleForecastDefaultPeriod(t *testing.T) {
 // A forecast with an hour that has no number of agents is rejected whole, with
 // an explanation, not taken in part (Core design §3.4).
 func TestForecastWithEmptyAgentsIsRejected(t *testing.T) {
-	agents := int64(4)
+	agents := int32(4)
 	rows := []*model.ForecastCalculationResult{forecastRow(&agents), forecastRow(nil)}
 
 	t.Run("forecast calculation", func(t *testing.T) {

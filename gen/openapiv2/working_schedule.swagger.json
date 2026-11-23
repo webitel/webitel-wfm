@@ -18,6 +18,7 @@
   "paths": {
     "/wfm/lookups/working_schedules": {
       "get": {
+        "summary": "Searches schedules, each with its number of agents.",
         "operationId": "WorkingScheduleService_SearchWorkingSchedule",
         "responses": {
           "200": {
@@ -56,6 +57,7 @@
           },
           {
             "name": "sort",
+            "description": "States sort as active, pending, draft, archived.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -76,6 +78,7 @@
         ]
       },
       "post": {
+        "summary": "A new schedule is always a draft, whatever state the request carries. It gets every agent\nof the team the user has access to; agents who join the team later are added by hand.",
         "operationId": "WorkingScheduleService_CreateWorkingSchedule",
         "responses": {
           "200": {
@@ -147,6 +150,7 @@
         ]
       },
       "delete": {
+        "summary": "Deletes the schedule with its shifts, pauses and skills; absences stay. An active schedule\nrefuses with storage.working_schedule.active until its state changes.",
         "operationId": "WorkingScheduleService_DeleteWorkingSchedule",
         "responses": {
           "200": {
@@ -178,6 +182,7 @@
     },
     "/wfm/lookups/working_schedules/{id}/agents": {
       "post": {
+        "summary": "Adds agents from any team, each once: an agent already in the schedule is skipped. The\nresponse lists the added ones, with names.",
         "operationId": "WorkingScheduleService_UpdateWorkingScheduleAddAgents",
         "responses": {
           "200": {
@@ -226,6 +231,7 @@
     },
     "/wfm/lookups/working_schedules/{id}/agents/{agentId}": {
       "delete": {
+        "summary": "Removes an agent with their shifts in this schedule; absences stay.",
         "operationId": "WorkingScheduleService_UpdateWorkingScheduleRemoveAgent",
         "responses": {
           "200": {
@@ -262,8 +268,59 @@
         ]
       }
     },
+    "/wfm/lookups/working_schedules/{id}/block_outside_activity": {
+      "patch": {
+        "summary": "Switches blocking outside a shift on or off in a draft, pending or active schedule, with the\netag from a read; the response carries the schedule with the new etag. After creation it is\nthe only way to change it. Switched on in an active schedule, it also takes agents who are\nonline outside their shift offline.",
+        "description": "Refusals: storage.working_schedule.archived; storage.working_schedule.version_conflict\n(409) - the header changed since the read.",
+        "operationId": "WorkingScheduleService_UpdateWorkingScheduleBlockOutsideActivity",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmUpdateWorkingScheduleBlockOutsideActivityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "blockOutsideActivity": {
+                  "type": "boolean"
+                },
+                "etag": {
+                  "type": "string",
+                  "description": "The etag from a read."
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
     "/wfm/lookups/working_schedules/{id}/forecast": {
       "get": {
+        "summary": "How many agents each hour of a period needs, from the forecast procedure of the team. The\nprocedure runs on every call and nothing is stored, so edits of the schedule do not change\nthe result. A team without a forecast calculation gets no hours.",
         "operationId": "WorkingScheduleService_ReadWorkingScheduleForecast",
         "responses": {
           "200": {
@@ -296,6 +353,7 @@
           },
           {
             "name": "date.to",
+            "description": "The last day, included.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -307,8 +365,111 @@
         ]
       }
     },
+    "/wfm/lookups/working_schedules/{id}/planned": {
+      "get": {
+        "summary": "How many agents are on a shift and not on a pause, per 15 minutes and per day. It reads\nonly the schedule, so every edit of it changes the result.",
+        "operationId": "WorkingScheduleService_ReadWorkingSchedulePlanned",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmReadWorkingSchedulePlannedResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "date.from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "date.to",
+            "description": "The last day, included.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
+    "/wfm/lookups/working_schedules/{id}/state": {
+      "patch": {
+        "summary": "Moves the schedule to another state, in any order but out of archived, with the etag from\na read; the response carries the schedule with the new etag.",
+        "description": "Moving to pending or active needs an answer about unplanned days: dates of the period where\nan agent of the schedule has neither a shift nor an absence. Without fill_days_off the call\nrefuses with service.working_schedule.unplanned_days. The days off are written in the same\ntransaction, as absences.\n\nMoving to active first checks the rules and refuses with\nstorage.working_schedule.activation_refused and violations:\nstorage.working_schedule.team_active - the team has another active schedule on overlapping\ndates; storage.shift.locked_date or storage.shift.overlap - an agent works in another active\nschedule on the same date or at the same time. storage.working_schedule.version_conflict\n(409) - the header changed since the read.",
+        "operationId": "WorkingScheduleService_UpdateWorkingScheduleState",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/wfmUpdateWorkingScheduleStateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "$ref": "#/definitions/wfmWorkingScheduleState"
+                },
+                "etag": {
+                  "type": "string",
+                  "description": "The etag from a read."
+                },
+                "fillDaysOff": {
+                  "type": "boolean",
+                  "description": "The answer about unplanned days: true fills them with days off, holidays and the calendar's\ndays off included; false leaves them empty. Absent, the call refuses if there are any."
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "WorkingScheduleService"
+        ]
+      }
+    },
     "/wfm/lookups/working_schedules/{item.id}": {
       "put": {
+        "summary": "Updates the header of a draft schedule, with the etag from a read; the response carries the\nnew etag. A change of the team rebuilds the schedule: every shift is deleted and the agents\nbecome the new team's agents the user has access to, so agents added by hand leave too. A\nchange of the calendar deletes every shift; a change of the dates deletes the shifts whose\nworking date falls outside the new period. The time scale, the name and Special time skills\nkeep the shifts. block_outside_activity is ignored: only\nUpdateWorkingScheduleBlockOutsideActivity changes it.",
+        "description": "Refusals: service.working_schedule.state - not a draft;\nstorage.working_schedule.version_conflict (409) - the header changed since the read.",
         "operationId": "WorkingScheduleService_UpdateWorkingSchedule",
         "responses": {
           "200": {
@@ -364,7 +525,8 @@
                       "type": "string"
                     },
                     "state": {
-                      "$ref": "#/definitions/wfmWorkingScheduleState"
+                      "$ref": "#/definitions/wfmWorkingScheduleState",
+                      "description": "Set by the server: a new schedule is a draft, and only UpdateWorkingScheduleState changes it."
                     },
                     "team": {
                       "$ref": "#/definitions/wfmLookupEntity"
@@ -383,7 +545,8 @@
                     },
                     "startTimeAt": {
                       "type": "string",
-                      "format": "int64"
+                      "format": "int64",
+                      "description": "The time scale of the schedule, minutes from midnight in the zone of its calendar. Both\nabsent mean 24 hours; an end before the start crosses midnight. It does not limit shifts."
                     },
                     "endTimeAt": {
                       "type": "string",
@@ -394,10 +557,12 @@
                       "items": {
                         "type": "object",
                         "$ref": "#/definitions/wfmLookupEntity"
-                      }
+                      },
+                      "description": "Special time skills; the shape may change to a skill group."
                     },
                     "blockOutsideActivity": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "description": "Off by default. Set on creation; afterwards only UpdateWorkingScheduleBlockOutsideActivity\nchanges it."
                     },
                     "agents": {
                       "type": "array",
@@ -412,7 +577,7 @@
                     },
                     "etag": {
                       "type": "string",
-                      "description": "Version of the row, returned by every read. UpdateWorkingSchedule requires\nit and refuses with Aborted when the schedule has changed since."
+                      "description": "Version of the row, returned by every read. UpdateWorkingSchedule, UpdateWorkingScheduleState\nand UpdateWorkingScheduleBlockOutsideActivity require it and refuse with\nstorage.working_schedule.version_conflict (409) when the schedule has changed since."
                     }
                   }
                 }
@@ -471,6 +636,21 @@
         }
       }
     },
+    "wfmDateRange": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "format": "int64"
+        },
+        "to": {
+          "type": "string",
+          "format": "int64",
+          "description": "The last day, included."
+        }
+      },
+      "description": "DateRange is an inclusive range of calendar dates. A date anywhere in WFM is a day, not\nan instant: 00:00 UTC of that day in epoch milliseconds, the same for every client\nwhatever its time zone. Any other value is refused, so a local midnight shows up as\nan error instead of a day shifted by the client's offset."
+    },
     "wfmDeleteWorkingScheduleResponse": {
       "type": "object",
       "properties": {
@@ -480,16 +660,23 @@
         }
       }
     },
-    "wfmFilterBetween": {
+    "wfmForecastHour": {
       "type": "object",
       "properties": {
-        "from": {
+        "date": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "The day of the hour in the zone of the schedule's calendar, a date as in DateRange:\n00:00 UTC of the day, epoch milliseconds."
         },
-        "to": {
+        "startAt": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "Start of the hour, epoch milliseconds."
+        },
+        "agents": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Agents needed."
         }
       }
     },
@@ -505,14 +692,64 @@
         }
       }
     },
+    "wfmPlannedDay": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "int64",
+          "description": "A date as in DateRange: 00:00 UTC of the day, epoch milliseconds."
+        },
+        "agents": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "wfmPlannedSlot": {
+      "type": "object",
+      "properties": {
+        "startAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "Start of the slot, epoch milliseconds."
+        },
+        "agents": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "wfmReadWorkingScheduleForecastResponse": {
       "type": "object",
       "properties": {
         "items": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/wfmWorkingScheduleForecast"
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmForecastHour"
           }
+        }
+      }
+    },
+    "wfmReadWorkingSchedulePlannedResponse": {
+      "type": "object",
+      "properties": {
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmPlannedSlot"
+          },
+          "description": "15-minute slots where at least one agent is on a shift and not on a pause; a slot missing\nfrom the list has 0. An agent counts as away only when a pause covers the whole slot."
+        },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/wfmPlannedDay"
+          },
+          "description": "Days where at least one agent has a shift, by working date."
         }
       }
     },
@@ -551,6 +788,14 @@
         }
       }
     },
+    "wfmUpdateWorkingScheduleBlockOutsideActivityResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingSchedule"
+        }
+      }
+    },
     "wfmUpdateWorkingScheduleRemoveAgentResponse": {
       "type": "object",
       "properties": {
@@ -565,6 +810,19 @@
       "properties": {
         "item": {
           "$ref": "#/definitions/wfmWorkingSchedule"
+        }
+      }
+    },
+    "wfmUpdateWorkingScheduleStateResponse": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/wfmWorkingSchedule"
+        },
+        "filledDays": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Days filled with days off."
         }
       }
     },
@@ -597,7 +855,8 @@
           "type": "string"
         },
         "state": {
-          "$ref": "#/definitions/wfmWorkingScheduleState"
+          "$ref": "#/definitions/wfmWorkingScheduleState",
+          "description": "Set by the server: a new schedule is a draft, and only UpdateWorkingScheduleState changes it."
         },
         "team": {
           "$ref": "#/definitions/wfmLookupEntity"
@@ -616,7 +875,8 @@
         },
         "startTimeAt": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "The time scale of the schedule, minutes from midnight in the zone of its calendar. Both\nabsent mean 24 hours; an end before the start crosses midnight. It does not limit shifts."
         },
         "endTimeAt": {
           "type": "string",
@@ -627,10 +887,12 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/wfmLookupEntity"
-          }
+          },
+          "description": "Special time skills; the shape may change to a skill group."
         },
         "blockOutsideActivity": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Off by default. Set on creation; afterwards only UpdateWorkingScheduleBlockOutsideActivity\nchanges it."
         },
         "agents": {
           "type": "array",
@@ -645,32 +907,7 @@
         },
         "etag": {
           "type": "string",
-          "description": "Version of the row, returned by every read. UpdateWorkingSchedule requires\nit and refuses with Aborted when the schedule has changed since."
-        }
-      }
-    },
-    "wfmWorkingScheduleForecast": {
-      "type": "object",
-      "properties": {
-        "forecast": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/wfmWorkingScheduleForecastForecast"
-          }
-        }
-      }
-    },
-    "wfmWorkingScheduleForecastForecast": {
-      "type": "object",
-      "properties": {
-        "hour": {
-          "type": "string",
-          "format": "int64"
-        },
-        "agents": {
-          "type": "string",
-          "format": "int64"
+          "description": "Version of the row, returned by every read. UpdateWorkingSchedule, UpdateWorkingScheduleState\nand UpdateWorkingScheduleBlockOutsideActivity require it and refuse with\nstorage.working_schedule.version_conflict (409) when the schedule has changed since."
         }
       }
     },

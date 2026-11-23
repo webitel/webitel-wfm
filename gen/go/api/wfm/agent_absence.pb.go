@@ -77,9 +77,11 @@ func (AbsenceType) EnumDescriptor() ([]byte, []int) {
 }
 
 type CreateAgentAbsenceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentId       int64                  `protobuf:"varint,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
-	Item          *Absence               `protobuf:"bytes,2,opt,name=item,proto3" json:"item,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	AgentId int64                  `protobuf:"varint,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Item    *Absence               `protobuf:"bytes,2,opt,name=item,proto3" json:"item,omitempty"`
+	// Deletes the agent's shifts on that day, the ones storage.absence.shifts_to_delete listed.
+	DeleteShifts  bool `protobuf:"varint,3,opt,name=delete_shifts,json=deleteShifts,proto3" json:"delete_shifts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -128,9 +130,19 @@ func (x *CreateAgentAbsenceRequest) GetItem() *Absence {
 	return nil
 }
 
+func (x *CreateAgentAbsenceRequest) GetDeleteShifts() bool {
+	if x != nil {
+		return x.DeleteShifts
+	}
+	return false
+}
+
 type CreateAgentAbsenceResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Item          *Absence               `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Item  *Absence               `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	// The shifts deleted. They can differ from the ones the refusal listed if the schedule
+	// changed in between.
+	DeletedShifts []*DeletedShift `protobuf:"bytes,2,rep,name=deleted_shifts,json=deletedShifts,proto3" json:"deleted_shifts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -172,6 +184,100 @@ func (x *CreateAgentAbsenceResponse) GetItem() *Absence {
 	return nil
 }
 
+func (x *CreateAgentAbsenceResponse) GetDeletedShifts() []*DeletedShift {
+	if x != nil {
+		return x.DeletedShifts
+	}
+	return nil
+}
+
+// DeletedShift is a shift an absence deleted.
+type DeletedShift struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Agent    *LookupEntity          `protobuf:"bytes,2,opt,name=agent,proto3" json:"agent,omitempty"`
+	Schedule *LookupEntity          `protobuf:"bytes,3,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	// The working date, a date as in DateRange: 00:00 UTC of the day, epoch milliseconds.
+	Date int64 `protobuf:"varint,4,opt,name=date,proto3" json:"date,omitempty"`
+	// Epoch milliseconds.
+	StartAt       int64 `protobuf:"varint,5,opt,name=start_at,json=startAt,proto3" json:"start_at,omitempty"`
+	EndAt         int64 `protobuf:"varint,6,opt,name=end_at,json=endAt,proto3" json:"end_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletedShift) Reset() {
+	*x = DeletedShift{}
+	mi := &file_agent_absence_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletedShift) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletedShift) ProtoMessage() {}
+
+func (x *DeletedShift) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_absence_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletedShift.ProtoReflect.Descriptor instead.
+func (*DeletedShift) Descriptor() ([]byte, []int) {
+	return file_agent_absence_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DeletedShift) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DeletedShift) GetAgent() *LookupEntity {
+	if x != nil {
+		return x.Agent
+	}
+	return nil
+}
+
+func (x *DeletedShift) GetSchedule() *LookupEntity {
+	if x != nil {
+		return x.Schedule
+	}
+	return nil
+}
+
+func (x *DeletedShift) GetDate() int64 {
+	if x != nil {
+		return x.Date
+	}
+	return 0
+}
+
+func (x *DeletedShift) GetStartAt() int64 {
+	if x != nil {
+		return x.StartAt
+	}
+	return 0
+}
+
+func (x *DeletedShift) GetEndAt() int64 {
+	if x != nil {
+		return x.EndAt
+	}
+	return 0
+}
+
 type ReadAgentAbsenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -182,7 +288,7 @@ type ReadAgentAbsenceRequest struct {
 
 func (x *ReadAgentAbsenceRequest) Reset() {
 	*x = ReadAgentAbsenceRequest{}
-	mi := &file_agent_absence_proto_msgTypes[2]
+	mi := &file_agent_absence_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -194,7 +300,7 @@ func (x *ReadAgentAbsenceRequest) String() string {
 func (*ReadAgentAbsenceRequest) ProtoMessage() {}
 
 func (x *ReadAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[2]
+	mi := &file_agent_absence_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -207,7 +313,7 @@ func (x *ReadAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadAgentAbsenceRequest.ProtoReflect.Descriptor instead.
 func (*ReadAgentAbsenceRequest) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{2}
+	return file_agent_absence_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ReadAgentAbsenceRequest) GetId() int64 {
@@ -233,7 +339,7 @@ type ReadAgentAbsenceResponse struct {
 
 func (x *ReadAgentAbsenceResponse) Reset() {
 	*x = ReadAgentAbsenceResponse{}
-	mi := &file_agent_absence_proto_msgTypes[3]
+	mi := &file_agent_absence_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -245,7 +351,7 @@ func (x *ReadAgentAbsenceResponse) String() string {
 func (*ReadAgentAbsenceResponse) ProtoMessage() {}
 
 func (x *ReadAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[3]
+	mi := &file_agent_absence_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -258,7 +364,7 @@ func (x *ReadAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadAgentAbsenceResponse.ProtoReflect.Descriptor instead.
 func (*ReadAgentAbsenceResponse) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{3}
+	return file_agent_absence_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ReadAgentAbsenceResponse) GetItem() *Absence {
@@ -282,7 +388,7 @@ type SearchAgentAbsenceRequest struct {
 
 func (x *SearchAgentAbsenceRequest) Reset() {
 	*x = SearchAgentAbsenceRequest{}
-	mi := &file_agent_absence_proto_msgTypes[4]
+	mi := &file_agent_absence_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -294,7 +400,7 @@ func (x *SearchAgentAbsenceRequest) String() string {
 func (*SearchAgentAbsenceRequest) ProtoMessage() {}
 
 func (x *SearchAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[4]
+	mi := &file_agent_absence_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -307,7 +413,7 @@ func (x *SearchAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchAgentAbsenceRequest.ProtoReflect.Descriptor instead.
 func (*SearchAgentAbsenceRequest) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{4}
+	return file_agent_absence_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SearchAgentAbsenceRequest) GetAgentId() int64 {
@@ -361,7 +467,7 @@ type SearchAgentAbsenceResponse struct {
 
 func (x *SearchAgentAbsenceResponse) Reset() {
 	*x = SearchAgentAbsenceResponse{}
-	mi := &file_agent_absence_proto_msgTypes[5]
+	mi := &file_agent_absence_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -373,7 +479,7 @@ func (x *SearchAgentAbsenceResponse) String() string {
 func (*SearchAgentAbsenceResponse) ProtoMessage() {}
 
 func (x *SearchAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[5]
+	mi := &file_agent_absence_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -386,7 +492,7 @@ func (x *SearchAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchAgentAbsenceResponse.ProtoReflect.Descriptor instead.
 func (*SearchAgentAbsenceResponse) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{5}
+	return file_agent_absence_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SearchAgentAbsenceResponse) GetItems() []*Absence {
@@ -406,7 +512,7 @@ type UpdateAgentAbsenceRequest struct {
 
 func (x *UpdateAgentAbsenceRequest) Reset() {
 	*x = UpdateAgentAbsenceRequest{}
-	mi := &file_agent_absence_proto_msgTypes[6]
+	mi := &file_agent_absence_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +524,7 @@ func (x *UpdateAgentAbsenceRequest) String() string {
 func (*UpdateAgentAbsenceRequest) ProtoMessage() {}
 
 func (x *UpdateAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[6]
+	mi := &file_agent_absence_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +537,7 @@ func (x *UpdateAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAgentAbsenceRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAgentAbsenceRequest) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{6}
+	return file_agent_absence_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateAgentAbsenceRequest) GetAgentId() int64 {
@@ -457,7 +563,7 @@ type UpdateAgentAbsenceResponse struct {
 
 func (x *UpdateAgentAbsenceResponse) Reset() {
 	*x = UpdateAgentAbsenceResponse{}
-	mi := &file_agent_absence_proto_msgTypes[7]
+	mi := &file_agent_absence_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -469,7 +575,7 @@ func (x *UpdateAgentAbsenceResponse) String() string {
 func (*UpdateAgentAbsenceResponse) ProtoMessage() {}
 
 func (x *UpdateAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[7]
+	mi := &file_agent_absence_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -482,7 +588,7 @@ func (x *UpdateAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAgentAbsenceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAgentAbsenceResponse) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{7}
+	return file_agent_absence_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UpdateAgentAbsenceResponse) GetItem() *Absence {
@@ -502,7 +608,7 @@ type DeleteAgentAbsenceRequest struct {
 
 func (x *DeleteAgentAbsenceRequest) Reset() {
 	*x = DeleteAgentAbsenceRequest{}
-	mi := &file_agent_absence_proto_msgTypes[8]
+	mi := &file_agent_absence_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +620,7 @@ func (x *DeleteAgentAbsenceRequest) String() string {
 func (*DeleteAgentAbsenceRequest) ProtoMessage() {}
 
 func (x *DeleteAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[8]
+	mi := &file_agent_absence_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +633,7 @@ func (x *DeleteAgentAbsenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAgentAbsenceRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAgentAbsenceRequest) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{8}
+	return file_agent_absence_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeleteAgentAbsenceRequest) GetId() int64 {
@@ -553,7 +659,7 @@ type DeleteAgentAbsenceResponse struct {
 
 func (x *DeleteAgentAbsenceResponse) Reset() {
 	*x = DeleteAgentAbsenceResponse{}
-	mi := &file_agent_absence_proto_msgTypes[9]
+	mi := &file_agent_absence_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +671,7 @@ func (x *DeleteAgentAbsenceResponse) String() string {
 func (*DeleteAgentAbsenceResponse) ProtoMessage() {}
 
 func (x *DeleteAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[9]
+	mi := &file_agent_absence_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +684,7 @@ func (x *DeleteAgentAbsenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAgentAbsenceResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAgentAbsenceResponse) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{9}
+	return file_agent_absence_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DeleteAgentAbsenceResponse) GetId() int64 {
@@ -589,16 +695,18 @@ func (x *DeleteAgentAbsenceResponse) GetId() int64 {
 }
 
 type CreateAgentsAbsencesRequest struct {
-	state         protoimpl.MessageState                   `protogen:"open.v1"`
-	Items         []*CreateAgentsAbsencesRequestAbsentType `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	AgentIds      []int64                                  `protobuf:"varint,2,rep,packed,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	state    protoimpl.MessageState                   `protogen:"open.v1"`
+	Items    []*CreateAgentsAbsencesRequestAbsentType `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	AgentIds []int64                                  `protobuf:"varint,2,rep,packed,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	// As in CreateAgentAbsenceRequest.
+	DeleteShifts  bool `protobuf:"varint,3,opt,name=delete_shifts,json=deleteShifts,proto3" json:"delete_shifts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateAgentsAbsencesRequest) Reset() {
 	*x = CreateAgentsAbsencesRequest{}
-	mi := &file_agent_absence_proto_msgTypes[10]
+	mi := &file_agent_absence_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -610,7 +718,7 @@ func (x *CreateAgentsAbsencesRequest) String() string {
 func (*CreateAgentsAbsencesRequest) ProtoMessage() {}
 
 func (x *CreateAgentsAbsencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[10]
+	mi := &file_agent_absence_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -623,7 +731,7 @@ func (x *CreateAgentsAbsencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentsAbsencesRequest.ProtoReflect.Descriptor instead.
 func (*CreateAgentsAbsencesRequest) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{10}
+	return file_agent_absence_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreateAgentsAbsencesRequest) GetItems() []*CreateAgentsAbsencesRequestAbsentType {
@@ -640,16 +748,25 @@ func (x *CreateAgentsAbsencesRequest) GetAgentIds() []int64 {
 	return nil
 }
 
+func (x *CreateAgentsAbsencesRequest) GetDeleteShifts() bool {
+	if x != nil {
+		return x.DeleteShifts
+	}
+	return false
+}
+
 type CreateAgentsAbsencesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*AgentAbsences       `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Items []*AgentAbsences       `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	// As in CreateAgentAbsenceResponse.
+	DeletedShifts []*DeletedShift `protobuf:"bytes,2,rep,name=deleted_shifts,json=deletedShifts,proto3" json:"deleted_shifts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateAgentsAbsencesResponse) Reset() {
 	*x = CreateAgentsAbsencesResponse{}
-	mi := &file_agent_absence_proto_msgTypes[11]
+	mi := &file_agent_absence_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -661,7 +778,7 @@ func (x *CreateAgentsAbsencesResponse) String() string {
 func (*CreateAgentsAbsencesResponse) ProtoMessage() {}
 
 func (x *CreateAgentsAbsencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[11]
+	mi := &file_agent_absence_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -674,7 +791,7 @@ func (x *CreateAgentsAbsencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentsAbsencesResponse.ProtoReflect.Descriptor instead.
 func (*CreateAgentsAbsencesResponse) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{11}
+	return file_agent_absence_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreateAgentsAbsencesResponse) GetItems() []*AgentAbsences {
@@ -684,21 +801,34 @@ func (x *CreateAgentsAbsencesResponse) GetItems() []*AgentAbsences {
 	return nil
 }
 
+func (x *CreateAgentsAbsencesResponse) GetDeletedShifts() []*DeletedShift {
+	if x != nil {
+		return x.DeletedShifts
+	}
+	return nil
+}
+
 type SearchAgentsAbsencesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Q             *string                `protobuf:"bytes,1,opt,name=q,proto3,oneof" json:"q,omitempty"` // Searches by agent name.
-	Page          *int32                 `protobuf:"varint,2,opt,name=page,proto3,oneof" json:"page,omitempty"`
-	Size          *int32                 `protobuf:"varint,3,opt,name=size,proto3,oneof" json:"size,omitempty"`
-	Sort          *string                `protobuf:"bytes,4,opt,name=sort,proto3,oneof" json:"sort,omitempty"`
-	Fields        []string               `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
-	Filters       []string               `protobuf:"bytes,6,rep,name=filters,proto3" json:"filters,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The period of the absences returned. It limits the absences, not the agents.
+	Date         *DateRange `protobuf:"bytes,7,opt,name=date,proto3" json:"date,omitempty"`
+	TeamId       []int64    `protobuf:"varint,8,rep,packed,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
+	SupervisorId []int64    `protobuf:"varint,9,rep,packed,name=supervisor_id,json=supervisorId,proto3" json:"supervisor_id,omitempty"`
+	SkillId      []int64    `protobuf:"varint,10,rep,packed,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	// Searches by agent name.
+	Q    *string `protobuf:"bytes,1,opt,name=q,proto3,oneof" json:"q,omitempty"`
+	Page *int32  `protobuf:"varint,2,opt,name=page,proto3,oneof" json:"page,omitempty"`
+	Size *int32  `protobuf:"varint,3,opt,name=size,proto3,oneof" json:"size,omitempty"`
+	// +name when absent.
+	Sort          *string  `protobuf:"bytes,4,opt,name=sort,proto3,oneof" json:"sort,omitempty"`
+	Fields        []string `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchAgentsAbsencesRequest) Reset() {
 	*x = SearchAgentsAbsencesRequest{}
-	mi := &file_agent_absence_proto_msgTypes[12]
+	mi := &file_agent_absence_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +840,7 @@ func (x *SearchAgentsAbsencesRequest) String() string {
 func (*SearchAgentsAbsencesRequest) ProtoMessage() {}
 
 func (x *SearchAgentsAbsencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[12]
+	mi := &file_agent_absence_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +853,35 @@ func (x *SearchAgentsAbsencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchAgentsAbsencesRequest.ProtoReflect.Descriptor instead.
 func (*SearchAgentsAbsencesRequest) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{12}
+	return file_agent_absence_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SearchAgentsAbsencesRequest) GetDate() *DateRange {
+	if x != nil {
+		return x.Date
+	}
+	return nil
+}
+
+func (x *SearchAgentsAbsencesRequest) GetTeamId() []int64 {
+	if x != nil {
+		return x.TeamId
+	}
+	return nil
+}
+
+func (x *SearchAgentsAbsencesRequest) GetSupervisorId() []int64 {
+	if x != nil {
+		return x.SupervisorId
+	}
+	return nil
+}
+
+func (x *SearchAgentsAbsencesRequest) GetSkillId() []int64 {
+	if x != nil {
+		return x.SkillId
+	}
+	return nil
 }
 
 func (x *SearchAgentsAbsencesRequest) GetQ() string {
@@ -761,24 +919,20 @@ func (x *SearchAgentsAbsencesRequest) GetFields() []string {
 	return nil
 }
 
-func (x *SearchAgentsAbsencesRequest) GetFilters() []string {
-	if x != nil {
-		return x.Filters
-	}
-	return nil
-}
-
 type SearchAgentsAbsencesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*AgentAbsences       `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	Next          bool                   `protobuf:"varint,2,opt,name=next,proto3" json:"next,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An agent without absences in the period comes without absences.
+	Items []*AgentAbsences `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Next  bool             `protobuf:"varint,2,opt,name=next,proto3" json:"next,omitempty"`
+	// Agents that match the filters, on all pages.
+	Total         int64 `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchAgentsAbsencesResponse) Reset() {
 	*x = SearchAgentsAbsencesResponse{}
-	mi := &file_agent_absence_proto_msgTypes[13]
+	mi := &file_agent_absence_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -790,7 +944,7 @@ func (x *SearchAgentsAbsencesResponse) String() string {
 func (*SearchAgentsAbsencesResponse) ProtoMessage() {}
 
 func (x *SearchAgentsAbsencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[13]
+	mi := &file_agent_absence_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -803,7 +957,7 @@ func (x *SearchAgentsAbsencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchAgentsAbsencesResponse.ProtoReflect.Descriptor instead.
 func (*SearchAgentsAbsencesResponse) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{13}
+	return file_agent_absence_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SearchAgentsAbsencesResponse) GetItems() []*AgentAbsences {
@@ -820,6 +974,13 @@ func (x *SearchAgentsAbsencesResponse) GetNext() bool {
 	return false
 }
 
+func (x *SearchAgentsAbsencesResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
 type AgentAbsences struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Agent         *LookupEntity          `protobuf:"bytes,1,opt,name=agent,proto3" json:"agent,omitempty"`
@@ -830,7 +991,7 @@ type AgentAbsences struct {
 
 func (x *AgentAbsences) Reset() {
 	*x = AgentAbsences{}
-	mi := &file_agent_absence_proto_msgTypes[14]
+	mi := &file_agent_absence_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +1003,7 @@ func (x *AgentAbsences) String() string {
 func (*AgentAbsences) ProtoMessage() {}
 
 func (x *AgentAbsences) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[14]
+	mi := &file_agent_absence_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +1016,7 @@ func (x *AgentAbsences) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentAbsences.ProtoReflect.Descriptor instead.
 func (*AgentAbsences) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{14}
+	return file_agent_absence_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AgentAbsences) GetAgent() *LookupEntity {
@@ -889,7 +1050,7 @@ type Absence struct {
 
 func (x *Absence) Reset() {
 	*x = Absence{}
-	mi := &file_agent_absence_proto_msgTypes[15]
+	mi := &file_agent_absence_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -901,7 +1062,7 @@ func (x *Absence) String() string {
 func (*Absence) ProtoMessage() {}
 
 func (x *Absence) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[15]
+	mi := &file_agent_absence_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -914,7 +1075,7 @@ func (x *Absence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Absence.ProtoReflect.Descriptor instead.
 func (*Absence) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{15}
+	return file_agent_absence_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Absence) GetId() int64 {
@@ -985,7 +1146,7 @@ type CreateAgentsAbsencesRequestAbsentType struct {
 
 func (x *CreateAgentsAbsencesRequestAbsentType) Reset() {
 	*x = CreateAgentsAbsencesRequestAbsentType{}
-	mi := &file_agent_absence_proto_msgTypes[16]
+	mi := &file_agent_absence_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -997,7 +1158,7 @@ func (x *CreateAgentsAbsencesRequestAbsentType) String() string {
 func (*CreateAgentsAbsencesRequestAbsentType) ProtoMessage() {}
 
 func (x *CreateAgentsAbsencesRequestAbsentType) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_absence_proto_msgTypes[16]
+	mi := &file_agent_absence_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1010,7 +1171,7 @@ func (x *CreateAgentsAbsencesRequestAbsentType) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use CreateAgentsAbsencesRequestAbsentType.ProtoReflect.Descriptor instead.
 func (*CreateAgentsAbsencesRequestAbsentType) Descriptor() ([]byte, []int) {
-	return file_agent_absence_proto_rawDescGZIP(), []int{10, 0}
+	return file_agent_absence_proto_rawDescGZIP(), []int{11, 0}
 }
 
 func (x *CreateAgentsAbsencesRequestAbsentType) GetTypeId() AbsenceType {
@@ -1038,12 +1199,21 @@ var File_agent_absence_proto protoreflect.FileDescriptor
 
 const file_agent_absence_proto_rawDesc = "" +
 	"\n" +
-	"\x13agent_absence.proto\x12\x03wfm\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1aproto/webitel/option.proto\x1a\flookup.proto\"`\n" +
+	"\x13agent_absence.proto\x12\x03wfm\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1aproto/webitel/option.proto\x1a\flookup.proto\x1a\ffilter.proto\x1a\x0fviolation.proto\"\x85\x01\n" +
 	"\x19CreateAgentAbsenceRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\x03R\aagentId\x12(\n" +
-	"\x04item\x18\x02 \x01(\v2\f.wfm.AbsenceB\x06\xbaH\x03\xc8\x01\x01R\x04item\">\n" +
+	"\x04item\x18\x02 \x01(\v2\f.wfm.AbsenceB\x06\xbaH\x03\xc8\x01\x01R\x04item\x12#\n" +
+	"\rdelete_shifts\x18\x03 \x01(\bR\fdeleteShifts\"x\n" +
 	"\x1aCreateAgentAbsenceResponse\x12 \n" +
-	"\x04item\x18\x01 \x01(\v2\f.wfm.AbsenceR\x04item\"D\n" +
+	"\x04item\x18\x01 \x01(\v2\f.wfm.AbsenceR\x04item\x128\n" +
+	"\x0edeleted_shifts\x18\x02 \x03(\v2\x11.wfm.DeletedShiftR\rdeletedShifts\"\xbc\x01\n" +
+	"\fDeletedShift\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12'\n" +
+	"\x05agent\x18\x02 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12-\n" +
+	"\bschedule\x18\x03 \x01(\v2\x11.wfm.LookupEntityR\bschedule\x12\x12\n" +
+	"\x04date\x18\x04 \x01(\x03R\x04date\x12\x19\n" +
+	"\bstart_at\x18\x05 \x01(\x03R\astartAt\x12\x15\n" +
+	"\x06end_at\x18\x06 \x01(\x03R\x05endAt\"D\n" +
 	"\x17ReadAgentAbsenceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\x03R\aagentId\"<\n" +
@@ -1070,10 +1240,11 @@ const file_agent_absence_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\x03R\aagentId\",\n" +
 	"\x1aDeleteAgentAbsenceResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\xc2\x04\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xe7\x04\n" +
 	"\x1bCreateAgentsAbsencesRequest\x12K\n" +
 	"\x05items\x18\x01 \x03(\v2+.wfm.CreateAgentsAbsencesRequest.absentTypeB\b\xbaH\x05\x92\x01\x02\b\x01R\x05items\x12%\n" +
-	"\tagent_ids\x18\x02 \x03(\x03B\b\xbaH\x05\x92\x01\x02\b\x01R\bagentIds\x1a\xae\x03\n" +
+	"\tagent_ids\x18\x02 \x03(\x03B\b\xbaH\x05\x92\x01\x02\b\x01R\bagentIds\x12#\n" +
+	"\rdelete_shifts\x18\x03 \x01(\bR\fdeleteShifts\x1a\xae\x03\n" +
 	"\n" +
 	"absentType\x129\n" +
 	"\atype_id\x18\x01 \x01(\x0e2\x10.wfm.AbsenceTypeB\x0e\xbaH\v\x82\x01\b\x10\x01\x18\x01\x18\x02\x18\x03R\x06typeId\x12z\n" +
@@ -1081,23 +1252,29 @@ const file_agent_absence_proto_rawDesc = "" +
 	"\x04date\x125a date is 00:00 UTC of the day, in epoch milliseconds\x1a\x14this % 86400000 == 0\"\x02 \x00R\bdateFrom\x12v\n" +
 	"\adate_to\x18\x03 \x01(\x03B]\xbaHZ\xba\x01S\n" +
 	"\x04date\x125a date is 00:00 UTC of the day, in epoch milliseconds\x1a\x14this % 86400000 == 0\"\x02 \x00R\x06dateTo:e\xbaHb\x1a`\n" +
-	"\x10absent_at.filter\x12,date_to should not be earlier than date_from\x1a\x1ethis.date_to >= this.date_fromJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"H\n" +
+	"\x10absent_at.filter\x12,date_to should not be earlier than date_from\x1a\x1ethis.date_to >= this.date_fromJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"\x82\x01\n" +
 	"\x1cCreateAgentsAbsencesResponse\x12(\n" +
-	"\x05items\x18\x01 \x03(\v2\x12.wfm.AgentAbsencesR\x05items\"\xce\x01\n" +
-	"\x1bSearchAgentsAbsencesRequest\x12\x11\n" +
-	"\x01q\x18\x01 \x01(\tH\x00R\x01q\x88\x01\x01\x12\x17\n" +
-	"\x04page\x18\x02 \x01(\x05H\x01R\x04page\x88\x01\x01\x12\x17\n" +
-	"\x04size\x18\x03 \x01(\x05H\x02R\x04size\x88\x01\x01\x12\x17\n" +
-	"\x04sort\x18\x04 \x01(\tH\x03R\x04sort\x88\x01\x01\x12\x16\n" +
-	"\x06fields\x18\x05 \x03(\tR\x06fields\x12\x18\n" +
-	"\afilters\x18\x06 \x03(\tR\afiltersB\x04\n" +
+	"\x05items\x18\x01 \x03(\v2\x12.wfm.AgentAbsencesR\x05items\x128\n" +
+	"\x0edeleted_shifts\x18\x02 \x03(\v2\x11.wfm.DeletedShiftR\rdeletedShifts\"\xea\x02\n" +
+	"\x1bSearchAgentsAbsencesRequest\x12*\n" +
+	"\x04date\x18\a \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\x12\x17\n" +
+	"\ateam_id\x18\b \x03(\x03R\x06teamId\x12#\n" +
+	"\rsupervisor_id\x18\t \x03(\x03R\fsupervisorId\x12\x19\n" +
+	"\bskill_id\x18\n" +
+	" \x03(\x03R\askillId\x12\x1b\n" +
+	"\x01q\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\xfa\x01H\x00R\x01q\x88\x01\x01\x12 \n" +
+	"\x04page\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x04page\x88\x01\x01\x12 \n" +
+	"\x04size\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x02R\x04size\x88\x01\x01\x12,\n" +
+	"\x04sort\x18\x04 \x01(\tB\x13\xbaH\x10r\x0eR\x05+nameR\x05-nameH\x03R\x04sort\x88\x01\x01\x12\x16\n" +
+	"\x06fields\x18\x05 \x03(\tR\x06fieldsB\x04\n" +
 	"\x02_qB\a\n" +
 	"\x05_pageB\a\n" +
 	"\x05_sizeB\a\n" +
-	"\x05_sort\"\\\n" +
+	"\x05_sort\"r\n" +
 	"\x1cSearchAgentsAbsencesResponse\x12(\n" +
 	"\x05items\x18\x01 \x03(\v2\x12.wfm.AgentAbsencesR\x05items\x12\x12\n" +
-	"\x04next\x18\x02 \x01(\bR\x04next\"b\n" +
+	"\x04next\x18\x02 \x01(\bR\x04next\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x03R\x05total\"b\n" +
 	"\rAgentAbsences\x12'\n" +
 	"\x05agent\x18\x01 \x01(\v2\x11.wfm.LookupEntityR\x05agent\x12(\n" +
 	"\babsences\x18\x02 \x03(\v2\f.wfm.AbsenceR\babsences\"\x95\x03\n" +
@@ -1143,63 +1320,70 @@ func file_agent_absence_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_absence_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_agent_absence_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_agent_absence_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_agent_absence_proto_goTypes = []any{
 	(AbsenceType)(0),                              // 0: wfm.AbsenceType
 	(*CreateAgentAbsenceRequest)(nil),             // 1: wfm.CreateAgentAbsenceRequest
 	(*CreateAgentAbsenceResponse)(nil),            // 2: wfm.CreateAgentAbsenceResponse
-	(*ReadAgentAbsenceRequest)(nil),               // 3: wfm.ReadAgentAbsenceRequest
-	(*ReadAgentAbsenceResponse)(nil),              // 4: wfm.ReadAgentAbsenceResponse
-	(*SearchAgentAbsenceRequest)(nil),             // 5: wfm.SearchAgentAbsenceRequest
-	(*SearchAgentAbsenceResponse)(nil),            // 6: wfm.SearchAgentAbsenceResponse
-	(*UpdateAgentAbsenceRequest)(nil),             // 7: wfm.UpdateAgentAbsenceRequest
-	(*UpdateAgentAbsenceResponse)(nil),            // 8: wfm.UpdateAgentAbsenceResponse
-	(*DeleteAgentAbsenceRequest)(nil),             // 9: wfm.DeleteAgentAbsenceRequest
-	(*DeleteAgentAbsenceResponse)(nil),            // 10: wfm.DeleteAgentAbsenceResponse
-	(*CreateAgentsAbsencesRequest)(nil),           // 11: wfm.CreateAgentsAbsencesRequest
-	(*CreateAgentsAbsencesResponse)(nil),          // 12: wfm.CreateAgentsAbsencesResponse
-	(*SearchAgentsAbsencesRequest)(nil),           // 13: wfm.SearchAgentsAbsencesRequest
-	(*SearchAgentsAbsencesResponse)(nil),          // 14: wfm.SearchAgentsAbsencesResponse
-	(*AgentAbsences)(nil),                         // 15: wfm.AgentAbsences
-	(*Absence)(nil),                               // 16: wfm.Absence
-	(*CreateAgentsAbsencesRequestAbsentType)(nil), // 17: wfm.CreateAgentsAbsencesRequest.absentType
-	(*LookupEntity)(nil),                          // 18: wfm.LookupEntity
+	(*DeletedShift)(nil),                          // 3: wfm.DeletedShift
+	(*ReadAgentAbsenceRequest)(nil),               // 4: wfm.ReadAgentAbsenceRequest
+	(*ReadAgentAbsenceResponse)(nil),              // 5: wfm.ReadAgentAbsenceResponse
+	(*SearchAgentAbsenceRequest)(nil),             // 6: wfm.SearchAgentAbsenceRequest
+	(*SearchAgentAbsenceResponse)(nil),            // 7: wfm.SearchAgentAbsenceResponse
+	(*UpdateAgentAbsenceRequest)(nil),             // 8: wfm.UpdateAgentAbsenceRequest
+	(*UpdateAgentAbsenceResponse)(nil),            // 9: wfm.UpdateAgentAbsenceResponse
+	(*DeleteAgentAbsenceRequest)(nil),             // 10: wfm.DeleteAgentAbsenceRequest
+	(*DeleteAgentAbsenceResponse)(nil),            // 11: wfm.DeleteAgentAbsenceResponse
+	(*CreateAgentsAbsencesRequest)(nil),           // 12: wfm.CreateAgentsAbsencesRequest
+	(*CreateAgentsAbsencesResponse)(nil),          // 13: wfm.CreateAgentsAbsencesResponse
+	(*SearchAgentsAbsencesRequest)(nil),           // 14: wfm.SearchAgentsAbsencesRequest
+	(*SearchAgentsAbsencesResponse)(nil),          // 15: wfm.SearchAgentsAbsencesResponse
+	(*AgentAbsences)(nil),                         // 16: wfm.AgentAbsences
+	(*Absence)(nil),                               // 17: wfm.Absence
+	(*CreateAgentsAbsencesRequestAbsentType)(nil), // 18: wfm.CreateAgentsAbsencesRequest.absentType
+	(*LookupEntity)(nil),                          // 19: wfm.LookupEntity
+	(*DateRange)(nil),                             // 20: wfm.DateRange
 }
 var file_agent_absence_proto_depIdxs = []int32{
-	16, // 0: wfm.CreateAgentAbsenceRequest.item:type_name -> wfm.Absence
-	16, // 1: wfm.CreateAgentAbsenceResponse.item:type_name -> wfm.Absence
-	16, // 2: wfm.ReadAgentAbsenceResponse.item:type_name -> wfm.Absence
-	16, // 3: wfm.SearchAgentAbsenceResponse.items:type_name -> wfm.Absence
-	16, // 4: wfm.UpdateAgentAbsenceRequest.item:type_name -> wfm.Absence
-	16, // 5: wfm.UpdateAgentAbsenceResponse.item:type_name -> wfm.Absence
-	17, // 6: wfm.CreateAgentsAbsencesRequest.items:type_name -> wfm.CreateAgentsAbsencesRequest.absentType
-	15, // 7: wfm.CreateAgentsAbsencesResponse.items:type_name -> wfm.AgentAbsences
-	15, // 8: wfm.SearchAgentsAbsencesResponse.items:type_name -> wfm.AgentAbsences
-	18, // 9: wfm.AgentAbsences.agent:type_name -> wfm.LookupEntity
-	16, // 10: wfm.AgentAbsences.absences:type_name -> wfm.Absence
-	18, // 11: wfm.Absence.created_by:type_name -> wfm.LookupEntity
-	18, // 12: wfm.Absence.updated_by:type_name -> wfm.LookupEntity
-	0,  // 13: wfm.Absence.type_id:type_name -> wfm.AbsenceType
-	0,  // 14: wfm.CreateAgentsAbsencesRequest.absentType.type_id:type_name -> wfm.AbsenceType
-	1,  // 15: wfm.AgentAbsenceService.CreateAgentAbsence:input_type -> wfm.CreateAgentAbsenceRequest
-	3,  // 16: wfm.AgentAbsenceService.ReadAgentAbsence:input_type -> wfm.ReadAgentAbsenceRequest
-	5,  // 17: wfm.AgentAbsenceService.SearchAgentAbsence:input_type -> wfm.SearchAgentAbsenceRequest
-	7,  // 18: wfm.AgentAbsenceService.UpdateAgentAbsence:input_type -> wfm.UpdateAgentAbsenceRequest
-	9,  // 19: wfm.AgentAbsenceService.DeleteAgentAbsence:input_type -> wfm.DeleteAgentAbsenceRequest
-	11, // 20: wfm.AgentAbsenceService.CreateAgentsAbsences:input_type -> wfm.CreateAgentsAbsencesRequest
-	13, // 21: wfm.AgentAbsenceService.SearchAgentsAbsences:input_type -> wfm.SearchAgentsAbsencesRequest
-	2,  // 22: wfm.AgentAbsenceService.CreateAgentAbsence:output_type -> wfm.CreateAgentAbsenceResponse
-	4,  // 23: wfm.AgentAbsenceService.ReadAgentAbsence:output_type -> wfm.ReadAgentAbsenceResponse
-	6,  // 24: wfm.AgentAbsenceService.SearchAgentAbsence:output_type -> wfm.SearchAgentAbsenceResponse
-	8,  // 25: wfm.AgentAbsenceService.UpdateAgentAbsence:output_type -> wfm.UpdateAgentAbsenceResponse
-	10, // 26: wfm.AgentAbsenceService.DeleteAgentAbsence:output_type -> wfm.DeleteAgentAbsenceResponse
-	12, // 27: wfm.AgentAbsenceService.CreateAgentsAbsences:output_type -> wfm.CreateAgentsAbsencesResponse
-	14, // 28: wfm.AgentAbsenceService.SearchAgentsAbsences:output_type -> wfm.SearchAgentsAbsencesResponse
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	17, // 0: wfm.CreateAgentAbsenceRequest.item:type_name -> wfm.Absence
+	17, // 1: wfm.CreateAgentAbsenceResponse.item:type_name -> wfm.Absence
+	3,  // 2: wfm.CreateAgentAbsenceResponse.deleted_shifts:type_name -> wfm.DeletedShift
+	19, // 3: wfm.DeletedShift.agent:type_name -> wfm.LookupEntity
+	19, // 4: wfm.DeletedShift.schedule:type_name -> wfm.LookupEntity
+	17, // 5: wfm.ReadAgentAbsenceResponse.item:type_name -> wfm.Absence
+	17, // 6: wfm.SearchAgentAbsenceResponse.items:type_name -> wfm.Absence
+	17, // 7: wfm.UpdateAgentAbsenceRequest.item:type_name -> wfm.Absence
+	17, // 8: wfm.UpdateAgentAbsenceResponse.item:type_name -> wfm.Absence
+	18, // 9: wfm.CreateAgentsAbsencesRequest.items:type_name -> wfm.CreateAgentsAbsencesRequest.absentType
+	16, // 10: wfm.CreateAgentsAbsencesResponse.items:type_name -> wfm.AgentAbsences
+	3,  // 11: wfm.CreateAgentsAbsencesResponse.deleted_shifts:type_name -> wfm.DeletedShift
+	20, // 12: wfm.SearchAgentsAbsencesRequest.date:type_name -> wfm.DateRange
+	16, // 13: wfm.SearchAgentsAbsencesResponse.items:type_name -> wfm.AgentAbsences
+	19, // 14: wfm.AgentAbsences.agent:type_name -> wfm.LookupEntity
+	17, // 15: wfm.AgentAbsences.absences:type_name -> wfm.Absence
+	19, // 16: wfm.Absence.created_by:type_name -> wfm.LookupEntity
+	19, // 17: wfm.Absence.updated_by:type_name -> wfm.LookupEntity
+	0,  // 18: wfm.Absence.type_id:type_name -> wfm.AbsenceType
+	0,  // 19: wfm.CreateAgentsAbsencesRequest.absentType.type_id:type_name -> wfm.AbsenceType
+	1,  // 20: wfm.AgentAbsenceService.CreateAgentAbsence:input_type -> wfm.CreateAgentAbsenceRequest
+	4,  // 21: wfm.AgentAbsenceService.ReadAgentAbsence:input_type -> wfm.ReadAgentAbsenceRequest
+	6,  // 22: wfm.AgentAbsenceService.SearchAgentAbsence:input_type -> wfm.SearchAgentAbsenceRequest
+	8,  // 23: wfm.AgentAbsenceService.UpdateAgentAbsence:input_type -> wfm.UpdateAgentAbsenceRequest
+	10, // 24: wfm.AgentAbsenceService.DeleteAgentAbsence:input_type -> wfm.DeleteAgentAbsenceRequest
+	12, // 25: wfm.AgentAbsenceService.CreateAgentsAbsences:input_type -> wfm.CreateAgentsAbsencesRequest
+	14, // 26: wfm.AgentAbsenceService.SearchAgentsAbsences:input_type -> wfm.SearchAgentsAbsencesRequest
+	2,  // 27: wfm.AgentAbsenceService.CreateAgentAbsence:output_type -> wfm.CreateAgentAbsenceResponse
+	5,  // 28: wfm.AgentAbsenceService.ReadAgentAbsence:output_type -> wfm.ReadAgentAbsenceResponse
+	7,  // 29: wfm.AgentAbsenceService.SearchAgentAbsence:output_type -> wfm.SearchAgentAbsenceResponse
+	9,  // 30: wfm.AgentAbsenceService.UpdateAgentAbsence:output_type -> wfm.UpdateAgentAbsenceResponse
+	11, // 31: wfm.AgentAbsenceService.DeleteAgentAbsence:output_type -> wfm.DeleteAgentAbsenceResponse
+	13, // 32: wfm.AgentAbsenceService.CreateAgentsAbsences:output_type -> wfm.CreateAgentsAbsencesResponse
+	15, // 33: wfm.AgentAbsenceService.SearchAgentsAbsences:output_type -> wfm.SearchAgentsAbsencesResponse
+	27, // [27:34] is the sub-list for method output_type
+	20, // [20:27] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_agent_absence_proto_init() }
@@ -1208,15 +1392,17 @@ func file_agent_absence_proto_init() {
 		return
 	}
 	file_lookup_proto_init()
-	file_agent_absence_proto_msgTypes[4].OneofWrappers = []any{}
-	file_agent_absence_proto_msgTypes[12].OneofWrappers = []any{}
+	file_filter_proto_init()
+	file_violation_proto_init()
+	file_agent_absence_proto_msgTypes[5].OneofWrappers = []any{}
+	file_agent_absence_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_absence_proto_rawDesc), len(file_agent_absence_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

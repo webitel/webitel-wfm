@@ -32,19 +32,36 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AgentAbsenceServiceClient interface {
-	// Creates one-day-absence for one agent.
+	// Sets an absence for one day. An agent has one absence a day and a new one replaces the old
+	// one of any type, so adding and changing the type is the same call. Past days are allowed.
+	//
+	// The agent's shifts on that day in a draft, pending or active schedule are deleted only on
+	// confirmation. Without delete_shifts the call writes nothing and refuses with
+	// storage.absence.shifts_to_delete, listing those shifts as storage.absence.shift violations.
+	// With delete_shifts the shifts, their pauses and skills are deleted in the same transaction
+	// and returned in deleted_shifts. Shifts of an archived schedule stay, next to the absence.
+	//
+	// Refusals: service.agent.access (403) - no access to the agent.
 	CreateAgentAbsence(ctx context.Context, in *CreateAgentAbsenceRequest, opts ...grpc.CallOption) (*CreateAgentAbsenceResponse, error)
 	// Reads one absence per agent by its id.
 	ReadAgentAbsence(ctx context.Context, in *ReadAgentAbsenceRequest, opts ...grpc.CallOption) (*ReadAgentAbsenceResponse, error)
 	// Searches agent absences by filters.
 	SearchAgentAbsence(ctx context.Context, in *SearchAgentAbsenceRequest, opts ...grpc.CallOption) (*SearchAgentAbsenceResponse, error)
-	// Updates agent concrete absence by its id.
+	// Updates an absence by its id, with the result of CreateAgentAbsence. On a day with shifts it
+	// refuses with storage.absence.shifts_to_delete and has no confirmation.
 	UpdateAgentAbsence(ctx context.Context, in *UpdateAgentAbsenceRequest, opts ...grpc.CallOption) (*UpdateAgentAbsenceResponse, error)
-	// Deletes agent concrete absence by its id.
+	// Deletes an absence by its id; dbsql.query.no_rows (404) if there is none.
 	DeleteAgentAbsence(ctx context.Context, in *DeleteAgentAbsenceRequest, opts ...grpc.CallOption) (*DeleteAgentAbsenceResponse, error)
-	// Creates absences for multiple specified agents.
+	// Sets absences of several types over ranges of dates for several agents; each day replaces
+	// the absence it had. Shifts on those days are deleted as in CreateAgentAbsence: without
+	// delete_shifts nothing is written and the refusal lists the shifts of every agent, with it
+	// everything is written.
+	//
+	// Refusals: service.request.too_large - more than the limit, sized for a team of 200 agents
+	// over a month; service.agent.access (403) - no access to an agent.
 	CreateAgentsAbsences(ctx context.Context, in *CreateAgentsAbsencesRequest, opts ...grpc.CallOption) (*CreateAgentsAbsencesResponse, error)
-	// Searches absences by filters.
+	// Every agent the user has access to, with or without absences, and their absences over a
+	// period. Ordered by name, then by id.
 	SearchAgentsAbsences(ctx context.Context, in *SearchAgentsAbsencesRequest, opts ...grpc.CallOption) (*SearchAgentsAbsencesResponse, error)
 }
 
@@ -130,19 +147,36 @@ func (c *agentAbsenceServiceClient) SearchAgentsAbsences(ctx context.Context, in
 // All implementations must embed UnimplementedAgentAbsenceServiceServer
 // for forward compatibility.
 type AgentAbsenceServiceServer interface {
-	// Creates one-day-absence for one agent.
+	// Sets an absence for one day. An agent has one absence a day and a new one replaces the old
+	// one of any type, so adding and changing the type is the same call. Past days are allowed.
+	//
+	// The agent's shifts on that day in a draft, pending or active schedule are deleted only on
+	// confirmation. Without delete_shifts the call writes nothing and refuses with
+	// storage.absence.shifts_to_delete, listing those shifts as storage.absence.shift violations.
+	// With delete_shifts the shifts, their pauses and skills are deleted in the same transaction
+	// and returned in deleted_shifts. Shifts of an archived schedule stay, next to the absence.
+	//
+	// Refusals: service.agent.access (403) - no access to the agent.
 	CreateAgentAbsence(context.Context, *CreateAgentAbsenceRequest) (*CreateAgentAbsenceResponse, error)
 	// Reads one absence per agent by its id.
 	ReadAgentAbsence(context.Context, *ReadAgentAbsenceRequest) (*ReadAgentAbsenceResponse, error)
 	// Searches agent absences by filters.
 	SearchAgentAbsence(context.Context, *SearchAgentAbsenceRequest) (*SearchAgentAbsenceResponse, error)
-	// Updates agent concrete absence by its id.
+	// Updates an absence by its id, with the result of CreateAgentAbsence. On a day with shifts it
+	// refuses with storage.absence.shifts_to_delete and has no confirmation.
 	UpdateAgentAbsence(context.Context, *UpdateAgentAbsenceRequest) (*UpdateAgentAbsenceResponse, error)
-	// Deletes agent concrete absence by its id.
+	// Deletes an absence by its id; dbsql.query.no_rows (404) if there is none.
 	DeleteAgentAbsence(context.Context, *DeleteAgentAbsenceRequest) (*DeleteAgentAbsenceResponse, error)
-	// Creates absences for multiple specified agents.
+	// Sets absences of several types over ranges of dates for several agents; each day replaces
+	// the absence it had. Shifts on those days are deleted as in CreateAgentAbsence: without
+	// delete_shifts nothing is written and the refusal lists the shifts of every agent, with it
+	// everything is written.
+	//
+	// Refusals: service.request.too_large - more than the limit, sized for a team of 200 agents
+	// over a month; service.agent.access (403) - no access to an agent.
 	CreateAgentsAbsences(context.Context, *CreateAgentsAbsencesRequest) (*CreateAgentsAbsencesResponse, error)
-	// Searches absences by filters.
+	// Every agent the user has access to, with or without absences, and their absences over a
+	// period. Ordered by name, then by id.
 	SearchAgentsAbsences(context.Context, *SearchAgentsAbsencesRequest) (*SearchAgentsAbsencesResponse, error)
 	mustEmbedUnimplementedAgentAbsenceServiceServer()
 }

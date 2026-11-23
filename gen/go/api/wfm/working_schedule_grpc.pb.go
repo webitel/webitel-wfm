@@ -19,27 +19,77 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	WorkingScheduleService_CreateWorkingSchedule_FullMethodName            = "/wfm.WorkingScheduleService/CreateWorkingSchedule"
-	WorkingScheduleService_ReadWorkingSchedule_FullMethodName              = "/wfm.WorkingScheduleService/ReadWorkingSchedule"
-	WorkingScheduleService_ReadWorkingScheduleForecast_FullMethodName      = "/wfm.WorkingScheduleService/ReadWorkingScheduleForecast"
-	WorkingScheduleService_SearchWorkingSchedule_FullMethodName            = "/wfm.WorkingScheduleService/SearchWorkingSchedule"
-	WorkingScheduleService_UpdateWorkingSchedule_FullMethodName            = "/wfm.WorkingScheduleService/UpdateWorkingSchedule"
-	WorkingScheduleService_UpdateWorkingScheduleAddAgents_FullMethodName   = "/wfm.WorkingScheduleService/UpdateWorkingScheduleAddAgents"
-	WorkingScheduleService_UpdateWorkingScheduleRemoveAgent_FullMethodName = "/wfm.WorkingScheduleService/UpdateWorkingScheduleRemoveAgent"
-	WorkingScheduleService_DeleteWorkingSchedule_FullMethodName            = "/wfm.WorkingScheduleService/DeleteWorkingSchedule"
+	WorkingScheduleService_CreateWorkingSchedule_FullMethodName                     = "/wfm.WorkingScheduleService/CreateWorkingSchedule"
+	WorkingScheduleService_ReadWorkingSchedule_FullMethodName                       = "/wfm.WorkingScheduleService/ReadWorkingSchedule"
+	WorkingScheduleService_ReadWorkingScheduleForecast_FullMethodName               = "/wfm.WorkingScheduleService/ReadWorkingScheduleForecast"
+	WorkingScheduleService_ReadWorkingSchedulePlanned_FullMethodName                = "/wfm.WorkingScheduleService/ReadWorkingSchedulePlanned"
+	WorkingScheduleService_SearchWorkingSchedule_FullMethodName                     = "/wfm.WorkingScheduleService/SearchWorkingSchedule"
+	WorkingScheduleService_UpdateWorkingSchedule_FullMethodName                     = "/wfm.WorkingScheduleService/UpdateWorkingSchedule"
+	WorkingScheduleService_UpdateWorkingScheduleAddAgents_FullMethodName            = "/wfm.WorkingScheduleService/UpdateWorkingScheduleAddAgents"
+	WorkingScheduleService_UpdateWorkingScheduleRemoveAgent_FullMethodName          = "/wfm.WorkingScheduleService/UpdateWorkingScheduleRemoveAgent"
+	WorkingScheduleService_UpdateWorkingScheduleState_FullMethodName                = "/wfm.WorkingScheduleService/UpdateWorkingScheduleState"
+	WorkingScheduleService_UpdateWorkingScheduleBlockOutsideActivity_FullMethodName = "/wfm.WorkingScheduleService/UpdateWorkingScheduleBlockOutsideActivity"
+	WorkingScheduleService_DeleteWorkingSchedule_FullMethodName                     = "/wfm.WorkingScheduleService/DeleteWorkingSchedule"
 )
 
 // WorkingScheduleServiceClient is the client API for WorkingScheduleService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WorkingScheduleServiceClient interface {
+	// A new schedule is always a draft, whatever state the request carries. It gets every agent
+	// of the team the user has access to; agents who join the team later are added by hand.
 	CreateWorkingSchedule(ctx context.Context, in *CreateWorkingScheduleRequest, opts ...grpc.CallOption) (*CreateWorkingScheduleResponse, error)
 	ReadWorkingSchedule(ctx context.Context, in *ReadWorkingScheduleRequest, opts ...grpc.CallOption) (*ReadWorkingScheduleResponse, error)
+	// How many agents each hour of a period needs, from the forecast procedure of the team. The
+	// procedure runs on every call and nothing is stored, so edits of the schedule do not change
+	// the result. A team without a forecast calculation gets no hours.
 	ReadWorkingScheduleForecast(ctx context.Context, in *ReadWorkingScheduleForecastRequest, opts ...grpc.CallOption) (*ReadWorkingScheduleForecastResponse, error)
+	// How many agents are on a shift and not on a pause, per 15 minutes and per day. It reads
+	// only the schedule, so every edit of it changes the result.
+	ReadWorkingSchedulePlanned(ctx context.Context, in *ReadWorkingSchedulePlannedRequest, opts ...grpc.CallOption) (*ReadWorkingSchedulePlannedResponse, error)
+	// Searches schedules, each with its number of agents.
 	SearchWorkingSchedule(ctx context.Context, in *SearchWorkingScheduleRequest, opts ...grpc.CallOption) (*SearchWorkingScheduleResponse, error)
+	// Updates the header of a draft schedule, with the etag from a read; the response carries the
+	// new etag. A change of the team rebuilds the schedule: every shift is deleted and the agents
+	// become the new team's agents the user has access to, so agents added by hand leave too. A
+	// change of the calendar deletes every shift; a change of the dates deletes the shifts whose
+	// working date falls outside the new period. The time scale, the name and Special time skills
+	// keep the shifts. block_outside_activity is ignored: only
+	// UpdateWorkingScheduleBlockOutsideActivity changes it.
+	//
+	// Refusals: service.working_schedule.state - not a draft;
+	// storage.working_schedule.version_conflict (409) - the header changed since the read.
 	UpdateWorkingSchedule(ctx context.Context, in *UpdateWorkingScheduleRequest, opts ...grpc.CallOption) (*UpdateWorkingScheduleResponse, error)
+	// Adds agents from any team, each once: an agent already in the schedule is skipped. The
+	// response lists the added ones, with names.
 	UpdateWorkingScheduleAddAgents(ctx context.Context, in *UpdateWorkingScheduleAddAgentsRequest, opts ...grpc.CallOption) (*UpdateWorkingScheduleAddAgentsResponse, error)
+	// Removes an agent with their shifts in this schedule; absences stay.
 	UpdateWorkingScheduleRemoveAgent(ctx context.Context, in *UpdateWorkingScheduleRemoveAgentRequest, opts ...grpc.CallOption) (*UpdateWorkingScheduleRemoveAgentResponse, error)
+	// Moves the schedule to another state, in any order but out of archived, with the etag from
+	// a read; the response carries the schedule with the new etag.
+	//
+	// Moving to pending or active needs an answer about unplanned days: dates of the period where
+	// an agent of the schedule has neither a shift nor an absence. Without fill_days_off the call
+	// refuses with service.working_schedule.unplanned_days. The days off are written in the same
+	// transaction, as absences.
+	//
+	// Moving to active first checks the rules and refuses with
+	// storage.working_schedule.activation_refused and violations:
+	// storage.working_schedule.team_active - the team has another active schedule on overlapping
+	// dates; storage.shift.locked_date or storage.shift.overlap - an agent works in another active
+	// schedule on the same date or at the same time. storage.working_schedule.version_conflict
+	// (409) - the header changed since the read.
+	UpdateWorkingScheduleState(ctx context.Context, in *UpdateWorkingScheduleStateRequest, opts ...grpc.CallOption) (*UpdateWorkingScheduleStateResponse, error)
+	// Switches blocking outside a shift on or off in a draft, pending or active schedule, with the
+	// etag from a read; the response carries the schedule with the new etag. After creation it is
+	// the only way to change it. Switched on in an active schedule, it also takes agents who are
+	// online outside their shift offline.
+	//
+	// Refusals: storage.working_schedule.archived; storage.working_schedule.version_conflict
+	// (409) - the header changed since the read.
+	UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, in *UpdateWorkingScheduleBlockOutsideActivityRequest, opts ...grpc.CallOption) (*UpdateWorkingScheduleBlockOutsideActivityResponse, error)
+	// Deletes the schedule with its shifts, pauses and skills; absences stay. An active schedule
+	// refuses with storage.working_schedule.active until its state changes.
 	DeleteWorkingSchedule(ctx context.Context, in *DeleteWorkingScheduleRequest, opts ...grpc.CallOption) (*DeleteWorkingScheduleResponse, error)
 }
 
@@ -75,6 +125,16 @@ func (c *workingScheduleServiceClient) ReadWorkingScheduleForecast(ctx context.C
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReadWorkingScheduleForecastResponse)
 	err := c.cc.Invoke(ctx, WorkingScheduleService_ReadWorkingScheduleForecast_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workingScheduleServiceClient) ReadWorkingSchedulePlanned(ctx context.Context, in *ReadWorkingSchedulePlannedRequest, opts ...grpc.CallOption) (*ReadWorkingSchedulePlannedResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReadWorkingSchedulePlannedResponse)
+	err := c.cc.Invoke(ctx, WorkingScheduleService_ReadWorkingSchedulePlanned_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +181,26 @@ func (c *workingScheduleServiceClient) UpdateWorkingScheduleRemoveAgent(ctx cont
 	return out, nil
 }
 
+func (c *workingScheduleServiceClient) UpdateWorkingScheduleState(ctx context.Context, in *UpdateWorkingScheduleStateRequest, opts ...grpc.CallOption) (*UpdateWorkingScheduleStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateWorkingScheduleStateResponse)
+	err := c.cc.Invoke(ctx, WorkingScheduleService_UpdateWorkingScheduleState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workingScheduleServiceClient) UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, in *UpdateWorkingScheduleBlockOutsideActivityRequest, opts ...grpc.CallOption) (*UpdateWorkingScheduleBlockOutsideActivityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateWorkingScheduleBlockOutsideActivityResponse)
+	err := c.cc.Invoke(ctx, WorkingScheduleService_UpdateWorkingScheduleBlockOutsideActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *workingScheduleServiceClient) DeleteWorkingSchedule(ctx context.Context, in *DeleteWorkingScheduleRequest, opts ...grpc.CallOption) (*DeleteWorkingScheduleResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeleteWorkingScheduleResponse)
@@ -135,13 +215,60 @@ func (c *workingScheduleServiceClient) DeleteWorkingSchedule(ctx context.Context
 // All implementations must embed UnimplementedWorkingScheduleServiceServer
 // for forward compatibility.
 type WorkingScheduleServiceServer interface {
+	// A new schedule is always a draft, whatever state the request carries. It gets every agent
+	// of the team the user has access to; agents who join the team later are added by hand.
 	CreateWorkingSchedule(context.Context, *CreateWorkingScheduleRequest) (*CreateWorkingScheduleResponse, error)
 	ReadWorkingSchedule(context.Context, *ReadWorkingScheduleRequest) (*ReadWorkingScheduleResponse, error)
+	// How many agents each hour of a period needs, from the forecast procedure of the team. The
+	// procedure runs on every call and nothing is stored, so edits of the schedule do not change
+	// the result. A team without a forecast calculation gets no hours.
 	ReadWorkingScheduleForecast(context.Context, *ReadWorkingScheduleForecastRequest) (*ReadWorkingScheduleForecastResponse, error)
+	// How many agents are on a shift and not on a pause, per 15 minutes and per day. It reads
+	// only the schedule, so every edit of it changes the result.
+	ReadWorkingSchedulePlanned(context.Context, *ReadWorkingSchedulePlannedRequest) (*ReadWorkingSchedulePlannedResponse, error)
+	// Searches schedules, each with its number of agents.
 	SearchWorkingSchedule(context.Context, *SearchWorkingScheduleRequest) (*SearchWorkingScheduleResponse, error)
+	// Updates the header of a draft schedule, with the etag from a read; the response carries the
+	// new etag. A change of the team rebuilds the schedule: every shift is deleted and the agents
+	// become the new team's agents the user has access to, so agents added by hand leave too. A
+	// change of the calendar deletes every shift; a change of the dates deletes the shifts whose
+	// working date falls outside the new period. The time scale, the name and Special time skills
+	// keep the shifts. block_outside_activity is ignored: only
+	// UpdateWorkingScheduleBlockOutsideActivity changes it.
+	//
+	// Refusals: service.working_schedule.state - not a draft;
+	// storage.working_schedule.version_conflict (409) - the header changed since the read.
 	UpdateWorkingSchedule(context.Context, *UpdateWorkingScheduleRequest) (*UpdateWorkingScheduleResponse, error)
+	// Adds agents from any team, each once: an agent already in the schedule is skipped. The
+	// response lists the added ones, with names.
 	UpdateWorkingScheduleAddAgents(context.Context, *UpdateWorkingScheduleAddAgentsRequest) (*UpdateWorkingScheduleAddAgentsResponse, error)
+	// Removes an agent with their shifts in this schedule; absences stay.
 	UpdateWorkingScheduleRemoveAgent(context.Context, *UpdateWorkingScheduleRemoveAgentRequest) (*UpdateWorkingScheduleRemoveAgentResponse, error)
+	// Moves the schedule to another state, in any order but out of archived, with the etag from
+	// a read; the response carries the schedule with the new etag.
+	//
+	// Moving to pending or active needs an answer about unplanned days: dates of the period where
+	// an agent of the schedule has neither a shift nor an absence. Without fill_days_off the call
+	// refuses with service.working_schedule.unplanned_days. The days off are written in the same
+	// transaction, as absences.
+	//
+	// Moving to active first checks the rules and refuses with
+	// storage.working_schedule.activation_refused and violations:
+	// storage.working_schedule.team_active - the team has another active schedule on overlapping
+	// dates; storage.shift.locked_date or storage.shift.overlap - an agent works in another active
+	// schedule on the same date or at the same time. storage.working_schedule.version_conflict
+	// (409) - the header changed since the read.
+	UpdateWorkingScheduleState(context.Context, *UpdateWorkingScheduleStateRequest) (*UpdateWorkingScheduleStateResponse, error)
+	// Switches blocking outside a shift on or off in a draft, pending or active schedule, with the
+	// etag from a read; the response carries the schedule with the new etag. After creation it is
+	// the only way to change it. Switched on in an active schedule, it also takes agents who are
+	// online outside their shift offline.
+	//
+	// Refusals: storage.working_schedule.archived; storage.working_schedule.version_conflict
+	// (409) - the header changed since the read.
+	UpdateWorkingScheduleBlockOutsideActivity(context.Context, *UpdateWorkingScheduleBlockOutsideActivityRequest) (*UpdateWorkingScheduleBlockOutsideActivityResponse, error)
+	// Deletes the schedule with its shifts, pauses and skills; absences stay. An active schedule
+	// refuses with storage.working_schedule.active until its state changes.
 	DeleteWorkingSchedule(context.Context, *DeleteWorkingScheduleRequest) (*DeleteWorkingScheduleResponse, error)
 	mustEmbedUnimplementedWorkingScheduleServiceServer()
 }
@@ -162,6 +289,9 @@ func (UnimplementedWorkingScheduleServiceServer) ReadWorkingSchedule(context.Con
 func (UnimplementedWorkingScheduleServiceServer) ReadWorkingScheduleForecast(context.Context, *ReadWorkingScheduleForecastRequest) (*ReadWorkingScheduleForecastResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReadWorkingScheduleForecast not implemented")
 }
+func (UnimplementedWorkingScheduleServiceServer) ReadWorkingSchedulePlanned(context.Context, *ReadWorkingSchedulePlannedRequest) (*ReadWorkingSchedulePlannedResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReadWorkingSchedulePlanned not implemented")
+}
 func (UnimplementedWorkingScheduleServiceServer) SearchWorkingSchedule(context.Context, *SearchWorkingScheduleRequest) (*SearchWorkingScheduleResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SearchWorkingSchedule not implemented")
 }
@@ -173,6 +303,12 @@ func (UnimplementedWorkingScheduleServiceServer) UpdateWorkingScheduleAddAgents(
 }
 func (UnimplementedWorkingScheduleServiceServer) UpdateWorkingScheduleRemoveAgent(context.Context, *UpdateWorkingScheduleRemoveAgentRequest) (*UpdateWorkingScheduleRemoveAgentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateWorkingScheduleRemoveAgent not implemented")
+}
+func (UnimplementedWorkingScheduleServiceServer) UpdateWorkingScheduleState(context.Context, *UpdateWorkingScheduleStateRequest) (*UpdateWorkingScheduleStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateWorkingScheduleState not implemented")
+}
+func (UnimplementedWorkingScheduleServiceServer) UpdateWorkingScheduleBlockOutsideActivity(context.Context, *UpdateWorkingScheduleBlockOutsideActivityRequest) (*UpdateWorkingScheduleBlockOutsideActivityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateWorkingScheduleBlockOutsideActivity not implemented")
 }
 func (UnimplementedWorkingScheduleServiceServer) DeleteWorkingSchedule(context.Context, *DeleteWorkingScheduleRequest) (*DeleteWorkingScheduleResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteWorkingSchedule not implemented")
@@ -253,6 +389,24 @@ func _WorkingScheduleService_ReadWorkingScheduleForecast_Handler(srv interface{}
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WorkingScheduleService_ReadWorkingSchedulePlanned_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadWorkingSchedulePlannedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkingScheduleServiceServer).ReadWorkingSchedulePlanned(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkingScheduleService_ReadWorkingSchedulePlanned_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkingScheduleServiceServer).ReadWorkingSchedulePlanned(ctx, req.(*ReadWorkingSchedulePlannedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WorkingScheduleService_SearchWorkingSchedule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SearchWorkingScheduleRequest)
 	if err := dec(in); err != nil {
@@ -325,6 +479,42 @@ func _WorkingScheduleService_UpdateWorkingScheduleRemoveAgent_Handler(srv interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WorkingScheduleService_UpdateWorkingScheduleState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateWorkingScheduleStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkingScheduleServiceServer).UpdateWorkingScheduleState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkingScheduleService_UpdateWorkingScheduleState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkingScheduleServiceServer).UpdateWorkingScheduleState(ctx, req.(*UpdateWorkingScheduleStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkingScheduleService_UpdateWorkingScheduleBlockOutsideActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateWorkingScheduleBlockOutsideActivityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkingScheduleServiceServer).UpdateWorkingScheduleBlockOutsideActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkingScheduleService_UpdateWorkingScheduleBlockOutsideActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkingScheduleServiceServer).UpdateWorkingScheduleBlockOutsideActivity(ctx, req.(*UpdateWorkingScheduleBlockOutsideActivityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WorkingScheduleService_DeleteWorkingSchedule_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteWorkingScheduleRequest)
 	if err := dec(in); err != nil {
@@ -363,6 +553,10 @@ var WorkingScheduleService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _WorkingScheduleService_ReadWorkingScheduleForecast_Handler,
 		},
 		{
+			MethodName: "ReadWorkingSchedulePlanned",
+			Handler:    _WorkingScheduleService_ReadWorkingSchedulePlanned_Handler,
+		},
+		{
 			MethodName: "SearchWorkingSchedule",
 			Handler:    _WorkingScheduleService_SearchWorkingSchedule_Handler,
 		},
@@ -377,6 +571,14 @@ var WorkingScheduleService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateWorkingScheduleRemoveAgent",
 			Handler:    _WorkingScheduleService_UpdateWorkingScheduleRemoveAgent_Handler,
+		},
+		{
+			MethodName: "UpdateWorkingScheduleState",
+			Handler:    _WorkingScheduleService_UpdateWorkingScheduleState_Handler,
+		},
+		{
+			MethodName: "UpdateWorkingScheduleBlockOutsideActivity",
+			Handler:    _WorkingScheduleService_UpdateWorkingScheduleBlockOutsideActivity_Handler,
 		},
 		{
 			MethodName: "DeleteWorkingSchedule",
