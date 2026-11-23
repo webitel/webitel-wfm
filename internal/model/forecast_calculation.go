@@ -40,12 +40,12 @@ func (p *ForecastCalculation) MarshalProto() *pb.ForecastCalculation {
 
 type ForecastCalculationResult struct {
 	Timestamp pgtype.Timestamp `db:"forecast_at"`
-	Agents    *int64           `db:"agents"`
+	Agents    *int32           `db:"agents"`
 }
 
 func (f *ForecastCalculationResult) MarshalProto() *pb.ExecuteForecastCalculationResponse_Forecast {
 	return &pb.ExecuteForecastCalculationResponse_Forecast{
 		Timestamp: f.Timestamp.Time.UnixMilli(),
-		Agents:    *f.Agents,
+		Agents:    int64(*f.Agents),
 	}
 }

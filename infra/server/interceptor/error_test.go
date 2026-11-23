@@ -35,9 +35,11 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 	})
 
 	t.Run("business refusal", func(t *testing.T) {
-		v := model.Violation{OperatorID: 7, Date: pgtype.Date{Time: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC), Valid: true}, Reason: "service.shift.overlap"}
+		day := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)
+		v := model.Violation{OperatorID: 7, Date: pgtype.Date{Time: day, Valid: true}, Reason: "service.shift.overlap"}
+		whole := model.Violation{Reason: "storage.working_schedule.team_active"}
 		_, err := interceptor(context.Background(), nil, info, func(context.Context, any) (any, error) {
-			return nil, model.Refuse(errors.FailedPrecondition("refused", errors.WithID("server.interceptor.error.refused")), v)
+			return nil, model.Refuse(errors.FailedPrecondition("refused", errors.WithID("server.interceptor.error.refused")), v, whole)
 		})
 
 		st, ok := status.FromError(err)
@@ -48,7 +50,10 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 		assert.Equal(t, "server.interceptor.error.refused", got.ID)
 		assert.Equal(t, int32(400), got.Code)
 		assert.Equal(t, "Bad Request", got.Status)
-		assert.Equal(t, "refused", got.Detail, "the list stays out of the client's detail")
+		// Field names and int64 as strings, as the gateway writes the rest of the API.
+		assert.JSONEq(t, fmt.Sprintf(`{"text":"refused","violations":[`+
+			`{"agent":{"id":"7"},"date":"%d","reason":"service.shift.overlap"},`+
+			`{"reason":"storage.working_schedule.team_active"}]}`, day.UnixMilli()), got.Detail)
 	})
 
 	t.Run("not nil err received", func(t *testing.T) {

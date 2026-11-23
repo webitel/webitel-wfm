@@ -309,6 +309,19 @@
     }
   },
   "definitions": {
+    "ExecuteForecastCalculationResponseForecast": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "agents": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -369,21 +382,8 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/wfmExecuteForecastCalculationResponseForecast"
+            "$ref": "#/definitions/ExecuteForecastCalculationResponseForecast"
           }
-        }
-      }
-    },
-    "wfmExecuteForecastCalculationResponseForecast": {
-      "type": "object",
-      "properties": {
-        "timestamp": {
-          "type": "string",
-          "format": "int64"
-        },
-        "agents": {
-          "type": "string",
-          "format": "int64"
         }
       }
     },

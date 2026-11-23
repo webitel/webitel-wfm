@@ -34,11 +34,11 @@ func (f *forecastRecorder) ExecuteForecastCalculation(_ context.Context, _ *mode
 }
 
 // The forecast takes its period in epoch milliseconds, like every moment on the platform,
-// and keys the days of its answer by their UTC midnight in milliseconds.
+// and gives each hour of its answer with its day as UTC midnight, both in milliseconds.
 func TestForecastPeriodIsInMillis(t *testing.T) {
 	from := time.Date(2026, 11, 1, 22, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 11, 2, 21, 59, 59, 999e6, time.UTC)
-	agents := int64(3)
+	agents := int32(3)
 	hour := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
 	svc := &forecastRecorder{rows: []*model.ForecastCalculationResult{{Timestamp: pgtype.Timestamp{Time: hour, Valid: true}, Agents: &agents}}}
 	period := &pb.FilterBetween{From: from.UnixMilli(), To: to.UnixMilli()}
@@ -52,7 +52,7 @@ func TestForecastPeriodIsInMillis(t *testing.T) {
 		}
 	}
 
-	out, err := NewWorkingSchedule(svc).ReadWorkingScheduleForecast(searchCtx(), &pb.ReadWorkingScheduleForecastRequest{Id: 7, Date: period})
+	out, err := NewWorkingSchedule(svc).ReadWorkingScheduleForecast(searchCtx(), &pb.ReadWorkingScheduleForecastRequest{Id: 7, Date: &pb.DateRange{From: from.UnixMilli(), To: to.UnixMilli()}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,8 +60,8 @@ func TestForecastPeriodIsInMillis(t *testing.T) {
 	got("schedule forecast")
 
 	day := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC).UnixMilli()
-	if f := out.GetItems()[day].GetForecast(); len(f) != 1 || f[0].GetHour() != 9 {
-		t.Errorf("forecast = %v, want hour 9 under %d", out.GetItems(), day)
+	if h := out.GetItems(); len(h) != 1 || h[0].GetDate() != day || h[0].GetStartAt() != hour.UnixMilli() || h[0].GetAgents() != 3 {
+		t.Errorf("forecast = %v, want 3 agents at %d on %d", h, hour.UnixMilli(), day)
 	}
 
 	if _, err := NewForecastCalculation(svc).ExecuteForecastCalculation(searchCtx(), &pb.ExecuteForecastCalculationRequest{Id: 3, TeamId: 5, ForecastData: period}); err != nil {

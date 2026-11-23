@@ -74,17 +74,12 @@ func (w *WorkingSchedule) ReadWorkingScheduleForecast(ctx context.Context, req *
 		return nil, err
 	}
 
-	out := make(map[int64]*pb.WorkingScheduleForecast)
-
+	out := make([]*pb.ForecastHour, 0, len(items))
 	for _, i := range items {
-		day := timeutils.Date(i.Timestamp.Time).UnixMilli()
-		if _, ok := out[day]; !ok {
-			out[day] = &pb.WorkingScheduleForecast{Forecast: make([]*pb.WorkingScheduleForecast_Forecast, 0)}
-		}
-
-		out[day].Forecast = append(out[day].Forecast, &pb.WorkingScheduleForecast_Forecast{
-			Hour:   int64(i.Timestamp.Time.Hour()),
-			Agents: *i.Agents,
+		out = append(out, &pb.ForecastHour{
+			Date:    timeutils.Date(i.Timestamp.Time).UnixMilli(),
+			StartAt: i.Timestamp.Time.UnixMilli(),
+			Agents:  *i.Agents,
 		})
 	}
 

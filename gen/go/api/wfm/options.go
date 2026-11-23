@@ -165,6 +165,28 @@ var WebitelAPI = WebitelServicesInfo{
 					},
 				},
 			},
+			"UpdateAgentWorkingScheduleShift": WebitelMethod{
+				Access: 2,
+				Input:  "UpdateAgentWorkingScheduleShiftRequest",
+				Output: "UpdateAgentWorkingScheduleShiftResponse",
+				HttpBindings: []*HttpBinding{
+					{
+						Path:   "/wfm/agents/working_schedules/{working_schedule_id}/shifts/{shift.id}",
+						Method: "PUT",
+					},
+				},
+			},
+			"DeleteAgentWorkingScheduleShift": WebitelMethod{
+				Access: 2,
+				Input:  "DeleteAgentWorkingScheduleShiftRequest",
+				Output: "DeleteAgentWorkingScheduleShiftResponse",
+				HttpBindings: []*HttpBinding{
+					{
+						Path:   "/wfm/agents/working_schedules/{working_schedule_id}/shifts/{id}",
+						Method: "DELETE",
+					},
+				},
+			},
 		},
 	},
 	"ForecastCalculationService": WebitelServices{
@@ -459,6 +481,17 @@ var WebitelAPI = WebitelServicesInfo{
 					},
 				},
 			},
+			"ReadWorkingSchedulePlanned": WebitelMethod{
+				Access: 1,
+				Input:  "ReadWorkingSchedulePlannedRequest",
+				Output: "ReadWorkingSchedulePlannedResponse",
+				HttpBindings: []*HttpBinding{
+					{
+						Path:   "/wfm/lookups/working_schedules/{id}/planned",
+						Method: "GET",
+					},
+				},
+			},
 			"SearchWorkingSchedule": WebitelMethod{
 				Access: 1,
 				Input:  "SearchWorkingScheduleRequest",
@@ -500,6 +533,28 @@ var WebitelAPI = WebitelServicesInfo{
 					{
 						Path:   "/wfm/lookups/working_schedules/{id}/agents/{agent_id}",
 						Method: "DELETE",
+					},
+				},
+			},
+			"UpdateWorkingScheduleState": WebitelMethod{
+				Access: 2,
+				Input:  "UpdateWorkingScheduleStateRequest",
+				Output: "UpdateWorkingScheduleStateResponse",
+				HttpBindings: []*HttpBinding{
+					{
+						Path:   "/wfm/lookups/working_schedules/{id}/state",
+						Method: "PATCH",
+					},
+				},
+			},
+			"UpdateWorkingScheduleBlockOutsideActivity": WebitelMethod{
+				Access: 2,
+				Input:  "UpdateWorkingScheduleBlockOutsideActivityRequest",
+				Output: "UpdateWorkingScheduleBlockOutsideActivityResponse",
+				HttpBindings: []*HttpBinding{
+					{
+						Path:   "/wfm/lookups/working_schedules/{id}/block_outside_activity",
+						Method: "PATCH",
 					},
 				},
 			},

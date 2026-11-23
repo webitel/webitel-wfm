@@ -266,7 +266,7 @@ func (x *ReadWorkingScheduleResponse) GetItem() *WorkingSchedule {
 type ReadWorkingScheduleForecastRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Date          *FilterBetween         `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
+	Date          *DateRange             `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -308,7 +308,7 @@ func (x *ReadWorkingScheduleForecastRequest) GetId() int64 {
 	return 0
 }
 
-func (x *ReadWorkingScheduleForecastRequest) GetDate() *FilterBetween {
+func (x *ReadWorkingScheduleForecastRequest) GetDate() *DateRange {
 	if x != nil {
 		return x.Date
 	}
@@ -316,8 +316,8 @@ func (x *ReadWorkingScheduleForecastRequest) GetDate() *FilterBetween {
 }
 
 type ReadWorkingScheduleForecastResponse struct {
-	state         protoimpl.MessageState             `protogen:"open.v1"`
-	Items         map[int64]*WorkingScheduleForecast `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*ForecastHour        `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -352,27 +352,305 @@ func (*ReadWorkingScheduleForecastResponse) Descriptor() ([]byte, []int) {
 	return file_working_schedule_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ReadWorkingScheduleForecastResponse) GetItems() map[int64]*WorkingScheduleForecast {
+func (x *ReadWorkingScheduleForecastResponse) GetItems() []*ForecastHour {
 	if x != nil {
 		return x.Items
 	}
 	return nil
 }
 
-type SearchWorkingScheduleRequest struct {
+type ForecastHour struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The day of the hour in the zone of the schedule's calendar, a date as in DateRange:
+	// 00:00 UTC of the day, epoch milliseconds.
+	Date int64 `protobuf:"varint,1,opt,name=date,proto3" json:"date,omitempty"`
+	// Start of the hour, epoch milliseconds.
+	StartAt int64 `protobuf:"varint,2,opt,name=start_at,json=startAt,proto3" json:"start_at,omitempty"`
+	// Agents needed.
+	Agents        int32 `protobuf:"varint,3,opt,name=agents,proto3" json:"agents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForecastHour) Reset() {
+	*x = ForecastHour{}
+	mi := &file_working_schedule_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForecastHour) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForecastHour) ProtoMessage() {}
+
+func (x *ForecastHour) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForecastHour.ProtoReflect.Descriptor instead.
+func (*ForecastHour) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ForecastHour) GetDate() int64 {
+	if x != nil {
+		return x.Date
+	}
+	return 0
+}
+
+func (x *ForecastHour) GetStartAt() int64 {
+	if x != nil {
+		return x.StartAt
+	}
+	return 0
+}
+
+func (x *ForecastHour) GetAgents() int32 {
+	if x != nil {
+		return x.Agents
+	}
+	return 0
+}
+
+type ReadWorkingSchedulePlannedRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Q             *string                `protobuf:"bytes,1,opt,name=q,proto3,oneof" json:"q,omitempty"`
-	Page          *int32                 `protobuf:"varint,2,opt,name=page,proto3,oneof" json:"page,omitempty"`
-	Size          *int32                 `protobuf:"varint,3,opt,name=size,proto3,oneof" json:"size,omitempty"`
-	Sort          *string                `protobuf:"bytes,4,opt,name=sort,proto3,oneof" json:"sort,omitempty"`
-	Fields        []string               `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Date          *DateRange             `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadWorkingSchedulePlannedRequest) Reset() {
+	*x = ReadWorkingSchedulePlannedRequest{}
+	mi := &file_working_schedule_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadWorkingSchedulePlannedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadWorkingSchedulePlannedRequest) ProtoMessage() {}
+
+func (x *ReadWorkingSchedulePlannedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadWorkingSchedulePlannedRequest.ProtoReflect.Descriptor instead.
+func (*ReadWorkingSchedulePlannedRequest) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ReadWorkingSchedulePlannedRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ReadWorkingSchedulePlannedRequest) GetDate() *DateRange {
+	if x != nil {
+		return x.Date
+	}
+	return nil
+}
+
+type ReadWorkingSchedulePlannedResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 15-minute slots where at least one agent is on a shift and not on a pause; a slot missing
+	// from the list has 0. An agent counts as away only when a pause covers the whole slot.
+	Slots []*PlannedSlot `protobuf:"bytes,1,rep,name=slots,proto3" json:"slots,omitempty"`
+	// Days where at least one agent has a shift, by working date.
+	Days          []*PlannedDay `protobuf:"bytes,2,rep,name=days,proto3" json:"days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadWorkingSchedulePlannedResponse) Reset() {
+	*x = ReadWorkingSchedulePlannedResponse{}
+	mi := &file_working_schedule_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadWorkingSchedulePlannedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadWorkingSchedulePlannedResponse) ProtoMessage() {}
+
+func (x *ReadWorkingSchedulePlannedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadWorkingSchedulePlannedResponse.ProtoReflect.Descriptor instead.
+func (*ReadWorkingSchedulePlannedResponse) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ReadWorkingSchedulePlannedResponse) GetSlots() []*PlannedSlot {
+	if x != nil {
+		return x.Slots
+	}
+	return nil
+}
+
+func (x *ReadWorkingSchedulePlannedResponse) GetDays() []*PlannedDay {
+	if x != nil {
+		return x.Days
+	}
+	return nil
+}
+
+type PlannedSlot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Start of the slot, epoch milliseconds.
+	StartAt       int64 `protobuf:"varint,1,opt,name=start_at,json=startAt,proto3" json:"start_at,omitempty"`
+	Agents        int32 `protobuf:"varint,2,opt,name=agents,proto3" json:"agents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlannedSlot) Reset() {
+	*x = PlannedSlot{}
+	mi := &file_working_schedule_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlannedSlot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlannedSlot) ProtoMessage() {}
+
+func (x *PlannedSlot) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlannedSlot.ProtoReflect.Descriptor instead.
+func (*PlannedSlot) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *PlannedSlot) GetStartAt() int64 {
+	if x != nil {
+		return x.StartAt
+	}
+	return 0
+}
+
+func (x *PlannedSlot) GetAgents() int32 {
+	if x != nil {
+		return x.Agents
+	}
+	return 0
+}
+
+type PlannedDay struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A date as in DateRange: 00:00 UTC of the day, epoch milliseconds.
+	Date          int64 `protobuf:"varint,1,opt,name=date,proto3" json:"date,omitempty"`
+	Agents        int32 `protobuf:"varint,2,opt,name=agents,proto3" json:"agents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlannedDay) Reset() {
+	*x = PlannedDay{}
+	mi := &file_working_schedule_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlannedDay) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlannedDay) ProtoMessage() {}
+
+func (x *PlannedDay) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlannedDay.ProtoReflect.Descriptor instead.
+func (*PlannedDay) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *PlannedDay) GetDate() int64 {
+	if x != nil {
+		return x.Date
+	}
+	return 0
+}
+
+func (x *PlannedDay) GetAgents() int32 {
+	if x != nil {
+		return x.Agents
+	}
+	return 0
+}
+
+type SearchWorkingScheduleRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Q     *string                `protobuf:"bytes,1,opt,name=q,proto3,oneof" json:"q,omitempty"`
+	Page  *int32                 `protobuf:"varint,2,opt,name=page,proto3,oneof" json:"page,omitempty"`
+	Size  *int32                 `protobuf:"varint,3,opt,name=size,proto3,oneof" json:"size,omitempty"`
+	// States sort as active, pending, draft, archived.
+	Sort          *string  `protobuf:"bytes,4,opt,name=sort,proto3,oneof" json:"sort,omitempty"`
+	Fields        []string `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchWorkingScheduleRequest) Reset() {
 	*x = SearchWorkingScheduleRequest{}
-	mi := &file_working_schedule_proto_msgTypes[6]
+	mi := &file_working_schedule_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -384,7 +662,7 @@ func (x *SearchWorkingScheduleRequest) String() string {
 func (*SearchWorkingScheduleRequest) ProtoMessage() {}
 
 func (x *SearchWorkingScheduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[6]
+	mi := &file_working_schedule_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -397,7 +675,7 @@ func (x *SearchWorkingScheduleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchWorkingScheduleRequest.ProtoReflect.Descriptor instead.
 func (*SearchWorkingScheduleRequest) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{6}
+	return file_working_schedule_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SearchWorkingScheduleRequest) GetQ() string {
@@ -445,7 +723,7 @@ type SearchWorkingScheduleResponse struct {
 
 func (x *SearchWorkingScheduleResponse) Reset() {
 	*x = SearchWorkingScheduleResponse{}
-	mi := &file_working_schedule_proto_msgTypes[7]
+	mi := &file_working_schedule_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +735,7 @@ func (x *SearchWorkingScheduleResponse) String() string {
 func (*SearchWorkingScheduleResponse) ProtoMessage() {}
 
 func (x *SearchWorkingScheduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[7]
+	mi := &file_working_schedule_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +748,7 @@ func (x *SearchWorkingScheduleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchWorkingScheduleResponse.ProtoReflect.Descriptor instead.
 func (*SearchWorkingScheduleResponse) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{7}
+	return file_working_schedule_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SearchWorkingScheduleResponse) GetItems() []*WorkingSchedule {
@@ -496,7 +774,7 @@ type UpdateWorkingScheduleRequest struct {
 
 func (x *UpdateWorkingScheduleRequest) Reset() {
 	*x = UpdateWorkingScheduleRequest{}
-	mi := &file_working_schedule_proto_msgTypes[8]
+	mi := &file_working_schedule_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -508,7 +786,7 @@ func (x *UpdateWorkingScheduleRequest) String() string {
 func (*UpdateWorkingScheduleRequest) ProtoMessage() {}
 
 func (x *UpdateWorkingScheduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[8]
+	mi := &file_working_schedule_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -521,7 +799,7 @@ func (x *UpdateWorkingScheduleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWorkingScheduleRequest.ProtoReflect.Descriptor instead.
 func (*UpdateWorkingScheduleRequest) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{8}
+	return file_working_schedule_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UpdateWorkingScheduleRequest) GetItem() *WorkingSchedule {
@@ -540,7 +818,7 @@ type UpdateWorkingScheduleResponse struct {
 
 func (x *UpdateWorkingScheduleResponse) Reset() {
 	*x = UpdateWorkingScheduleResponse{}
-	mi := &file_working_schedule_proto_msgTypes[9]
+	mi := &file_working_schedule_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -552,7 +830,7 @@ func (x *UpdateWorkingScheduleResponse) String() string {
 func (*UpdateWorkingScheduleResponse) ProtoMessage() {}
 
 func (x *UpdateWorkingScheduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[9]
+	mi := &file_working_schedule_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -565,7 +843,7 @@ func (x *UpdateWorkingScheduleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWorkingScheduleResponse.ProtoReflect.Descriptor instead.
 func (*UpdateWorkingScheduleResponse) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{9}
+	return file_working_schedule_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdateWorkingScheduleResponse) GetItem() *WorkingSchedule {
@@ -585,7 +863,7 @@ type UpdateWorkingScheduleAddAgentsRequest struct {
 
 func (x *UpdateWorkingScheduleAddAgentsRequest) Reset() {
 	*x = UpdateWorkingScheduleAddAgentsRequest{}
-	mi := &file_working_schedule_proto_msgTypes[10]
+	mi := &file_working_schedule_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -597,7 +875,7 @@ func (x *UpdateWorkingScheduleAddAgentsRequest) String() string {
 func (*UpdateWorkingScheduleAddAgentsRequest) ProtoMessage() {}
 
 func (x *UpdateWorkingScheduleAddAgentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[10]
+	mi := &file_working_schedule_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -610,7 +888,7 @@ func (x *UpdateWorkingScheduleAddAgentsRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use UpdateWorkingScheduleAddAgentsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateWorkingScheduleAddAgentsRequest) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{10}
+	return file_working_schedule_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdateWorkingScheduleAddAgentsRequest) GetId() int64 {
@@ -636,7 +914,7 @@ type UpdateWorkingScheduleAddAgentsResponse struct {
 
 func (x *UpdateWorkingScheduleAddAgentsResponse) Reset() {
 	*x = UpdateWorkingScheduleAddAgentsResponse{}
-	mi := &file_working_schedule_proto_msgTypes[11]
+	mi := &file_working_schedule_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -648,7 +926,7 @@ func (x *UpdateWorkingScheduleAddAgentsResponse) String() string {
 func (*UpdateWorkingScheduleAddAgentsResponse) ProtoMessage() {}
 
 func (x *UpdateWorkingScheduleAddAgentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[11]
+	mi := &file_working_schedule_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -661,7 +939,7 @@ func (x *UpdateWorkingScheduleAddAgentsResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use UpdateWorkingScheduleAddAgentsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateWorkingScheduleAddAgentsResponse) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{11}
+	return file_working_schedule_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateWorkingScheduleAddAgentsResponse) GetAgents() []*LookupEntity {
@@ -681,7 +959,7 @@ type UpdateWorkingScheduleRemoveAgentRequest struct {
 
 func (x *UpdateWorkingScheduleRemoveAgentRequest) Reset() {
 	*x = UpdateWorkingScheduleRemoveAgentRequest{}
-	mi := &file_working_schedule_proto_msgTypes[12]
+	mi := &file_working_schedule_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -693,7 +971,7 @@ func (x *UpdateWorkingScheduleRemoveAgentRequest) String() string {
 func (*UpdateWorkingScheduleRemoveAgentRequest) ProtoMessage() {}
 
 func (x *UpdateWorkingScheduleRemoveAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[12]
+	mi := &file_working_schedule_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -706,7 +984,7 @@ func (x *UpdateWorkingScheduleRemoveAgentRequest) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use UpdateWorkingScheduleRemoveAgentRequest.ProtoReflect.Descriptor instead.
 func (*UpdateWorkingScheduleRemoveAgentRequest) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{12}
+	return file_working_schedule_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UpdateWorkingScheduleRemoveAgentRequest) GetId() int64 {
@@ -732,7 +1010,7 @@ type UpdateWorkingScheduleRemoveAgentResponse struct {
 
 func (x *UpdateWorkingScheduleRemoveAgentResponse) Reset() {
 	*x = UpdateWorkingScheduleRemoveAgentResponse{}
-	mi := &file_working_schedule_proto_msgTypes[13]
+	mi := &file_working_schedule_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -744,7 +1022,7 @@ func (x *UpdateWorkingScheduleRemoveAgentResponse) String() string {
 func (*UpdateWorkingScheduleRemoveAgentResponse) ProtoMessage() {}
 
 func (x *UpdateWorkingScheduleRemoveAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[13]
+	mi := &file_working_schedule_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -757,7 +1035,7 @@ func (x *UpdateWorkingScheduleRemoveAgentResponse) ProtoReflect() protoreflect.M
 
 // Deprecated: Use UpdateWorkingScheduleRemoveAgentResponse.ProtoReflect.Descriptor instead.
 func (*UpdateWorkingScheduleRemoveAgentResponse) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{13}
+	return file_working_schedule_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateWorkingScheduleRemoveAgentResponse) GetId() int64 {
@@ -765,6 +1043,235 @@ func (x *UpdateWorkingScheduleRemoveAgentResponse) GetId() int64 {
 		return x.Id
 	}
 	return 0
+}
+
+type UpdateWorkingScheduleStateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	State WorkingScheduleState   `protobuf:"varint,2,opt,name=state,proto3,enum=wfm.WorkingScheduleState" json:"state,omitempty"`
+	// The etag from a read.
+	Etag string `protobuf:"bytes,3,opt,name=etag,proto3" json:"etag,omitempty"`
+	// The answer about unplanned days: true fills them with days off, holidays and the calendar's
+	// days off included; false leaves them empty. Absent, the call refuses if there are any.
+	FillDaysOff   *bool `protobuf:"varint,4,opt,name=fill_days_off,json=fillDaysOff,proto3,oneof" json:"fill_days_off,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkingScheduleStateRequest) Reset() {
+	*x = UpdateWorkingScheduleStateRequest{}
+	mi := &file_working_schedule_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkingScheduleStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkingScheduleStateRequest) ProtoMessage() {}
+
+func (x *UpdateWorkingScheduleStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkingScheduleStateRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWorkingScheduleStateRequest) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *UpdateWorkingScheduleStateRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateWorkingScheduleStateRequest) GetState() WorkingScheduleState {
+	if x != nil {
+		return x.State
+	}
+	return WorkingScheduleState_WORKING_SCHEDULE_STATE_UNSPECIFIED
+}
+
+func (x *UpdateWorkingScheduleStateRequest) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+func (x *UpdateWorkingScheduleStateRequest) GetFillDaysOff() bool {
+	if x != nil && x.FillDaysOff != nil {
+		return *x.FillDaysOff
+	}
+	return false
+}
+
+type UpdateWorkingScheduleStateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Item  *WorkingSchedule       `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	// Days filled with days off.
+	FilledDays    int32 `protobuf:"varint,2,opt,name=filled_days,json=filledDays,proto3" json:"filled_days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkingScheduleStateResponse) Reset() {
+	*x = UpdateWorkingScheduleStateResponse{}
+	mi := &file_working_schedule_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkingScheduleStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkingScheduleStateResponse) ProtoMessage() {}
+
+func (x *UpdateWorkingScheduleStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkingScheduleStateResponse.ProtoReflect.Descriptor instead.
+func (*UpdateWorkingScheduleStateResponse) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *UpdateWorkingScheduleStateResponse) GetItem() *WorkingSchedule {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *UpdateWorkingScheduleStateResponse) GetFilledDays() int32 {
+	if x != nil {
+		return x.FilledDays
+	}
+	return 0
+}
+
+type UpdateWorkingScheduleBlockOutsideActivityRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BlockOutsideActivity bool                   `protobuf:"varint,2,opt,name=block_outside_activity,json=blockOutsideActivity,proto3" json:"block_outside_activity,omitempty"`
+	// The etag from a read.
+	Etag          string `protobuf:"bytes,3,opt,name=etag,proto3" json:"etag,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityRequest) Reset() {
+	*x = UpdateWorkingScheduleBlockOutsideActivityRequest{}
+	mi := &file_working_schedule_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkingScheduleBlockOutsideActivityRequest) ProtoMessage() {}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkingScheduleBlockOutsideActivityRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWorkingScheduleBlockOutsideActivityRequest) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityRequest) GetBlockOutsideActivity() bool {
+	if x != nil {
+		return x.BlockOutsideActivity
+	}
+	return false
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityRequest) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+type UpdateWorkingScheduleBlockOutsideActivityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Item          *WorkingSchedule       `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityResponse) Reset() {
+	*x = UpdateWorkingScheduleBlockOutsideActivityResponse{}
+	mi := &file_working_schedule_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkingScheduleBlockOutsideActivityResponse) ProtoMessage() {}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_working_schedule_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkingScheduleBlockOutsideActivityResponse.ProtoReflect.Descriptor instead.
+func (*UpdateWorkingScheduleBlockOutsideActivityResponse) Descriptor() ([]byte, []int) {
+	return file_working_schedule_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *UpdateWorkingScheduleBlockOutsideActivityResponse) GetItem() *WorkingSchedule {
+	if x != nil {
+		return x.Item
+	}
+	return nil
 }
 
 type DeleteWorkingScheduleRequest struct {
@@ -776,7 +1283,7 @@ type DeleteWorkingScheduleRequest struct {
 
 func (x *DeleteWorkingScheduleRequest) Reset() {
 	*x = DeleteWorkingScheduleRequest{}
-	mi := &file_working_schedule_proto_msgTypes[14]
+	mi := &file_working_schedule_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -788,7 +1295,7 @@ func (x *DeleteWorkingScheduleRequest) String() string {
 func (*DeleteWorkingScheduleRequest) ProtoMessage() {}
 
 func (x *DeleteWorkingScheduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[14]
+	mi := &file_working_schedule_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +1308,7 @@ func (x *DeleteWorkingScheduleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkingScheduleRequest.ProtoReflect.Descriptor instead.
 func (*DeleteWorkingScheduleRequest) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{14}
+	return file_working_schedule_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DeleteWorkingScheduleRequest) GetId() int64 {
@@ -820,7 +1327,7 @@ type DeleteWorkingScheduleResponse struct {
 
 func (x *DeleteWorkingScheduleResponse) Reset() {
 	*x = DeleteWorkingScheduleResponse{}
-	mi := &file_working_schedule_proto_msgTypes[15]
+	mi := &file_working_schedule_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -832,7 +1339,7 @@ func (x *DeleteWorkingScheduleResponse) String() string {
 func (*DeleteWorkingScheduleResponse) ProtoMessage() {}
 
 func (x *DeleteWorkingScheduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[15]
+	mi := &file_working_schedule_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -845,7 +1352,7 @@ func (x *DeleteWorkingScheduleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkingScheduleResponse.ProtoReflect.Descriptor instead.
 func (*DeleteWorkingScheduleResponse) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{15}
+	return file_working_schedule_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DeleteWorkingScheduleResponse) GetId() int64 {
@@ -853,50 +1360,6 @@ func (x *DeleteWorkingScheduleResponse) GetId() int64 {
 		return x.Id
 	}
 	return 0
-}
-
-type WorkingScheduleForecast struct {
-	state         protoimpl.MessageState              `protogen:"open.v1"`
-	Forecast      []*WorkingScheduleForecast_Forecast `protobuf:"bytes,1,rep,name=forecast,proto3" json:"forecast,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorkingScheduleForecast) Reset() {
-	*x = WorkingScheduleForecast{}
-	mi := &file_working_schedule_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorkingScheduleForecast) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorkingScheduleForecast) ProtoMessage() {}
-
-func (x *WorkingScheduleForecast) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorkingScheduleForecast.ProtoReflect.Descriptor instead.
-func (*WorkingScheduleForecast) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *WorkingScheduleForecast) GetForecast() []*WorkingScheduleForecast_Forecast {
-	if x != nil {
-		return x.Forecast
-	}
-	return nil
 }
 
 type WorkingSchedule struct {
@@ -908,21 +1371,28 @@ type WorkingSchedule struct {
 	UpdatedAt int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	UpdatedBy *LookupEntity          `protobuf:"bytes,6,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	Name      string                 `protobuf:"bytes,7,opt,name=name,proto3" json:"name,omitempty"`
-	State     WorkingScheduleState   `protobuf:"varint,8,opt,name=state,proto3,enum=wfm.WorkingScheduleState" json:"state,omitempty"`
-	Team      *LookupEntity          `protobuf:"bytes,9,opt,name=team,proto3" json:"team,omitempty"`
-	Calendar  *LookupEntity          `protobuf:"bytes,10,opt,name=calendar,proto3" json:"calendar,omitempty"`
+	// Set by the server: a new schedule is a draft, and only UpdateWorkingScheduleState changes it.
+	State    WorkingScheduleState `protobuf:"varint,8,opt,name=state,proto3,enum=wfm.WorkingScheduleState" json:"state,omitempty"`
+	Team     *LookupEntity        `protobuf:"bytes,9,opt,name=team,proto3" json:"team,omitempty"`
+	Calendar *LookupEntity        `protobuf:"bytes,10,opt,name=calendar,proto3" json:"calendar,omitempty"`
 	// The first and the last day of the schedule, dates as in DateRange: 00:00 UTC of the
 	// day, epoch milliseconds.
-	StartDateAt          int64           `protobuf:"varint,11,opt,name=start_date_at,json=startDateAt,proto3" json:"start_date_at,omitempty"`
-	EndDateAt            int64           `protobuf:"varint,12,opt,name=end_date_at,json=endDateAt,proto3" json:"end_date_at,omitempty"`
-	StartTimeAt          int64           `protobuf:"varint,13,opt,name=start_time_at,json=startTimeAt,proto3" json:"start_time_at,omitempty"`
-	EndTimeAt            int64           `protobuf:"varint,14,opt,name=end_time_at,json=endTimeAt,proto3" json:"end_time_at,omitempty"`
-	ExtraSkills          []*LookupEntity `protobuf:"bytes,15,rep,name=extra_skills,json=extraSkills,proto3" json:"extra_skills,omitempty"`
+	StartDateAt int64 `protobuf:"varint,11,opt,name=start_date_at,json=startDateAt,proto3" json:"start_date_at,omitempty"`
+	EndDateAt   int64 `protobuf:"varint,12,opt,name=end_date_at,json=endDateAt,proto3" json:"end_date_at,omitempty"`
+	// The time scale of the schedule, minutes from midnight in the zone of its calendar. Both
+	// absent mean 24 hours; an end before the start crosses midnight. It does not limit shifts.
+	StartTimeAt int64 `protobuf:"varint,13,opt,name=start_time_at,json=startTimeAt,proto3" json:"start_time_at,omitempty"`
+	EndTimeAt   int64 `protobuf:"varint,14,opt,name=end_time_at,json=endTimeAt,proto3" json:"end_time_at,omitempty"`
+	// Special time skills; the shape may change to a skill group.
+	ExtraSkills []*LookupEntity `protobuf:"bytes,15,rep,name=extra_skills,json=extraSkills,proto3" json:"extra_skills,omitempty"`
+	// Off by default. Set on creation; afterwards only UpdateWorkingScheduleBlockOutsideActivity
+	// changes it.
 	BlockOutsideActivity bool            `protobuf:"varint,16,opt,name=block_outside_activity,json=blockOutsideActivity,proto3" json:"block_outside_activity,omitempty"`
 	Agents               []*LookupEntity `protobuf:"bytes,17,rep,name=agents,proto3" json:"agents,omitempty"`
 	TotalAgents          int64           `protobuf:"varint,18,opt,name=total_agents,json=totalAgents,proto3" json:"total_agents,omitempty"`
-	// Version of the row, returned by every read. UpdateWorkingSchedule requires
-	// it and refuses with Aborted when the schedule has changed since.
+	// Version of the row, returned by every read. UpdateWorkingSchedule, UpdateWorkingScheduleState
+	// and UpdateWorkingScheduleBlockOutsideActivity require it and refuse with
+	// storage.working_schedule.version_conflict (409) when the schedule has changed since.
 	Etag          string `protobuf:"bytes,19,opt,name=etag,proto3" json:"etag,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -930,7 +1400,7 @@ type WorkingSchedule struct {
 
 func (x *WorkingSchedule) Reset() {
 	*x = WorkingSchedule{}
-	mi := &file_working_schedule_proto_msgTypes[17]
+	mi := &file_working_schedule_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -942,7 +1412,7 @@ func (x *WorkingSchedule) String() string {
 func (*WorkingSchedule) ProtoMessage() {}
 
 func (x *WorkingSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[17]
+	mi := &file_working_schedule_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -955,7 +1425,7 @@ func (x *WorkingSchedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkingSchedule.ProtoReflect.Descriptor instead.
 func (*WorkingSchedule) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{17}
+	return file_working_schedule_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *WorkingSchedule) GetId() int64 {
@@ -1091,58 +1561,6 @@ func (x *WorkingSchedule) GetEtag() string {
 	return ""
 }
 
-type WorkingScheduleForecast_Forecast struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Hour          int64                  `protobuf:"varint,1,opt,name=hour,proto3" json:"hour,omitempty"`
-	Agents        int64                  `protobuf:"varint,2,opt,name=agents,proto3" json:"agents,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorkingScheduleForecast_Forecast) Reset() {
-	*x = WorkingScheduleForecast_Forecast{}
-	mi := &file_working_schedule_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorkingScheduleForecast_Forecast) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorkingScheduleForecast_Forecast) ProtoMessage() {}
-
-func (x *WorkingScheduleForecast_Forecast) ProtoReflect() protoreflect.Message {
-	mi := &file_working_schedule_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorkingScheduleForecast_Forecast.ProtoReflect.Descriptor instead.
-func (*WorkingScheduleForecast_Forecast) Descriptor() ([]byte, []int) {
-	return file_working_schedule_proto_rawDescGZIP(), []int{16, 0}
-}
-
-func (x *WorkingScheduleForecast_Forecast) GetHour() int64 {
-	if x != nil {
-		return x.Hour
-	}
-	return 0
-}
-
-func (x *WorkingScheduleForecast_Forecast) GetAgents() int64 {
-	if x != nil {
-		return x.Agents
-	}
-	return 0
-}
-
 var File_working_schedule_proto protoreflect.FileDescriptor
 
 const file_working_schedule_proto_rawDesc = "" +
@@ -1161,22 +1579,35 @@ const file_working_schedule_proto_rawDesc = "" +
 	"updated_atR\n" +
 	"updated_byR\x04etagR\x06fields\"G\n" +
 	"\x1bReadWorkingScheduleResponse\x12(\n" +
-	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleR\x04item\"\\\n" +
-	"\"ReadWorkingScheduleForecastRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12&\n" +
-	"\x04date\x18\x02 \x01(\v2\x12.wfm.FilterBetweenR\x04date\"\xc8\x01\n" +
-	"#ReadWorkingScheduleForecastResponse\x12I\n" +
-	"\x05items\x18\x01 \x03(\v23.wfm.ReadWorkingScheduleForecastResponse.ItemsEntryR\x05items\x1aV\n" +
+	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleR\x04item\"i\n" +
+	"\"ReadWorkingScheduleForecastRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\x12*\n" +
+	"\x04date\x18\x03 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\"N\n" +
+	"#ReadWorkingScheduleForecastResponse\x12'\n" +
+	"\x05items\x18\x02 \x03(\v2\x11.wfm.ForecastHourR\x05items\"U\n" +
+	"\fForecastHour\x12\x12\n" +
+	"\x04date\x18\x01 \x01(\x03R\x04date\x12\x19\n" +
+	"\bstart_at\x18\x02 \x01(\x03R\astartAt\x12\x16\n" +
+	"\x06agents\x18\x03 \x01(\x05R\x06agents\"h\n" +
+	"!ReadWorkingSchedulePlannedRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\x12*\n" +
+	"\x04date\x18\x02 \x01(\v2\x0e.wfm.DateRangeB\x06\xbaH\x03\xc8\x01\x01R\x04date\"q\n" +
+	"\"ReadWorkingSchedulePlannedResponse\x12&\n" +
+	"\x05slots\x18\x01 \x03(\v2\x10.wfm.PlannedSlotR\x05slots\x12#\n" +
+	"\x04days\x18\x02 \x03(\v2\x0f.wfm.PlannedDayR\x04days\"@\n" +
+	"\vPlannedSlot\x12\x19\n" +
+	"\bstart_at\x18\x01 \x01(\x03R\astartAt\x12\x16\n" +
+	"\x06agents\x18\x02 \x01(\x05R\x06agents\"8\n" +
 	"\n" +
-	"ItemsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\x03R\x03key\x122\n" +
-	"\x05value\x18\x02 \x01(\v2\x1c.wfm.WorkingScheduleForecastR\x05value:\x028\x01\"\xa7\x03\n" +
+	"PlannedDay\x12\x12\n" +
+	"\x04date\x18\x01 \x01(\x03R\x04date\x12\x16\n" +
+	"\x06agents\x18\x02 \x01(\x05R\x06agents\"\xcc\x03\n" +
 	"\x1cSearchWorkingScheduleRequest\x12\x1d\n" +
 	"\x01q\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xfa\x01H\x00R\x01q\x88\x01\x01\x12 \n" +
 	"\x04page\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x04page\x88\x01\x01\x12 \n" +
-	"\x04size\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x02R\x04size\x88\x01\x01\x12\x17\n" +
-	"\x04sort\x18\x04 \x01(\tH\x03R\x04sort\x88\x01\x01\x12\xe9\x01\n" +
+	"\x04size\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x02R\x04size\x88\x01\x01\x12<\n" +
+	"\x04sort\x18\x04 \x01(\tB#\xbaH r\x1eR\x05+nameR\x05-nameR\x06+stateR\x06-stateH\x03R\x04sort\x88\x01\x01\x12\xe9\x01\n" +
 	"\x06fields\x18\x05 \x03(\tB\xd0\x01\xbaH\xcc\x01\x92\x01\xc8\x01\x18\x01\"\xc3\x01r\xc0\x01\x10\x01R\x02idR\tdomain_idR\x04nameR\x05stateR\x04teamR\rstart_date_atR\vend_date_atR\rstart_time_atR\vend_time_atR\fextra_skillsR\x16block_outside_activityR\x06agentsR\n" +
 	"created_atR\n" +
 	"created_byR\n" +
@@ -1204,17 +1635,29 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\bagent_id\x18\x02 \x01(\x03B\n" +
 	"\xbaH\a\xc8\x01\x01\"\x02 \x00R\aagentId\":\n" +
 	"(UpdateWorkingScheduleRemoveAgentResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\":\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xd1\x01\n" +
+	"!UpdateWorkingScheduleStateRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\x12;\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x19.wfm.WorkingScheduleStateB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05state\x12\x1b\n" +
+	"\x04etag\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04etag\x12'\n" +
+	"\rfill_days_off\x18\x04 \x01(\bH\x00R\vfillDaysOff\x88\x01\x01B\x10\n" +
+	"\x0e_fill_days_off\"o\n" +
+	"\"UpdateWorkingScheduleStateResponse\x12(\n" +
+	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleR\x04item\x12\x1f\n" +
+	"\vfilled_days\x18\x02 \x01(\x05R\n" +
+	"filledDays\"\x9e\x01\n" +
+	"0UpdateWorkingScheduleBlockOutsideActivityRequest\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x02id\x124\n" +
+	"\x16block_outside_activity\x18\x02 \x01(\bR\x14blockOutsideActivity\x12\x1b\n" +
+	"\x04etag\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04etag\"]\n" +
+	"1UpdateWorkingScheduleBlockOutsideActivityResponse\x12(\n" +
+	"\x04item\x18\x01 \x01(\v2\x14.wfm.WorkingScheduleR\x04item\":\n" +
 	"\x1cDeleteWorkingScheduleRequest\x12\x1a\n" +
 	"\x02id\x18\x01 \x01(\x03B\n" +
 	"\xbaH\a\xc8\x01\x01\"\x02 \x00R\x02id\"/\n" +
 	"\x1dDeleteWorkingScheduleResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\x94\x01\n" +
-	"\x17WorkingScheduleForecast\x12A\n" +
-	"\bforecast\x18\x01 \x03(\v2%.wfm.WorkingScheduleForecast.ForecastR\bforecast\x1a6\n" +
-	"\bForecast\x12\x12\n" +
-	"\x04hour\x18\x01 \x01(\x03R\x04hour\x12\x16\n" +
-	"\x06agents\x18\x02 \x01(\x03R\x06agents\"\xb2\a\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xb2\a\n" +
 	"\x0fWorkingSchedule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\x12\x1d\n" +
@@ -1248,16 +1691,18 @@ const file_working_schedule_proto_rawDesc = "" +
 	"\x1cWORKING_SCHEDULE_STATE_DRAFT\x10\x01\x12\"\n" +
 	"\x1eWORKING_SCHEDULE_STATE_PENDING\x10\x02\x12!\n" +
 	"\x1dWORKING_SCHEDULE_STATE_ACTIVE\x10\x03\x12#\n" +
-	"\x1fWORKING_SCHEDULE_STATE_ARCHIVED\x10\x042\xad\n" +
-	"\n" +
+	"\x1fWORKING_SCHEDULE_STATE_ARCHIVED\x10\x042\xe8\x0e\n" +
 	"\x16WorkingScheduleService\x12\x8d\x01\n" +
 	"\x15CreateWorkingSchedule\x12!.wfm.CreateWorkingScheduleRequest\x1a\".wfm.CreateWorkingScheduleResponse\"-\x90\xb5\x18\x00\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/wfm/lookups/working_schedules\x12\x89\x01\n" +
 	"\x13ReadWorkingSchedule\x12\x1f.wfm.ReadWorkingScheduleRequest\x1a .wfm.ReadWorkingScheduleResponse\"/\x90\xb5\x18\x01\x82\xd3\xe4\x93\x02%\x12#/wfm/lookups/working_schedules/{id}\x12\xaa\x01\n" +
-	"\x1bReadWorkingScheduleForecast\x12'.wfm.ReadWorkingScheduleForecastRequest\x1a(.wfm.ReadWorkingScheduleForecastResponse\"8\x90\xb5\x18\x01\x82\xd3\xe4\x93\x02.\x12,/wfm/lookups/working_schedules/{id}/forecast\x12\x8a\x01\n" +
+	"\x1bReadWorkingScheduleForecast\x12'.wfm.ReadWorkingScheduleForecastRequest\x1a(.wfm.ReadWorkingScheduleForecastResponse\"8\x90\xb5\x18\x01\x82\xd3\xe4\x93\x02.\x12,/wfm/lookups/working_schedules/{id}/forecast\x12\xa6\x01\n" +
+	"\x1aReadWorkingSchedulePlanned\x12&.wfm.ReadWorkingSchedulePlannedRequest\x1a'.wfm.ReadWorkingSchedulePlannedResponse\"7\x90\xb5\x18\x01\x82\xd3\xe4\x93\x02-\x12+/wfm/lookups/working_schedules/{id}/planned\x12\x8a\x01\n" +
 	"\x15SearchWorkingSchedule\x12!.wfm.SearchWorkingScheduleRequest\x1a\".wfm.SearchWorkingScheduleResponse\"*\x90\xb5\x18\x01\x82\xd3\xe4\x93\x02 \x12\x1e/wfm/lookups/working_schedules\x12\x97\x01\n" +
 	"\x15UpdateWorkingSchedule\x12!.wfm.UpdateWorkingScheduleRequest\x1a\".wfm.UpdateWorkingScheduleResponse\"7\x90\xb5\x18\x02\x82\xd3\xe4\x93\x02-:\x01*\x1a(/wfm/lookups/working_schedules/{item.id}\x12\xb4\x01\n" +
 	"\x1eUpdateWorkingScheduleAddAgents\x12*.wfm.UpdateWorkingScheduleAddAgentsRequest\x1a+.wfm.UpdateWorkingScheduleAddAgentsResponse\"9\x90\xb5\x18\x02\x82\xd3\xe4\x93\x02/:\x01*\"*/wfm/lookups/working_schedules/{id}/agents\x12\xc2\x01\n" +
-	" UpdateWorkingScheduleRemoveAgent\x12,.wfm.UpdateWorkingScheduleRemoveAgentRequest\x1a-.wfm.UpdateWorkingScheduleRemoveAgentResponse\"A\x90\xb5\x18\x02\x82\xd3\xe4\x93\x027*5/wfm/lookups/working_schedules/{id}/agents/{agent_id}\x12\x8f\x01\n" +
+	" UpdateWorkingScheduleRemoveAgent\x12,.wfm.UpdateWorkingScheduleRemoveAgentRequest\x1a-.wfm.UpdateWorkingScheduleRemoveAgentResponse\"A\x90\xb5\x18\x02\x82\xd3\xe4\x93\x027*5/wfm/lookups/working_schedules/{id}/agents/{agent_id}\x12\xa7\x01\n" +
+	"\x1aUpdateWorkingScheduleState\x12&.wfm.UpdateWorkingScheduleStateRequest\x1a'.wfm.UpdateWorkingScheduleStateResponse\"8\x90\xb5\x18\x02\x82\xd3\xe4\x93\x02.:\x01*2)/wfm/lookups/working_schedules/{id}/state\x12\xe5\x01\n" +
+	")UpdateWorkingScheduleBlockOutsideActivity\x125.wfm.UpdateWorkingScheduleBlockOutsideActivityRequest\x1a6.wfm.UpdateWorkingScheduleBlockOutsideActivityResponse\"I\x90\xb5\x18\x02\x82\xd3\xe4\x93\x02?:\x01*2:/wfm/lookups/working_schedules/{id}/block_outside_activity\x12\x8f\x01\n" +
 	"\x15DeleteWorkingSchedule\x12!.wfm.DeleteWorkingScheduleRequest\x1a\".wfm.DeleteWorkingScheduleResponse\"/\x90\xb5\x18\x03\x82\xd3\xe4\x93\x02%*#/wfm/lookups/working_schedules/{id}\x1a\x15\x8a\xb5\x18\x11working_schedulesB#Z!github.com/webitel/protos/wfm;wfmb\x06proto3"
 
 var (
@@ -1273,73 +1718,89 @@ func file_working_schedule_proto_rawDescGZIP() []byte {
 }
 
 var file_working_schedule_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_working_schedule_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_working_schedule_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_working_schedule_proto_goTypes = []any{
-	(WorkingScheduleState)(0),                        // 0: wfm.WorkingScheduleState
-	(*CreateWorkingScheduleRequest)(nil),             // 1: wfm.CreateWorkingScheduleRequest
-	(*CreateWorkingScheduleResponse)(nil),            // 2: wfm.CreateWorkingScheduleResponse
-	(*ReadWorkingScheduleRequest)(nil),               // 3: wfm.ReadWorkingScheduleRequest
-	(*ReadWorkingScheduleResponse)(nil),              // 4: wfm.ReadWorkingScheduleResponse
-	(*ReadWorkingScheduleForecastRequest)(nil),       // 5: wfm.ReadWorkingScheduleForecastRequest
-	(*ReadWorkingScheduleForecastResponse)(nil),      // 6: wfm.ReadWorkingScheduleForecastResponse
-	(*SearchWorkingScheduleRequest)(nil),             // 7: wfm.SearchWorkingScheduleRequest
-	(*SearchWorkingScheduleResponse)(nil),            // 8: wfm.SearchWorkingScheduleResponse
-	(*UpdateWorkingScheduleRequest)(nil),             // 9: wfm.UpdateWorkingScheduleRequest
-	(*UpdateWorkingScheduleResponse)(nil),            // 10: wfm.UpdateWorkingScheduleResponse
-	(*UpdateWorkingScheduleAddAgentsRequest)(nil),    // 11: wfm.UpdateWorkingScheduleAddAgentsRequest
-	(*UpdateWorkingScheduleAddAgentsResponse)(nil),   // 12: wfm.UpdateWorkingScheduleAddAgentsResponse
-	(*UpdateWorkingScheduleRemoveAgentRequest)(nil),  // 13: wfm.UpdateWorkingScheduleRemoveAgentRequest
-	(*UpdateWorkingScheduleRemoveAgentResponse)(nil), // 14: wfm.UpdateWorkingScheduleRemoveAgentResponse
-	(*DeleteWorkingScheduleRequest)(nil),             // 15: wfm.DeleteWorkingScheduleRequest
-	(*DeleteWorkingScheduleResponse)(nil),            // 16: wfm.DeleteWorkingScheduleResponse
-	(*WorkingScheduleForecast)(nil),                  // 17: wfm.WorkingScheduleForecast
-	(*WorkingSchedule)(nil),                          // 18: wfm.WorkingSchedule
-	nil,                                              // 19: wfm.ReadWorkingScheduleForecastResponse.ItemsEntry
-	(*WorkingScheduleForecast_Forecast)(nil),         // 20: wfm.WorkingScheduleForecast.Forecast
-	(*FilterBetween)(nil),                            // 21: wfm.FilterBetween
-	(*LookupEntity)(nil),                             // 22: wfm.LookupEntity
+	(WorkingScheduleState)(0),                                 // 0: wfm.WorkingScheduleState
+	(*CreateWorkingScheduleRequest)(nil),                      // 1: wfm.CreateWorkingScheduleRequest
+	(*CreateWorkingScheduleResponse)(nil),                     // 2: wfm.CreateWorkingScheduleResponse
+	(*ReadWorkingScheduleRequest)(nil),                        // 3: wfm.ReadWorkingScheduleRequest
+	(*ReadWorkingScheduleResponse)(nil),                       // 4: wfm.ReadWorkingScheduleResponse
+	(*ReadWorkingScheduleForecastRequest)(nil),                // 5: wfm.ReadWorkingScheduleForecastRequest
+	(*ReadWorkingScheduleForecastResponse)(nil),               // 6: wfm.ReadWorkingScheduleForecastResponse
+	(*ForecastHour)(nil),                                      // 7: wfm.ForecastHour
+	(*ReadWorkingSchedulePlannedRequest)(nil),                 // 8: wfm.ReadWorkingSchedulePlannedRequest
+	(*ReadWorkingSchedulePlannedResponse)(nil),                // 9: wfm.ReadWorkingSchedulePlannedResponse
+	(*PlannedSlot)(nil),                                       // 10: wfm.PlannedSlot
+	(*PlannedDay)(nil),                                        // 11: wfm.PlannedDay
+	(*SearchWorkingScheduleRequest)(nil),                      // 12: wfm.SearchWorkingScheduleRequest
+	(*SearchWorkingScheduleResponse)(nil),                     // 13: wfm.SearchWorkingScheduleResponse
+	(*UpdateWorkingScheduleRequest)(nil),                      // 14: wfm.UpdateWorkingScheduleRequest
+	(*UpdateWorkingScheduleResponse)(nil),                     // 15: wfm.UpdateWorkingScheduleResponse
+	(*UpdateWorkingScheduleAddAgentsRequest)(nil),             // 16: wfm.UpdateWorkingScheduleAddAgentsRequest
+	(*UpdateWorkingScheduleAddAgentsResponse)(nil),            // 17: wfm.UpdateWorkingScheduleAddAgentsResponse
+	(*UpdateWorkingScheduleRemoveAgentRequest)(nil),           // 18: wfm.UpdateWorkingScheduleRemoveAgentRequest
+	(*UpdateWorkingScheduleRemoveAgentResponse)(nil),          // 19: wfm.UpdateWorkingScheduleRemoveAgentResponse
+	(*UpdateWorkingScheduleStateRequest)(nil),                 // 20: wfm.UpdateWorkingScheduleStateRequest
+	(*UpdateWorkingScheduleStateResponse)(nil),                // 21: wfm.UpdateWorkingScheduleStateResponse
+	(*UpdateWorkingScheduleBlockOutsideActivityRequest)(nil),  // 22: wfm.UpdateWorkingScheduleBlockOutsideActivityRequest
+	(*UpdateWorkingScheduleBlockOutsideActivityResponse)(nil), // 23: wfm.UpdateWorkingScheduleBlockOutsideActivityResponse
+	(*DeleteWorkingScheduleRequest)(nil),                      // 24: wfm.DeleteWorkingScheduleRequest
+	(*DeleteWorkingScheduleResponse)(nil),                     // 25: wfm.DeleteWorkingScheduleResponse
+	(*WorkingSchedule)(nil),                                   // 26: wfm.WorkingSchedule
+	(*DateRange)(nil),                                         // 27: wfm.DateRange
+	(*LookupEntity)(nil),                                      // 28: wfm.LookupEntity
 }
 var file_working_schedule_proto_depIdxs = []int32{
-	18, // 0: wfm.CreateWorkingScheduleRequest.item:type_name -> wfm.WorkingSchedule
-	18, // 1: wfm.CreateWorkingScheduleResponse.item:type_name -> wfm.WorkingSchedule
-	18, // 2: wfm.ReadWorkingScheduleResponse.item:type_name -> wfm.WorkingSchedule
-	21, // 3: wfm.ReadWorkingScheduleForecastRequest.date:type_name -> wfm.FilterBetween
-	19, // 4: wfm.ReadWorkingScheduleForecastResponse.items:type_name -> wfm.ReadWorkingScheduleForecastResponse.ItemsEntry
-	18, // 5: wfm.SearchWorkingScheduleResponse.items:type_name -> wfm.WorkingSchedule
-	18, // 6: wfm.UpdateWorkingScheduleRequest.item:type_name -> wfm.WorkingSchedule
-	18, // 7: wfm.UpdateWorkingScheduleResponse.item:type_name -> wfm.WorkingSchedule
-	22, // 8: wfm.UpdateWorkingScheduleAddAgentsRequest.agents:type_name -> wfm.LookupEntity
-	22, // 9: wfm.UpdateWorkingScheduleAddAgentsResponse.agents:type_name -> wfm.LookupEntity
-	20, // 10: wfm.WorkingScheduleForecast.forecast:type_name -> wfm.WorkingScheduleForecast.Forecast
-	22, // 11: wfm.WorkingSchedule.created_by:type_name -> wfm.LookupEntity
-	22, // 12: wfm.WorkingSchedule.updated_by:type_name -> wfm.LookupEntity
-	0,  // 13: wfm.WorkingSchedule.state:type_name -> wfm.WorkingScheduleState
-	22, // 14: wfm.WorkingSchedule.team:type_name -> wfm.LookupEntity
-	22, // 15: wfm.WorkingSchedule.calendar:type_name -> wfm.LookupEntity
-	22, // 16: wfm.WorkingSchedule.extra_skills:type_name -> wfm.LookupEntity
-	22, // 17: wfm.WorkingSchedule.agents:type_name -> wfm.LookupEntity
-	17, // 18: wfm.ReadWorkingScheduleForecastResponse.ItemsEntry.value:type_name -> wfm.WorkingScheduleForecast
-	1,  // 19: wfm.WorkingScheduleService.CreateWorkingSchedule:input_type -> wfm.CreateWorkingScheduleRequest
-	3,  // 20: wfm.WorkingScheduleService.ReadWorkingSchedule:input_type -> wfm.ReadWorkingScheduleRequest
-	5,  // 21: wfm.WorkingScheduleService.ReadWorkingScheduleForecast:input_type -> wfm.ReadWorkingScheduleForecastRequest
-	7,  // 22: wfm.WorkingScheduleService.SearchWorkingSchedule:input_type -> wfm.SearchWorkingScheduleRequest
-	9,  // 23: wfm.WorkingScheduleService.UpdateWorkingSchedule:input_type -> wfm.UpdateWorkingScheduleRequest
-	11, // 24: wfm.WorkingScheduleService.UpdateWorkingScheduleAddAgents:input_type -> wfm.UpdateWorkingScheduleAddAgentsRequest
-	13, // 25: wfm.WorkingScheduleService.UpdateWorkingScheduleRemoveAgent:input_type -> wfm.UpdateWorkingScheduleRemoveAgentRequest
-	15, // 26: wfm.WorkingScheduleService.DeleteWorkingSchedule:input_type -> wfm.DeleteWorkingScheduleRequest
-	2,  // 27: wfm.WorkingScheduleService.CreateWorkingSchedule:output_type -> wfm.CreateWorkingScheduleResponse
-	4,  // 28: wfm.WorkingScheduleService.ReadWorkingSchedule:output_type -> wfm.ReadWorkingScheduleResponse
-	6,  // 29: wfm.WorkingScheduleService.ReadWorkingScheduleForecast:output_type -> wfm.ReadWorkingScheduleForecastResponse
-	8,  // 30: wfm.WorkingScheduleService.SearchWorkingSchedule:output_type -> wfm.SearchWorkingScheduleResponse
-	10, // 31: wfm.WorkingScheduleService.UpdateWorkingSchedule:output_type -> wfm.UpdateWorkingScheduleResponse
-	12, // 32: wfm.WorkingScheduleService.UpdateWorkingScheduleAddAgents:output_type -> wfm.UpdateWorkingScheduleAddAgentsResponse
-	14, // 33: wfm.WorkingScheduleService.UpdateWorkingScheduleRemoveAgent:output_type -> wfm.UpdateWorkingScheduleRemoveAgentResponse
-	16, // 34: wfm.WorkingScheduleService.DeleteWorkingSchedule:output_type -> wfm.DeleteWorkingScheduleResponse
-	27, // [27:35] is the sub-list for method output_type
-	19, // [19:27] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	26, // 0: wfm.CreateWorkingScheduleRequest.item:type_name -> wfm.WorkingSchedule
+	26, // 1: wfm.CreateWorkingScheduleResponse.item:type_name -> wfm.WorkingSchedule
+	26, // 2: wfm.ReadWorkingScheduleResponse.item:type_name -> wfm.WorkingSchedule
+	27, // 3: wfm.ReadWorkingScheduleForecastRequest.date:type_name -> wfm.DateRange
+	7,  // 4: wfm.ReadWorkingScheduleForecastResponse.items:type_name -> wfm.ForecastHour
+	27, // 5: wfm.ReadWorkingSchedulePlannedRequest.date:type_name -> wfm.DateRange
+	10, // 6: wfm.ReadWorkingSchedulePlannedResponse.slots:type_name -> wfm.PlannedSlot
+	11, // 7: wfm.ReadWorkingSchedulePlannedResponse.days:type_name -> wfm.PlannedDay
+	26, // 8: wfm.SearchWorkingScheduleResponse.items:type_name -> wfm.WorkingSchedule
+	26, // 9: wfm.UpdateWorkingScheduleRequest.item:type_name -> wfm.WorkingSchedule
+	26, // 10: wfm.UpdateWorkingScheduleResponse.item:type_name -> wfm.WorkingSchedule
+	28, // 11: wfm.UpdateWorkingScheduleAddAgentsRequest.agents:type_name -> wfm.LookupEntity
+	28, // 12: wfm.UpdateWorkingScheduleAddAgentsResponse.agents:type_name -> wfm.LookupEntity
+	0,  // 13: wfm.UpdateWorkingScheduleStateRequest.state:type_name -> wfm.WorkingScheduleState
+	26, // 14: wfm.UpdateWorkingScheduleStateResponse.item:type_name -> wfm.WorkingSchedule
+	26, // 15: wfm.UpdateWorkingScheduleBlockOutsideActivityResponse.item:type_name -> wfm.WorkingSchedule
+	28, // 16: wfm.WorkingSchedule.created_by:type_name -> wfm.LookupEntity
+	28, // 17: wfm.WorkingSchedule.updated_by:type_name -> wfm.LookupEntity
+	0,  // 18: wfm.WorkingSchedule.state:type_name -> wfm.WorkingScheduleState
+	28, // 19: wfm.WorkingSchedule.team:type_name -> wfm.LookupEntity
+	28, // 20: wfm.WorkingSchedule.calendar:type_name -> wfm.LookupEntity
+	28, // 21: wfm.WorkingSchedule.extra_skills:type_name -> wfm.LookupEntity
+	28, // 22: wfm.WorkingSchedule.agents:type_name -> wfm.LookupEntity
+	1,  // 23: wfm.WorkingScheduleService.CreateWorkingSchedule:input_type -> wfm.CreateWorkingScheduleRequest
+	3,  // 24: wfm.WorkingScheduleService.ReadWorkingSchedule:input_type -> wfm.ReadWorkingScheduleRequest
+	5,  // 25: wfm.WorkingScheduleService.ReadWorkingScheduleForecast:input_type -> wfm.ReadWorkingScheduleForecastRequest
+	8,  // 26: wfm.WorkingScheduleService.ReadWorkingSchedulePlanned:input_type -> wfm.ReadWorkingSchedulePlannedRequest
+	12, // 27: wfm.WorkingScheduleService.SearchWorkingSchedule:input_type -> wfm.SearchWorkingScheduleRequest
+	14, // 28: wfm.WorkingScheduleService.UpdateWorkingSchedule:input_type -> wfm.UpdateWorkingScheduleRequest
+	16, // 29: wfm.WorkingScheduleService.UpdateWorkingScheduleAddAgents:input_type -> wfm.UpdateWorkingScheduleAddAgentsRequest
+	18, // 30: wfm.WorkingScheduleService.UpdateWorkingScheduleRemoveAgent:input_type -> wfm.UpdateWorkingScheduleRemoveAgentRequest
+	20, // 31: wfm.WorkingScheduleService.UpdateWorkingScheduleState:input_type -> wfm.UpdateWorkingScheduleStateRequest
+	22, // 32: wfm.WorkingScheduleService.UpdateWorkingScheduleBlockOutsideActivity:input_type -> wfm.UpdateWorkingScheduleBlockOutsideActivityRequest
+	24, // 33: wfm.WorkingScheduleService.DeleteWorkingSchedule:input_type -> wfm.DeleteWorkingScheduleRequest
+	2,  // 34: wfm.WorkingScheduleService.CreateWorkingSchedule:output_type -> wfm.CreateWorkingScheduleResponse
+	4,  // 35: wfm.WorkingScheduleService.ReadWorkingSchedule:output_type -> wfm.ReadWorkingScheduleResponse
+	6,  // 36: wfm.WorkingScheduleService.ReadWorkingScheduleForecast:output_type -> wfm.ReadWorkingScheduleForecastResponse
+	9,  // 37: wfm.WorkingScheduleService.ReadWorkingSchedulePlanned:output_type -> wfm.ReadWorkingSchedulePlannedResponse
+	13, // 38: wfm.WorkingScheduleService.SearchWorkingSchedule:output_type -> wfm.SearchWorkingScheduleResponse
+	15, // 39: wfm.WorkingScheduleService.UpdateWorkingSchedule:output_type -> wfm.UpdateWorkingScheduleResponse
+	17, // 40: wfm.WorkingScheduleService.UpdateWorkingScheduleAddAgents:output_type -> wfm.UpdateWorkingScheduleAddAgentsResponse
+	19, // 41: wfm.WorkingScheduleService.UpdateWorkingScheduleRemoveAgent:output_type -> wfm.UpdateWorkingScheduleRemoveAgentResponse
+	21, // 42: wfm.WorkingScheduleService.UpdateWorkingScheduleState:output_type -> wfm.UpdateWorkingScheduleStateResponse
+	23, // 43: wfm.WorkingScheduleService.UpdateWorkingScheduleBlockOutsideActivity:output_type -> wfm.UpdateWorkingScheduleBlockOutsideActivityResponse
+	25, // 44: wfm.WorkingScheduleService.DeleteWorkingSchedule:output_type -> wfm.DeleteWorkingScheduleResponse
+	34, // [34:45] is the sub-list for method output_type
+	23, // [23:34] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_working_schedule_proto_init() }
@@ -1349,14 +1810,15 @@ func file_working_schedule_proto_init() {
 	}
 	file_lookup_proto_init()
 	file_filter_proto_init()
-	file_working_schedule_proto_msgTypes[6].OneofWrappers = []any{}
+	file_working_schedule_proto_msgTypes[11].OneofWrappers = []any{}
+	file_working_schedule_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_working_schedule_proto_rawDesc), len(file_working_schedule_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
