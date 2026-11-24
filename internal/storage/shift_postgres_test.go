@@ -376,8 +376,8 @@ func TestCreateShiftsRefusesTheScheduleOnPostgres(t *testing.T) {
 	user := &model.SignedInUser{ID: 1, DomainID: 1}
 	in := []*model.Shift{shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02")}
 
-	if _, err := NewAgentWorkingSchedule(db).CreateShifts(ctx, user, 4, in); !errors.Is(err, ErrShiftScheduleState) {
-		t.Errorf("archived: err = %v, want %v", err, ErrShiftScheduleState)
+	if _, err := NewAgentWorkingSchedule(db).CreateShifts(ctx, user, 4, in); !errors.Is(err, ErrWorkingScheduleArchived) {
+		t.Errorf("archived: err = %v, want %v", err, ErrWorkingScheduleArchived)
 	}
 
 	if _, err := NewAgentWorkingSchedule(db).CreateShifts(ctx, user, 99, in); errors.Code(err) != codes.NotFound {

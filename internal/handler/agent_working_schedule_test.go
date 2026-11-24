@@ -7,6 +7,10 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/jackc/pgx/v5/pgtype"
+	"google.golang.org/grpc/codes"
+
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+	"github.com/webitel/webitel-go-kit/pkg/etag"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
@@ -184,3 +188,83 @@ func TestValidatorTakesPagesFromOne(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// shiftRecorder records what an edit or a delete passes to the service.
+type shiftRecorder struct {
+	service.AgentWorkingScheduleManager
+
+	calls        int
+	schedule, id int64
+	ver          int32
+	in           *model.Shift
+}
+
+func (s *shiftRecorder) UpdateShift(_ context.Context, _ *model.SignedInUser, scheduleID, id int64, ver int32, in *model.Shift) (*model.AgentScheduleShift, error) {
+	s.calls, s.schedule, s.id, s.ver, s.in = s.calls+1, scheduleID, id, ver, in
+
+	return &model.AgentScheduleShift{DomainRecord: model.DomainRecord{ID: id}, Ver: ver + 1}, nil
+}
+
+func (s *shiftRecorder) DeleteShift(_ context.Context, _ *model.SignedInUser, scheduleID, id int64, ver int32) (int64, error) {
+	s.calls, s.schedule, s.id, s.ver = s.calls+1, scheduleID, id, ver
+
+	return id, nil
+}
+
+// An edit or a delete needs the etag of the very shift it names; without one it is a bad request, not a conflict.
+func TestShiftWritesRequireTheShiftEtag(t *testing.T) {
+	for name, tag := range map[string]string{
+		"missing":         "",
+		"malformed":       "not-an-etag",
+		"a schedule's":    must(etag.EncodeEtag(etag.EtagWorkingSchedule, 7, 3)),
+		"another shift's": must(etag.EncodeEtag(etag.EtagWorkingScheduleShift, 8, 3)),
+	} {
+		svc := &shiftRecorder{}
+		h := NewAgentWorkingSchedule(svc)
+
+		_, errUpdate := h.UpdateAgentWorkingScheduleShift(searchCtx(), &pb.UpdateAgentWorkingScheduleShiftRequest{WorkingScheduleId: 1, Shift: &pb.AgentScheduleShift{Id: 7, Etag: tag}})
+		_, errDelete := h.DeleteAgentWorkingScheduleShift(searchCtx(), &pb.DeleteAgentWorkingScheduleShiftRequest{WorkingScheduleId: 1, Id: 7, Etag: tag})
+
+		for _, err := range []error{errUpdate, errDelete} {
+			if !errors.Is(err, ErrShiftEtag) || errors.Code(err) != codes.InvalidArgument {
+				t.Errorf("%s: err = %v (%s), want %v", name, err, errors.Code(err), ErrShiftEtag)
+			}
+		}
+
+		if svc.calls != 0 {
+			t.Errorf("%s: the service was called", name)
+		}
+	}
+}
+
+func TestShiftWritesPassTheShift(t *testing.T) {
+	svc := &shiftRecorder{}
+	h := NewAgentWorkingSchedule(svc)
+	own := must(etag.EncodeEtag(etag.EtagWorkingScheduleShift, 7, 3))
+	start := time.Date(2026, 11, 3, 7, 0, 0, 0, time.UTC)
+	ms := func(h int) int64 { return start.Add(time.Duration(h) * time.Hour).UnixMilli() }
+
+	out, err := h.UpdateAgentWorkingScheduleShift(searchCtx(), &pb.UpdateAgentWorkingScheduleShiftRequest{WorkingScheduleId: 1, Shift: &pb.AgentScheduleShift{
+		Id: 7, Etag: own, StartAt: ms(0), EndAt: ms(8),
+		Pauses: []*pb.AgentScheduleShiftPause{{StartAt: ms(3), EndAt: ms(4), Cause: &pb.LookupEntity{Id: 5}}, {StartAt: ms(5), EndAt: ms(6)}},
+		Skills: []*pb.AgentScheduleShiftSkill{{Skill: &pb.LookupEntity{Id: 9}, Enabled: true}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in := svc.in
+	if svc.schedule != 1 || svc.id != 7 || svc.ver != 3 || !in.Start.Equal(start) || !in.End.Equal(start.Add(8*time.Hour)) ||
+		len(in.Pauses) != 2 || in.Pauses[0].Cause.SafeID() == nil || *in.Pauses[0].Cause.SafeID() != 5 || in.Pauses[1].Cause != nil ||
+		!in.Pauses[1].Start.Equal(start.Add(5*time.Hour)) || len(in.Skills) != 1 || in.Skills[0].Skill.ID != 9 || !in.Skills[0].Enabled {
+		t.Errorf("update passed schedule %d, shift %d at %d: %+v", svc.schedule, svc.id, svc.ver, in)
+	}
+
+	if want := must(etag.EncodeEtag(etag.EtagWorkingScheduleShift, 7, 4)); out.GetShift().GetEtag() != want {
+		t.Errorf("response etag = %q, want the next version's %q", out.GetShift().GetEtag(), want)
+	}
+
+	if got, err := h.DeleteAgentWorkingScheduleShift(searchCtx(), &pb.DeleteAgentWorkingScheduleShiftRequest{WorkingScheduleId: 1, Id: 7, Etag: own}); err != nil || got.GetId() != 7 || svc.ver != 3 {
+		t.Errorf("delete = %v, %v at version %d", got, err, svc.ver)
+	}
+}

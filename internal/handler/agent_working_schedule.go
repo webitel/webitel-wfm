@@ -2,12 +2,19 @@ package handler
 
 import (
 	"context"
+	"time"
+
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+	"github.com/webitel/webitel-go-kit/pkg/etag"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
+
+// ErrShiftEtag: a missing, malformed or foreign etag carries no usable version, so it is a bad request, not the version conflict.
+var ErrShiftEtag = errors.InvalidArgument("invalid input: the etag of this shift is required", errors.WithID("handler.shift.etag"))
 
 type AgentWorkingSchedule struct {
 	pb.UnimplementedAgentWorkingScheduleServiceServer
@@ -51,6 +58,66 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 		Next:     out.Next,
 		Calendar: out.Calendar.MarshalProto(),
 	}, nil
+}
+
+func (a *AgentWorkingSchedule) UpdateAgentWorkingScheduleShift(ctx context.Context, req *pb.UpdateAgentWorkingScheduleShiftRequest) (*pb.UpdateAgentWorkingScheduleShiftResponse, error) {
+	s := grpccontext.FromContext(ctx)
+	shift := req.GetShift()
+
+	ver, err := shiftVersion(shift.GetId(), shift.GetEtag())
+	if err != nil {
+		return nil, err
+	}
+
+	pauses := make([]*model.ShiftPause, 0, len(shift.GetPauses()))
+	for _, p := range shift.GetPauses() {
+		pause := &model.ShiftPause{Start: time.UnixMilli(p.GetStartAt()), End: time.UnixMilli(p.GetEndAt())}
+		if p.GetCause().GetId() > 0 {
+			pause.Cause = &model.LookupItem{ID: p.GetCause().GetId()}
+		}
+
+		pauses = append(pauses, pause)
+	}
+
+	skills := make([]*model.ShiftSkill, 0, len(shift.GetSkills()))
+	for _, k := range shift.GetSkills() {
+		skills = append(skills, &model.ShiftSkill{Skill: model.LookupItem{ID: k.GetSkill().GetId()}, Enabled: k.GetEnabled()})
+	}
+
+	in := &model.Shift{Start: time.UnixMilli(shift.GetStartAt()), End: time.UnixMilli(shift.GetEndAt()), Pauses: pauses, Skills: skills}
+
+	out, err := a.service.UpdateShift(ctx, s.SignedInUser, req.GetWorkingScheduleId(), shift.GetId(), ver, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.UpdateAgentWorkingScheduleShiftResponse{Shift: out.MarshalProto()}, nil
+}
+
+func (a *AgentWorkingSchedule) DeleteAgentWorkingScheduleShift(ctx context.Context, req *pb.DeleteAgentWorkingScheduleShiftRequest) (*pb.DeleteAgentWorkingScheduleShiftResponse, error) {
+	s := grpccontext.FromContext(ctx)
+
+	ver, err := shiftVersion(req.GetId(), req.GetEtag())
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := a.service.DeleteShift(ctx, s.SignedInUser, req.GetWorkingScheduleId(), req.GetId(), ver)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.DeleteAgentWorkingScheduleShiftResponse{Id: id}, nil
+}
+
+// shiftVersion is the version in the etag of shift id; any other etag is a bad request, not a conflict.
+func shiftVersion(id int64, tag string) (int32, error) {
+	t, err := etag.ExpectEtag(etag.EtagWorkingScheduleShift, tag)
+	if err != nil || t.GetOid() != id {
+		return 0, errors.Wrap(ErrShiftEtag, errors.WithCause(err))
+	}
+
+	return t.GetVer(), nil
 }
 
 func marshalAgentWorkingScheduleBulkProto(in []*model.AgentWorkingSchedule) []*pb.AgentWorkingSchedule {

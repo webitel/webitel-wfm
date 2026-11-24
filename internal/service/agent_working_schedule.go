@@ -18,6 +18,8 @@ var ErrAgentWorkingScheduleDateFilter = errors.InvalidArgument("invalid input: d
 
 type AgentWorkingScheduleManager interface {
 	SearchAgentsWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) (*model.AgentWorkingScheduleCalendar, error)
+	UpdateShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32, in *model.Shift) (*model.AgentScheduleShift, error)
+	DeleteShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32) (int64, error)
 }
 type AgentWorkingSchedule struct {
 	storage                storage.AgentWorkingScheduleManager
@@ -116,4 +118,12 @@ func (a *AgentWorkingSchedule) SearchAgentsWorkingSchedule(ctx context.Context, 
 	out.Next, out.Items = model.ListResult(search.SearchItem.Limit(), out.Items)
 
 	return &out, nil
+}
+
+func (a *AgentWorkingSchedule) UpdateShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32, in *model.Shift) (*model.AgentScheduleShift, error) {
+	return a.storage.UpdateShift(ctx, user, scheduleID, id, ver, in)
+}
+
+func (a *AgentWorkingSchedule) DeleteShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32) (int64, error) {
+	return a.storage.DeleteShift(ctx, user, scheduleID, id, ver)
 }
