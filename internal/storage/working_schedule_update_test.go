@@ -23,7 +23,7 @@ type sqlNode struct {
 	sql  *[]string
 	args *[][]any
 
-	// missed makes the update match no row; gone leaves no row to read back.
+	// missed makes the update match no row; gone leaves no row to lock.
 	missed, gone bool
 }
 
@@ -42,11 +42,13 @@ func (n sqlNode) Get(_ context.Context, dest any, sql string, args ...any) error
 	*n.sql = append(*n.sql, sql)
 	*n.args = append(*n.args, args)
 
-	if n.missed {
+	// Only the guarded update scans an id; the lock before it reads the header.
+	out, update := dest.(*int64)
+	if update && n.missed || !update && n.gone {
 		return dbsql.ParseError(pgx.ErrNoRows)
 	}
 
-	if out, ok := dest.(*int64); ok {
+	if update {
 		*out = 7
 	}
 
@@ -61,6 +63,14 @@ type sqlStore struct {
 
 func (s *sqlStore) Primary() dbsql.Node          { return s.node }
 func (s *sqlStore) StandbyPreferred() dbsql.Node { return s.node }
+
+func (s *sqlStore) InTx(ctx context.Context, fn func(context.Context, dbsql.Tx) error) error {
+	return fn(ctx, sqlTx{s})
+}
+
+type sqlTx struct{ *sqlStore }
+
+func (sqlTx) Lock(context.Context, ...dbsql.LockKey) error { return nil }
 
 func newSQLStore() (*sqlStore, *[]string, *[][]any) {
 	sql, args := &[]string{}, &[][]any{}
@@ -87,7 +97,7 @@ func TestUpdateWorkingScheduleIsScopedToOneRow(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			update, updateArgs := (*sql)[0], (*args)[0]
+			update, updateArgs := (*sql)[1], (*args)[1]
 
 			scoped := regexp.MustCompile(`UPDATE wfm\.working_schedule SET .*\bver = ver \+ 1 WHERE domain_id = (\$\d+) AND id = (\$\d+) AND ver = (\$\d+) RETURNING id`)
 
@@ -138,15 +148,16 @@ func argAt(t *testing.T, args []any, placeholder string) any {
 	return args[i-1]
 }
 
-// A guarded update that matched nothing writes nothing more and is resolved by
-// rereading the row: still there means another version, gone means NotFound.
+// The header is locked first: a gone row is NotFound before any write, and a guarded
+// update that then matches nothing can only be another version and writes nothing more.
 func TestUpdateWorkingScheduleMissIsConflictOnlyWhileTheRowExists(t *testing.T) {
 	for name, tc := range map[string]struct {
-		gone bool
-		want error
+		gone       bool
+		want       error
+		statements int
 	}{
-		"row at another version": {want: ErrWorkingScheduleVersionConflict},
-		"row gone":               {gone: true, want: dbsql.ErrNoRows},
+		"row at another version": {want: ErrWorkingScheduleVersionConflict, statements: 2},
+		"row gone":               {gone: true, want: dbsql.ErrNoRows, statements: 1},
 	} {
 		t.Run(name, func(t *testing.T) {
 			db, sql, _ := newSQLStore()
@@ -161,8 +172,8 @@ func TestUpdateWorkingScheduleMissIsConflictOnlyWhileTheRowExists(t *testing.T) 
 				t.Fatalf("err = %v, want %v", err, tc.want)
 			}
 
-			if len(*sql) != 2 || !strings.HasPrefix((*sql)[1], "SELECT ") {
-				t.Errorf("want the update and one read, got %q", *sql)
+			if len(*sql) != tc.statements || !strings.HasSuffix((*sql)[0], "FOR UPDATE OF ws") {
+				t.Errorf("want the header lock and %d statements in all, got %q", tc.statements, *sql)
 			}
 		})
 	}

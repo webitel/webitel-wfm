@@ -86,6 +86,8 @@ type shiftSchedule struct {
 	ID        int64
 	DomainID  int64
 	State     model.WorkingScheduleState `db:"state"`
+	Team      int64                      `db:"team_id"`
+	Calendar  int64                      `db:"calendar_id"`
 	StartDate time.Time                  `db:"start_date_at"`
 	EndDate   time.Time                  `db:"end_date_at"`
 	TimeZone  string                     `db:"time_zone"`
@@ -108,13 +110,13 @@ const (
 	lockShare rowLock = "SHARE"
 	// lockNoKeyUpdate: deleting shifts waits for shift writes, not for inserts that only reference the schedule.
 	lockNoKeyUpdate rowLock = "NO KEY UPDATE"
-	// lockUpdate: two deletes of one schedule queue up instead of deadlocking on the DELETE.
+	// lockUpdate: a header update or a delete; two deletes sharing the row would deadlock on the DELETE.
 	lockUpdate rowLock = "UPDATE"
 )
 
 // lockSchedule reads the schedule under a row lock; the caller checks its state.
 func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, lock rowLock) (*shiftSchedule, error) {
-	q := builder.Select("ws.state", "ws.start_date_at", "ws.end_date_at", "tz.sys_name AS time_zone").
+	q := builder.Select("ws.state", "ws.team_id", "ws.calendar_id", "ws.start_date_at", "ws.end_date_at", "tz.sys_name AS time_zone").
 		From("wfm.working_schedule ws").
 		Join("flow.calendar c", "c.id = ws.calendar_id").
 		Join("flow.calendar_timezones tz", "tz.id = c.timezone_id")

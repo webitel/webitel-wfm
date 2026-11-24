@@ -3,10 +3,13 @@ package model
 import (
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
 	"github.com/webitel/webitel-go-kit/pkg/etag"
 
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
+
+var ErrWorkingScheduleHeader = errors.InvalidArgument("invalid input: a working schedule needs a name, a team, a calendar and a start date not after its end date", errors.WithID("model.working_schedule.header"))
 
 type WorkingScheduleState int32
 
@@ -54,6 +57,14 @@ type WorkingSchedule struct {
 	Agents               []*LookupItem `db:"agents,json"`
 	TotalAgents          int64         `db:"total_agents"`
 	Ver                  int32         `db:"ver"`
+}
+
+func (w *WorkingSchedule) Validate() error {
+	if w.Name == "" || w.Team.ID == 0 || w.Calendar.ID == 0 || !w.StartDateAt.Valid || !w.EndDateAt.Valid || w.StartDateAt.Time.After(w.EndDateAt.Time) {
+		return ErrWorkingScheduleHeader
+	}
+
+	return nil
 }
 
 func (w *WorkingSchedule) MarshalProto() *pb.WorkingSchedule {
