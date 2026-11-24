@@ -13,6 +13,7 @@ import (
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
+	"github.com/webitel/webitel-wfm/internal/model/options"
 	"github.com/webitel/webitel-wfm/internal/service"
 )
 
@@ -95,7 +96,13 @@ func (s *updateService) UpdateWorkingSchedule(_ context.Context, _ *model.Signed
 	return in, nil
 }
 
-// An update needs the etag of the very schedule it names. Without a usable one
+func (s *updateService) UpdateWorkingScheduleBlockOutsideActivity(_ context.Context, read *options.Read, ver int32, block bool) (*model.WorkingSchedule, error) {
+	s.got = &model.WorkingSchedule{DomainRecord: model.DomainRecord{ID: read.ID()}, Ver: ver, BlockOutsideActivity: block}
+
+	return s.got, nil
+}
+
+// An update, and the block switch, need the etag of the very schedule they name. Without a usable one
 // it is a bad request, never the version conflict, and nothing is written.
 func TestUpdateWorkingScheduleRequiresItsEtag(t *testing.T) {
 	ctx := grpccontext.SetUser(context.Background(), &model.SignedInUser{ID: 1, DomainID: 2})
@@ -119,6 +126,11 @@ func TestUpdateWorkingScheduleRequiresItsEtag(t *testing.T) {
 				t.Errorf("err = %v (%s), want %v", err, errors.Code(err), ErrWorkingScheduleEtag)
 			}
 
+			_, err = NewWorkingSchedule(svc).UpdateWorkingScheduleBlockOutsideActivity(ctx, &pb.UpdateWorkingScheduleBlockOutsideActivityRequest{Id: 7, Etag: tag})
+			if !errors.Is(err, ErrWorkingScheduleEtag) {
+				t.Errorf("block switch: err = %v, want %v", err, ErrWorkingScheduleEtag)
+			}
+
 			if svc.got != nil {
 				t.Errorf("service was called with %+v", svc.got)
 			}
@@ -134,6 +146,15 @@ func TestUpdateWorkingScheduleRequiresItsEtag(t *testing.T) {
 
 		if svc.got == nil || svc.got.ID != 7 || svc.got.Ver != 3 {
 			t.Errorf("service got %+v, want id 7 at version 3", svc.got)
+		}
+
+		svc.got = nil
+		if _, err := NewWorkingSchedule(svc).UpdateWorkingScheduleBlockOutsideActivity(ctx, &pb.UpdateWorkingScheduleBlockOutsideActivityRequest{Id: 7, Etag: own, BlockOutsideActivity: true}); err != nil {
+			t.Fatal(err)
+		}
+
+		if svc.got == nil || svc.got.ID != 7 || svc.got.Ver != 3 || !svc.got.BlockOutsideActivity {
+			t.Errorf("block switch got %+v, want id 7 at version 3, switched on", svc.got)
 		}
 	})
 }

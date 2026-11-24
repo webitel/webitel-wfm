@@ -35,6 +35,11 @@ func (s WorkingScheduleState) AgentsWritable() bool {
 	return s.ShiftsWritable()
 }
 
+// BlockWritable: blocking outside a shift switches in any state but archived.
+func (s WorkingScheduleState) BlockWritable() bool {
+	return s.ShiftsWritable()
+}
+
 // Deletable: an active schedule is worked by; its state changes first.
 func (s WorkingScheduleState) Deletable() bool {
 	return s == WorkingScheduleStateDraft || s == WorkingScheduleStatePending || s == WorkingScheduleStateArchived
