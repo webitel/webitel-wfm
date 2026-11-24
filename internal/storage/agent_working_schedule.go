@@ -22,6 +22,7 @@ const (
 
 type AgentWorkingScheduleManager interface {
 	CreateShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, in []*model.Shift) ([]int64, error)
+	CreateTemplateShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, tpl *model.WeekTemplate) ([]model.Violation, error)
 	UpdateShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32, in *model.Shift) (*model.AgentScheduleShift, error)
 	DeleteShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32) (int64, error)
 	SearchAgentWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) ([]*model.AgentWorkingSchedule, error)

@@ -81,3 +81,79 @@ func ValidateShifts(in []*Shift) error {
 func (s *Shift) invalid(err error) error {
 	return errors.Wrap(err, errors.WithValue("agent_id", s.AgentID), errors.WithValue("start_at", s.Start))
 }
+
+// WeekTemplate is a weekly template expanded into shifts for several agents over a range of
+// dates. Hours are wall-clock minutes from midnight in the calendar's zone; a range ending
+// before it starts crosses midnight and belongs to the day it starts on.
+type WeekTemplate struct {
+	Agents   []int64
+	From, To time.Time // dates at 00:00 UTC, both included
+	Days     map[time.Weekday][]ShiftTemplateTime
+	Pauses   []ShiftTemplatePause // of every day, each in the range that contains it
+	Skills   []*ShiftSkill
+}
+
+type ShiftTemplatePause struct {
+	Start    int32 // minutes from midnight
+	Duration int32 // minutes
+	Cause    *LookupItem
+}
+
+// Shifts expands the template in zone, agent by agent for every day of the range.
+func (w *WeekTemplate) Shifts(zone *time.Location) ([]*Shift, error) {
+	var out []*Shift
+
+	for day := w.From; !day.After(w.To); day = day.AddDate(0, 0, 1) {
+		ranges := w.Days[day.Weekday()]
+		if len(ranges) == 0 {
+			continue
+		}
+
+		y, m, d := day.Date()
+		at := func(minutes int32) time.Time { return time.Date(y, m, d, 0, int(minutes), 0, 0, zone) }
+
+		shifts := make([]Shift, len(ranges))
+		for i, r := range ranges {
+			shifts[i] = Shift{Start: at(r.Start), End: at(r.end()), Skills: w.Skills}
+		}
+
+		for _, p := range w.Pauses {
+			start := p.Start
+
+			i := slices.IndexFunc(ranges, func(r ShiftTemplateTime) bool { return r.holds(start, p.Duration) })
+			if i < 0 {
+				// A pause after midnight belongs to a night range.
+				start += 1440
+				i = slices.IndexFunc(ranges, func(r ShiftTemplateTime) bool { return r.holds(start, p.Duration) })
+			}
+
+			if i < 0 {
+				return nil, errors.Wrap(ErrShiftPauseOutside, errors.WithValue("date", day), errors.WithValue("pause_start", p.Start))
+			}
+
+			shifts[i].Pauses = append(shifts[i].Pauses, &ShiftPause{Start: at(start), End: at(start + p.Duration), Cause: p.Cause})
+		}
+
+		for _, agent := range w.Agents {
+			for _, s := range shifts {
+				s.AgentID = agent
+				out = append(out, &s)
+			}
+		}
+	}
+
+	return out, nil
+}
+
+// end is the end in minutes from the start's midnight: past 1440 when the range crosses it.
+func (t *ShiftTemplateTime) end() int32 {
+	if t.End <= t.Start {
+		return t.End + 1440
+	}
+
+	return t.End
+}
+
+func (t *ShiftTemplateTime) holds(start, duration int32) bool {
+	return t.Start <= start && start+duration <= t.end()
+}

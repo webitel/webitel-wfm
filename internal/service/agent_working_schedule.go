@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"slices"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
@@ -14,10 +16,21 @@ import (
 	"github.com/webitel/webitel-wfm/pkg/timeutils"
 )
 
-var ErrAgentWorkingScheduleDateFilter = errors.InvalidArgument("invalid input: date should be within working schedule period", errors.WithID("service.agent_working_schedule.date"))
+var (
+	ErrAgentWorkingScheduleDateFilter = errors.InvalidArgument("invalid input: date should be within working schedule period", errors.WithID("service.agent_working_schedule.date"))
+	ErrRequestTooLarge                = errors.InvalidArgument("invalid input: the request is too large", errors.WithID("service.request.too_large"))
+)
+
+// maxAgentDays sizes a template write for a team of 200 agents over a month; maxTemplateRows
+// bounds what it writes at up to eight shifts and pauses a day each.
+const (
+	maxAgentDays    = 200 * 31
+	maxTemplateRows = maxAgentDays * 8
+)
 
 type AgentWorkingScheduleManager interface {
 	SearchAgentsWorkingSchedule(ctx context.Context, user *model.SignedInUser, search *model.AgentWorkingScheduleSearch) (*model.AgentWorkingScheduleCalendar, error)
+	CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, tpl *model.WeekTemplate) ([]*model.AgentWorkingSchedule, []model.Violation, error)
 	UpdateShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32, in *model.Shift) (*model.AgentScheduleShift, error)
 	DeleteShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32) (int64, error)
 }
@@ -126,4 +139,48 @@ func (a *AgentWorkingSchedule) UpdateShift(ctx context.Context, user *model.Sign
 
 func (a *AgentWorkingSchedule) DeleteShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32) (int64, error) {
 	return a.storage.DeleteShift(ctx, user, scheduleID, id, ver)
+}
+
+// CreateAgentsWorkingScheduleShifts writes the template and returns the agents' cells over its dates, with the days it skipped.
+func (a *AgentWorkingSchedule) CreateAgentsWorkingScheduleShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, tpl *model.WeekTemplate) ([]*model.AgentWorkingSchedule, []model.Violation, error) {
+	tpl.Agents = slices.Compact(slices.Sorted(slices.Values(tpl.Agents)))
+
+	days := int(tpl.To.Sub(tpl.From).Hours()/24) + 1
+	if len(tpl.Agents)*days > maxAgentDays {
+		return nil, nil, errors.Wrap(ErrRequestTooLarge, errors.WithValue("agent_days", len(tpl.Agents)*days), errors.WithValue("limit", maxAgentDays))
+	}
+
+	rows := 0
+
+	for day := tpl.From; !day.After(tpl.To); day = day.AddDate(0, 0, 1) {
+		if ranges := tpl.Days[day.Weekday()]; len(ranges) > 0 {
+			rows += len(tpl.Agents) * (len(ranges) + len(tpl.Pauses))
+		}
+	}
+
+	if rows > maxTemplateRows {
+		return nil, nil, errors.Wrap(ErrRequestTooLarge, errors.WithValue("rows", rows), errors.WithValue("limit", maxTemplateRows))
+	}
+
+	skipped, err := a.storage.CreateTemplateShifts(ctx, user, scheduleID, tpl)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	items, err := a.storage.SearchAgentWorkingSchedule(ctx, user, &model.AgentWorkingScheduleSearch{
+		WorkingScheduleID: scheduleID,
+		AgentIDs:          tpl.Agents,
+		SearchItem: model.SearchItem{
+			Size: maxAgentDays,
+			Date: &model.FilterBetween{
+				From: model.DayStart(pgtype.Date{Time: tpl.From, Valid: true}),
+				To:   model.DayStart(pgtype.Date{Time: tpl.To, Valid: true}),
+			},
+		},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return items, skipped, nil
 }

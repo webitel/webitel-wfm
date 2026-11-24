@@ -268,3 +268,56 @@ func TestShiftWritesPassTheShift(t *testing.T) {
 		t.Errorf("delete = %v, %v at version %d", got, err, svc.ver)
 	}
 }
+
+// templateRecorder records the template that reaches the service and skips one day.
+type templateRecorder struct {
+	service.AgentWorkingScheduleManager
+
+	schedule int64
+	tpl      *model.WeekTemplate
+}
+
+func (s *templateRecorder) CreateAgentsWorkingScheduleShifts(_ context.Context, _ *model.SignedInUser, scheduleID int64, tpl *model.WeekTemplate) ([]*model.AgentWorkingSchedule, []model.Violation, error) {
+	s.schedule, s.tpl = scheduleID, tpl
+	name := "active"
+	skipped := model.Violation{AgentID: 4, Date: pgtype.Date{Time: time.UnixMilli(utcDay(2026, 11, 10)).UTC(), Valid: true}, Reason: "storage.shift.locked_date", Schedule: &model.LookupItem{ID: 2, Name: &name}}
+
+	return []*model.AgentWorkingSchedule{{Agent: model.LookupItem{ID: 4}}}, []model.Violation{skipped}, nil
+}
+
+func TestCreateAgentsWorkingScheduleShiftsPassesTheTemplate(t *testing.T) {
+	svc := &templateRecorder{}
+
+	out, err := NewAgentWorkingSchedule(svc).CreateAgentsWorkingScheduleShifts(searchCtx(), &pb.CreateAgentsWorkingScheduleShiftsRequest{
+		WorkingScheduleId: 7,
+		Date:              &pb.DateRange{From: utcDay(2026, 11, 9), To: utcDay(2026, 11, 15)},
+		Agents:            []*pb.LookupEntity{{Id: 4}, {Id: 5}},
+		Days: map[int64]*pb.ShiftTemplateDay{
+			1: {Ranges: []*pb.ShiftTemplateRange{{Start: 540, End: 780}, {Start: 840, End: 1020}}},
+			6: {Ranges: []*pb.ShiftTemplateRange{{Start: 1320, End: 360}}},
+		},
+		Pauses: []*pb.ShiftTemplatePause{{Start: 600, Duration: 15, Cause: &pb.LookupEntity{Id: 3}}, {Start: 120, Duration: 30}},
+		Skills: []*pb.AgentScheduleShiftSkill{{Skill: &pb.LookupEntity{Id: 9}, Enabled: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tpl := svc.tpl
+	if svc.schedule != 7 || !tpl.From.Equal(time.UnixMilli(utcDay(2026, 11, 9))) || !tpl.To.Equal(time.UnixMilli(utcDay(2026, 11, 15))) ||
+		len(tpl.Agents) != 2 || tpl.Agents[1] != 5 ||
+		len(tpl.Days[time.Monday]) != 2 || tpl.Days[time.Monday][1] != (model.ShiftTemplateTime{Start: 840, End: 1020}) ||
+		len(tpl.Days[time.Saturday]) != 1 || tpl.Days[time.Saturday][0].End != 360 || len(tpl.Days[time.Sunday]) != 0 ||
+		len(tpl.Pauses) != 2 || tpl.Pauses[0].Cause.SafeID() == nil || *tpl.Pauses[0].Cause.SafeID() != 3 || tpl.Pauses[1].Cause != nil || tpl.Pauses[1].Duration != 30 ||
+		len(tpl.Skills) != 1 || tpl.Skills[0].Skill.ID != 9 || !tpl.Skills[0].Enabled {
+		t.Errorf("template %+v", tpl)
+	}
+
+	if len(out.GetItems()) != 1 || len(out.GetSkipped()) != 1 {
+		t.Fatalf("response %v", out)
+	}
+
+	if v := out.GetSkipped()[0]; v.GetAgent().GetId() != 4 || v.GetDate() != utcDay(2026, 11, 10) || v.GetSchedule().GetId() != 2 || v.GetSchedule().GetName() != "active" {
+		t.Errorf("skipped %v, want agent 4 on the 10th held by schedule 2", v)
+	}
+}

@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/webitel/webitel-go-kit/pkg/errors"
+
 	"github.com/webitel/webitel-wfm/infra/server/grpccontext"
 	"github.com/webitel/webitel-wfm/internal/model"
 	"github.com/webitel/webitel-wfm/internal/model/options"
@@ -164,5 +166,79 @@ func TestSearchAgentsWorkingSchedulePage(t *testing.T) {
 
 	if !out.Next || len(out.Items) != 1 || out.Items[0].Agent.ID != 10 || out.Total != 5 {
 		t.Errorf("next = %v, items = %d, total = %d; want a next page, agent 10 alone, 5 in all", out.Next, len(out.Items), out.Total)
+	}
+}
+
+// templateStore records the template it was asked to write and skips nothing.
+type templateStore struct {
+	shiftStore
+
+	written *model.WeekTemplate
+}
+
+func (s *templateStore) CreateTemplateShifts(_ context.Context, _ *model.SignedInUser, _ int64, tpl *model.WeekTemplate) ([]model.Violation, error) {
+	s.written = tpl
+
+	return nil, nil
+}
+
+func TestCreateAgentsWorkingScheduleShifts(t *testing.T) {
+	ctx, user := signedIn()
+	month := func(agents ...int64) *model.WeekTemplate {
+		return &model.WeekTemplate{Agents: agents, From: periodStart, To: periodEnd}
+	}
+
+	store := &templateStore{}
+	svc := NewAgentWorkingSchedule(store, nil, nil)
+
+	if _, _, err := svc.CreateAgentsWorkingScheduleShifts(ctx, user, 7, month(3, 1, 3, 2)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := store.written.Agents; len(got) != 3 || got[0] != 1 || got[2] != 3 {
+		t.Errorf("agents written %v, want each once", got)
+	}
+
+	if s := store.searched; s == nil || s.WorkingScheduleID != 7 || len(s.AgentIDs) != 3 ||
+		!s.SearchItem.Date.From.Time.Equal(periodStart) || !s.SearchItem.Date.To.Time.Equal(periodEnd) {
+		t.Errorf("cells read back with %+v, want the agents over the template's dates", s)
+	}
+
+	agents := make([]int64, 201)
+	for i := range agents {
+		agents[i] = int64(i + 1)
+	}
+
+	store.written = nil
+
+	if _, _, err := svc.CreateAgentsWorkingScheduleShifts(ctx, user, 7, month(agents[:200]...)); err != nil {
+		t.Errorf("200 agents over 31 days: %v", err)
+	}
+
+	store.written = nil
+
+	if _, _, err := svc.CreateAgentsWorkingScheduleShifts(ctx, user, 7, month(agents...)); !errors.Is(err, ErrRequestTooLarge) || store.written != nil {
+		t.Errorf("201 agents over 31 days: %v, written %v; want %v before the storage", err, store.written != nil, ErrRequestTooLarge)
+	}
+
+	// Rows, not only agent-days: one agent with two thousand ranges a day is refused too.
+	crowded, busy := month(1), month(agents[:200]...)
+	crowded.Days, busy.Days = map[time.Weekday][]model.ShiftTemplateTime{}, map[time.Weekday][]model.ShiftTemplateTime{}
+
+	for d := time.Sunday; d <= time.Saturday; d++ {
+		crowded.Days[d], busy.Days[d] = make([]model.ShiftTemplateTime, 2000), make([]model.ShiftTemplateTime, 2)
+	}
+
+	busy.Pauses = make([]model.ShiftTemplatePause, 6)
+	store.written = nil
+
+	if _, _, err := svc.CreateAgentsWorkingScheduleShifts(ctx, user, 7, crowded); !errors.Is(err, ErrRequestTooLarge) || store.written != nil {
+		t.Errorf("62000 shifts for one agent: %v, written %v; want %v", err, store.written != nil, ErrRequestTooLarge)
+	}
+
+	store.written = nil
+
+	if _, _, err := svc.CreateAgentsWorkingScheduleShifts(ctx, user, 7, busy); err != nil {
+		t.Errorf("200 agents a month with two shifts and six pauses a day: %v", err)
 	}
 }
