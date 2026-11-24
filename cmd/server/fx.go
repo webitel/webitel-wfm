@@ -4,6 +4,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/webitel/webitel-wfm/config"
+	"github.com/webitel/webitel-wfm/infra/leader"
 	grpcsrv "github.com/webitel/webitel-wfm/infra/server/grpc"
 	"github.com/webitel/webitel-wfm/infra/webitel/logger"
 	"github.com/webitel/webitel-wfm/internal/handler"
@@ -23,6 +24,8 @@ func MainModule(cfg *config.Config) fx.Option {
 			ProvideHealth,
 			ProvideProbes,
 			ProvideDiscovery,
+			ProvideLeaderElector,
+			fx.Annotate(leader.New, fx.ParamTags(``, leader.TaskGroup)),
 			ProvideStorage,
 			ProvideForecastStorage,
 			ProvideAuth,
@@ -38,10 +41,12 @@ func MainModule(cfg *config.Config) fx.Option {
 		handler.Module,
 		grpcsrv.Module,
 
-		// Invoked last so their OnStop hooks run first, in reverse: the node
-		// leaves rotation, then stops accepting, and only after that do the
-		// dependencies underneath wind down.
+		// Invoked last so their OnStop hooks run first, in reverse: the leader
+		// stops its tasks and releases the key, the node leaves rotation, then
+		// stops accepting, and only after that do the dependencies underneath
+		// wind down.
 		fx.Invoke(registerService),
 		fx.Invoke(startHealth),
+		fx.Invoke(startLeader),
 	)
 }

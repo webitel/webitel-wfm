@@ -15,7 +15,6 @@ require (
 	buf.build/go/protovalidate v1.4.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/georgysavva/scany/v2 v2.1.4
-	github.com/google/uuid v1.6.0
 	github.com/huandu/go-sqlbuilder v1.43.0
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.11.0
@@ -39,11 +38,14 @@ require (
 	go.opentelemetry.io/otel/sdk v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
 	go.uber.org/fx v1.24.0
+	go.uber.org/goleak v1.3.0
 	golang.org/x/sync v0.23.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260911204522-f61a6ca850bd
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
 )
+
+require github.com/google/uuid v1.6.0 // indirect
 
 require (
 	buf.build/gen/go/grpc-ecosystem/grpc-gateway/protocolbuffers/go v1.36.12-20240502201324-7530ea77434f.1 // indirect
