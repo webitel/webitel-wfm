@@ -27,6 +27,16 @@ func (s WorkingScheduleState) ShiftsWritable() bool {
 	return s == WorkingScheduleStateDraft || s == WorkingScheduleStatePending || s == WorkingScheduleStateActive
 }
 
+// AgentsWritable: an archived schedule keeps its agents.
+func (s WorkingScheduleState) AgentsWritable() bool {
+	return s.ShiftsWritable()
+}
+
+// Deletable: an active schedule is worked by; its state changes first.
+func (s WorkingScheduleState) Deletable() bool {
+	return s == WorkingScheduleStateDraft || s == WorkingScheduleStatePending || s == WorkingScheduleStateArchived
+}
+
 type WorkingSchedule struct {
 	DomainRecord
 

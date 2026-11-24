@@ -2,18 +2,19 @@ package model
 
 import "testing"
 
-func TestShiftsWritable(t *testing.T) {
-	want := map[WorkingScheduleState]bool{
-		WorkingScheduleStateUnspecified: false,
-		WorkingScheduleStateDraft:       true,
-		WorkingScheduleStatePending:     true,
-		WorkingScheduleStateActive:      true,
-		WorkingScheduleStateArchived:    false,
+func TestStateRules(t *testing.T) {
+	// shifts and agents writable, deletable
+	want := map[WorkingScheduleState][2]bool{
+		WorkingScheduleStateUnspecified: {false, false},
+		WorkingScheduleStateDraft:       {true, true},
+		WorkingScheduleStatePending:     {true, true},
+		WorkingScheduleStateActive:      {true, false},
+		WorkingScheduleStateArchived:    {false, true},
 	}
 
-	for state, writable := range want {
-		if got := state.ShiftsWritable(); got != writable {
-			t.Errorf("%s: writable = %v, want %v", state, got, writable)
+	for state, w := range want {
+		if got := [2]bool{state.ShiftsWritable(), state.Deletable()}; got != w || state.AgentsWritable() != w[0] {
+			t.Errorf("%s: writable, deletable = %v, agents writable = %v, want %v", state, got, state.AgentsWritable(), w)
 		}
 	}
 }

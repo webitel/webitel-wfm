@@ -321,17 +321,18 @@ func TestDeleteShiftsOfEveryWritableStateOnPostgres(t *testing.T) {
 	}
 }
 
-func waitForLockWait(t *testing.T, ctx context.Context, db dbsql.Store) bool {
+// waitForLockWait reports whether at least sessions queries come to wait on a lock within two seconds.
+func waitForLockWait(t *testing.T, ctx context.Context, db dbsql.Store, sessions int) bool {
 	t.Helper()
 
 	for range 100 {
-		var waiting bool
+		var waiting int
 		if err := db.Primary().Get(ctx, &waiting,
-			"SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock')"); err != nil {
+			"SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'"); err != nil {
 			t.Fatal(err)
 		}
 
-		if waiting {
+		if waiting >= sessions {
 			return true
 		}
 
@@ -379,7 +380,7 @@ func TestDeleteShiftsHoldsShiftWritesOnPostgres(t *testing.T) {
 		written <- err
 	}()
 
-	if !waitForLockWait(t, ctx, db) {
+	if !waitForLockWait(t, ctx, db, 1) {
 		t.Error("the shift write does not wait for the delete")
 	}
 
@@ -460,7 +461,7 @@ VALUES (1, 1, 1, '2026-11-20', '2026-11-20 09:00+02', '2026-11-20 17:00+02') RET
 		done <- r
 	}()
 
-	if !waitForLockWait(t, ctx, db) {
+	if !waitForLockWait(t, ctx, db, 1) {
 		t.Error("the delete does not wait for the shift write")
 	}
 
