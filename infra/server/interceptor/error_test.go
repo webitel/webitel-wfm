@@ -36,7 +36,7 @@ func TestErrUnaryServerInterceptor(t *testing.T) {
 
 	t.Run("business refusal", func(t *testing.T) {
 		day := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)
-		v := model.Violation{OperatorID: 7, Date: pgtype.Date{Time: day, Valid: true}, Reason: "service.shift.overlap"}
+		v := model.Violation{AgentID: 7, Date: pgtype.Date{Time: day, Valid: true}, Reason: "service.shift.overlap"}
 		whole := model.Violation{Reason: "storage.working_schedule.team_active"}
 		_, err := interceptor(context.Background(), nil, info, func(context.Context, any) (any, error) {
 			return nil, model.Refuse(errors.FailedPrecondition("refused", errors.WithID("server.interceptor.error.refused")), v, whole)

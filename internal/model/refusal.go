@@ -2,6 +2,7 @@ package model
 
 import (
 	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -10,17 +11,30 @@ import (
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
-// Violation is one broken business rule: which operator, on which day, and why.
+// Violation is one broken business rule: which agent, on which day, and why; with the other
+// schedule or the existing shift the rule is about, when there is one.
 type Violation struct {
-	OperatorID int64       `json:"operator_id"`
-	Date       pgtype.Date `json:"date"`
-	Reason     string      `json:"reason"` // a reason id, <layer>.<entity>.<what>
+	AgentID  int64       `json:"agent_id"`
+	Date     pgtype.Date `json:"date"`
+	Reason   string      `json:"reason"` // a reason id, <layer>.<entity>.<what>
+	Schedule *LookupItem `json:"schedule"`
+	ShiftID  int64       `json:"shift_id"`
+	StartAt  time.Time   `json:"start_at"`
+	EndAt    time.Time   `json:"end_at"`
 }
 
 func (v Violation) MarshalProto() *pb.Violation {
-	out := &pb.Violation{Date: DateMillis(v.Date), Reason: v.Reason}
-	if v.OperatorID != 0 {
-		out.Agent = &pb.LookupEntity{Id: v.OperatorID}
+	out := &pb.Violation{Date: DateMillis(v.Date), Reason: v.Reason, ShiftId: v.ShiftID}
+	if v.AgentID != 0 {
+		out.Agent = &pb.LookupEntity{Id: v.AgentID}
+	}
+
+	if v.Schedule != nil {
+		out.Schedule = v.Schedule.MarshalProto()
+	}
+
+	if v.ShiftID != 0 {
+		out.StartAt, out.EndAt = v.StartAt.UnixMilli(), v.EndAt.UnixMilli()
 	}
 
 	return out
