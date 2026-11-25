@@ -239,3 +239,41 @@ WHERE wsa.working_schedule_id = 1`); err != nil {
 		t.Errorf("%d shifts left outside the new dates", left)
 	}
 }
+
+func TestBlockOutsideActivityOnPostgres(t *testing.T) {
+	db, _ := newPostgres(t, shiftSeed)
+	ctx := userCtx(1, 1)
+	s := &WorkingSchedule{db: db}
+
+	for _, c := range []struct {
+		name string
+		id   int64
+		ver  int32
+		want error
+	}{
+		{name: "draft", id: 1, ver: 1},
+		{name: "active", id: 2, ver: 1},
+		{name: "archived", id: 4, ver: 1, want: ErrWorkingScheduleArchived},
+		{name: "another version", id: 3, ver: 2, want: ErrWorkingScheduleVersionConflict},
+		{name: "another domain", id: 5, ver: 1, want: dbsql.ErrNoRows},
+		{name: "missing", id: 99, ver: 1, want: dbsql.ErrNoRows},
+	} {
+		out, err := s.UpdateWorkingScheduleBlockOutsideActivity(ctx, readOf(t, ctx, c.id), c.ver, true)
+		if !errors.Is(err, c.want) || c.want == nil && (!out.BlockOutsideActivity || out.Ver != c.ver+1) {
+			t.Errorf("%s: %+v, %v, want %v", c.name, out, err, c.want)
+		}
+	}
+
+	for _, id := range []int64{3, 4} {
+		if got, err := s.ReadWorkingSchedule(ctx, readOf(t, ctx, id)); err != nil || got.BlockOutsideActivity || got.Ver != 1 {
+			t.Errorf("a refused switch wrote schedule %d: %+v, %v", id, got, err)
+		}
+	}
+
+	in := draftHeader(t, ctx, s)
+	in.BlockOutsideActivity = false
+
+	if out, err := s.UpdateWorkingSchedule(ctx, &model.SignedInUser{ID: 1, DomainID: 1}, in); err != nil || !out.BlockOutsideActivity {
+		t.Errorf("the header update switched blocking off: %+v, %v", out, err)
+	}
+}

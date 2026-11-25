@@ -39,6 +39,7 @@ type WorkingScheduleManager interface {
 
 	UpdateWorkingScheduleAddAgents(ctx context.Context, read *options.Read, agentIDs []int64) ([]*model.LookupItem, error)
 	UpdateWorkingScheduleRemoveAgent(ctx context.Context, read *options.Read, agentID int64) (int64, error)
+	UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, read *options.Read, ver int32, block bool) (*model.WorkingSchedule, error)
 
 	DeactivatedAgents(ctx context.Context, domainID int64, agentIDs []int64) ([]int64, error)
 }
@@ -214,16 +215,15 @@ func workingScheduleColumns(mask []string) []string {
 func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, user *model.SignedInUser, in *model.WorkingSchedule) (*model.WorkingSchedule, error) {
 	cteq := builder.CTE()
 	schedule := map[string]any{
-		"updated_by":             user.ID,
-		"name":                   in.Name,
-		"team_id":                in.Team.SafeID(),
-		"calendar_id":            in.Calendar.SafeID(),
-		"start_date_at":          in.StartDateAt,
-		"end_date_at":            in.EndDateAt,
-		"start_time_at":          in.StartTimeAt,
-		"end_time_at":            in.EndTimeAt,
-		"block_outside_activity": in.BlockOutsideActivity,
-		"ver":                    builder.Format("ver + 1"),
+		"updated_by":    user.ID,
+		"name":          in.Name,
+		"team_id":       in.Team.SafeID(),
+		"calendar_id":   in.Calendar.SafeID(),
+		"start_date_at": in.StartDateAt,
+		"end_date_at":   in.EndDateAt,
+		"start_time_at": in.StartTimeAt,
+		"end_time_at":   in.EndTimeAt,
+		"ver":           builder.Format("ver + 1"),
 	}
 
 	// The skills CTEs start from what the guarded schedule CTE returned, so a
@@ -416,6 +416,39 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, 
 	}
 
 	return agentID, nil
+}
+
+func (w *WorkingSchedule) UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, read *options.Read, ver int32, block bool) (*model.WorkingSchedule, error) {
+	var out *model.WorkingSchedule
+
+	err := w.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		schedule, err := lockSchedule(ctx, tx, read.User().DomainID, read.ID(), lockUpdate)
+		if err != nil {
+			return err
+		}
+
+		if schedule.Ver != ver {
+			return ErrWorkingScheduleVersionConflict
+		}
+
+		if !schedule.State.BlockWritable() {
+			return ErrWorkingScheduleArchived
+		}
+
+		if err := tx.Primary().Exec(ctx, "UPDATE wfm.working_schedule SET block_outside_activity = $1, updated_by = $2, ver = ver + 1 WHERE domain_id = $3 AND id = $4",
+			block, read.User().ID, read.User().DomainID, read.ID()); err != nil {
+			return err
+		}
+
+		out, err = w.read(ctx, tx.Primary(), read)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (w *WorkingSchedule) DeactivatedAgents(ctx context.Context, domainID int64, agentIDs []int64) ([]int64, error) {
