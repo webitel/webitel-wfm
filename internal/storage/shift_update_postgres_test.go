@@ -132,7 +132,7 @@ func TestUpdateShiftRefusalsOnPostgres(t *testing.T) {
 			name: "an absence", schedule: 1, id: absent[0], ver: 1, in: shiftAt(t, 0, "2026-11-11 09:00+02", "2026-11-11 17:00+02"),
 			want: ErrShiftsRefused, violations: []string{violation(2, "2026-11-11", ReasonShiftAbsence)},
 		},
-		{name: "archived", schedule: 4, id: 100, ver: 1, in: shiftAt(t, 0, "2026-11-20 10:00+02", "2026-11-20 18:00+02"), want: ErrWorkingScheduleArchived},
+		{name: "archived, at an older version", schedule: 4, id: 100, ver: 2, in: shiftAt(t, 0, "2026-11-20 10:00+02", "2026-11-20 18:00+02"), want: ErrWorkingScheduleArchived},
 		{name: "another schedule", schedule: 3, id: id, ver: 1, in: same(), want: dbsql.ErrNoRows},
 		{name: "another domain", user: &model.SignedInUser{ID: 2, DomainID: 2}, schedule: 1, id: id, ver: 1, in: same(), want: dbsql.ErrNoRows},
 		{name: "missing", schedule: 1, id: 999, ver: 1, in: same(), want: dbsql.ErrNoRows},
@@ -167,7 +167,7 @@ func TestDeleteShiftOnPostgres(t *testing.T) {
 		want     error
 	}{
 		{name: "another version", schedule: 1, id: id, ver: 2, want: ErrShiftVersionConflict},
-		{name: "archived", schedule: 4, id: 100, ver: 1, want: ErrWorkingScheduleArchived},
+		{name: "archived, at an older version", schedule: 4, id: 100, ver: 2, want: ErrWorkingScheduleArchived},
 		{name: "another schedule", schedule: 3, id: id, ver: 1, want: dbsql.ErrNoRows},
 		{name: "missing", schedule: 1, id: 999, ver: 1, want: dbsql.ErrNoRows},
 	} {
