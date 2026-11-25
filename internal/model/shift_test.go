@@ -28,6 +28,14 @@ func shiftAt(t *testing.T, agent int64, start, end string, pauses ...string) *Sh
 }
 
 func TestValidateShifts(t *testing.T) {
+	withSkills := func(shift *Shift, ids ...int64) *Shift {
+		for _, id := range ids {
+			shift.Skills = append(shift.Skills, &ShiftSkill{Skill: LookupItem{ID: id}})
+		}
+
+		return shift
+	}
+
 	cases := []struct {
 		name string
 		in   []*Shift
@@ -96,6 +104,18 @@ func TestValidateShifts(t *testing.T) {
 				shiftAt(t, 1, "2026-11-02 17:00+02", "2026-11-02 21:00+02"),
 				shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02"),
 				shiftAt(t, 2, "2026-11-02 09:00+02", "2026-11-02 17:00+02"),
+			},
+		},
+		{
+			name: "a skill twice in a shift",
+			in:   []*Shift{withSkills(shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02"), 1, 2, 1)},
+			want: ErrShiftSkillDuplicate,
+		},
+		{
+			name: "a skill once in each of two shifts",
+			in: []*Shift{
+				withSkills(shiftAt(t, 1, "2026-11-02 09:00+02", "2026-11-02 17:00+02"), 1),
+				withSkills(shiftAt(t, 2, "2026-11-02 09:00+02", "2026-11-02 17:00+02"), 1),
 			},
 		},
 	}
