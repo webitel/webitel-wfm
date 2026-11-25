@@ -252,7 +252,7 @@ VALUES (1, 1, 5, '2026-11-20', '2026-11-20 09:00+02', '2026-11-20 17:00+02')`); 
 		wantErr          error
 		wantCode         codes.Code
 	}{
-		{name: "an archived schedule", domain: 1, schedule: 4, wantErr: ErrShiftScheduleState, wantCode: codes.FailedPrecondition},
+		{name: "an archived schedule", domain: 1, schedule: 4, wantErr: ErrWorkingScheduleArchived, wantCode: codes.FailedPrecondition},
 		{name: "an unknown schedule", domain: 1, schedule: 99, wantCode: codes.NotFound},
 		{name: "a schedule of another domain", domain: 1, schedule: 5, wantCode: codes.NotFound},
 		{name: "this schedule from another domain", domain: 2, schedule: 1, wantCode: codes.NotFound},

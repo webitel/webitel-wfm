@@ -5,6 +5,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/webitel/webitel-go-kit/pkg/etag"
+
 	pb "github.com/webitel/webitel-wfm/gen/go/api/wfm"
 )
 
@@ -66,7 +68,6 @@ func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
 		skills = append(skills, skill.MarshalProto())
 	}
 
-	// The etag waits for its go-kit type with the edit of a shift (WFM-99).
 	out := &pb.AgentScheduleShift{
 		Id:          a.ID,
 		DomainId:    a.DomainID,
@@ -85,6 +86,8 @@ func (a *AgentScheduleShift) MarshalProto() *pb.AgentScheduleShift {
 	if a.PlannerRunID != nil {
 		out.PlannerRunId = *a.PlannerRunID
 	}
+
+	out.Etag, _ = etag.EncodeEtag(etag.EtagWorkingScheduleShift, a.ID, a.Ver)
 
 	return out
 }

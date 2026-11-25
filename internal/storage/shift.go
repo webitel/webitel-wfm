@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	ErrShiftScheduleState = errors.FailedPrecondition("shifts are written to a draft, pending or active schedule only", errors.WithID("storage.shift.schedule_state"))
-	ErrShiftsRefused      = errors.FailedPrecondition("the shifts break the schedule rules", errors.WithID("storage.shift.refused"))
+	ErrShiftsRefused        = errors.FailedPrecondition("the shifts break the schedule rules", errors.WithID("storage.shift.refused"))
+	ErrShiftVersionConflict = errors.Aborted("the shift was changed concurrently", errors.WithID("storage.shift.version_conflict"))
 )
 
 // The reasons of the violations in ErrShiftsRefused: the front tells refusals apart by them.
@@ -59,10 +59,10 @@ func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.Sig
 		}
 
 		if !schedule.State.ShiftsWritable() {
-			return errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", schedule.State.String()))
+			return errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
 		}
 
-		violations, err := shiftViolations(ctx, tx, schedule, in)
+		violations, err := shiftViolations(ctx, tx, schedule, in, 0)
 		if err != nil {
 			return err
 		}
@@ -80,6 +80,135 @@ func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.Sig
 	}
 
 	return ids, nil
+}
+
+// UpdateShift replaces a shift whole, its pauses and skills included, under the rules of CreateShifts.
+func (a *AgentWorkingSchedule) UpdateShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32, in *model.Shift) (*model.AgentScheduleShift, error) {
+	if err := in.Validate(); err != nil {
+		return nil, err
+	}
+
+	var out *model.AgentScheduleShift
+
+	err := a.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		schedule, agent, err := lockShift(ctx, tx, user.DomainID, scheduleID, id, ver)
+		if err != nil {
+			return err
+		}
+
+		in.AgentID = agent
+
+		violations, err := shiftViolations(ctx, tx, schedule, []*model.Shift{in}, id)
+		if err != nil {
+			return err
+		}
+
+		if len(violations) > 0 {
+			return model.Refuse(ErrShiftsRefused, violations...)
+		}
+
+		for _, table := range []string{agentWorkingSchedulePauseTable, agentWorkingScheduleSkillTable} {
+			if err := tx.Primary().Exec(ctx, "DELETE FROM "+table+" WHERE domain_id = $1 AND agent_working_schedule_id = $2", user.DomainID, id); err != nil {
+				return err
+			}
+		}
+
+		upd := builder.Update(agentWorkingScheduleTable, map[string]any{
+			"updated_by":  user.ID,
+			"updated_at":  builder.Format("now()"),
+			"schedule_at": schedule.date(in),
+			"start_at":    in.Start,
+			"end_at":      in.End,
+			"ver":         builder.Format("ver + 1"),
+		})
+		upd.Where(upd.Equal("domain_id", user.DomainID), upd.Equal("id", id)).SQL("RETURNING id")
+
+		cte := withChildren(builder.CTE(builder.With("shift").As(upd)), user, in)
+		sql, args := builder.Select("shift.id").With(cte.Builder()).From("shift").Build()
+
+		if err := tx.Primary().Exec(ctx, sql, args...); err != nil {
+			return err
+		}
+
+		// The calendar's shape: the view builds the shift with its lookups.
+		var shifts []*model.AgentScheduleShift
+		if err := tx.Primary().Get(ctx, &shifts, `SELECT shifts
+FROM wfm.agent_working_schedule_v
+WHERE domain_id = $1
+  AND working_schedule_id = $2
+  AND (agent ->> 'id')::bigint = $3
+  AND date = $4`, user.DomainID, scheduleID, agent, schedule.date(in)); err != nil {
+			return err
+		}
+
+		i := slices.IndexFunc(shifts, func(s *model.AgentScheduleShift) bool { return s.ID == id })
+		if i < 0 {
+			return dbsql.ErrNoRows
+		}
+
+		out = shifts[i]
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// DeleteShift deletes a shift; its pauses and skills go through the foreign key.
+func (a *AgentWorkingSchedule) DeleteShift(ctx context.Context, user *model.SignedInUser, scheduleID, id int64, ver int32) (int64, error) {
+	err := a.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		if _, _, err := lockShift(ctx, tx, user.DomainID, scheduleID, id, ver); err != nil {
+			return err
+		}
+
+		return tx.Primary().Exec(ctx, "DELETE FROM "+agentWorkingScheduleTable+" WHERE domain_id = $1 AND id = $2", user.DomainID, id)
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+// lockShift locks as CreateShifts does, then the shift's row, and refuses an archived schedule or another version.
+func lockShift(ctx context.Context, tx dbsql.Tx, domainID, scheduleID, id int64, ver int32) (*shiftSchedule, int64, error) {
+	var agent int64
+	if err := tx.Primary().Get(ctx, &agent, `SELECT wsa.agent_id
+FROM wfm.agent_working_schedule aws
+         INNER JOIN wfm.working_schedule_agent wsa ON wsa.id = aws.working_schedule_agent_id
+WHERE aws.domain_id = $1
+  AND wsa.working_schedule_id = $2
+  AND aws.id = $3`, domainID, scheduleID, id); err != nil {
+		return nil, 0, err
+	}
+
+	if err := tx.Lock(ctx, dbsql.OperatorLock(agent)); err != nil {
+		return nil, 0, err
+	}
+
+	schedule, err := lockSchedule(ctx, tx, domainID, scheduleID, lockShare)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if !schedule.State.ShiftsWritable() {
+		return nil, 0, errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
+	}
+
+	// Gone while this waited for the locks: no_rows.
+	var current int32
+	if err := tx.Primary().Get(ctx, &current, "SELECT ver FROM "+agentWorkingScheduleTable+" WHERE domain_id = $1 AND id = $2 FOR UPDATE", domainID, id); err != nil {
+		return nil, 0, err
+	}
+
+	if current != ver {
+		return nil, 0, ErrShiftVersionConflict
+	}
+
+	return schedule, agent, nil
 }
 
 type shiftSchedule struct {
@@ -160,7 +289,7 @@ func deleteShifts(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, 
 	}
 
 	if !schedule.State.ShiftsWritable() {
-		return nil, errors.Wrap(ErrShiftScheduleState, errors.WithValue("state", schedule.State.String()))
+		return nil, errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
 	}
 
 	var ids []int64
@@ -204,6 +333,7 @@ SELECT EXISTS (SELECT 1
                WHERE wsa.agent_id = r.agent_id
                  AND ws.domain_id = $7
                  AND (ws.id = $1 OR ws.state = $6)
+                 AND aws.id <> $8
                  AND aws.start_at < r.end_at
                  AND aws.end_at > r.start_at) AS overlaps
 FROM unnest($2::bigint[], $3::date[], $4::timestamptz[], $5::timestamptz[])
@@ -218,7 +348,8 @@ type shiftFacts struct {
 	Overlaps    bool `db:"overlaps"`
 }
 
-func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*model.Shift) ([]model.Violation, error) {
+// shiftViolations checks the shifts against the schedule; except is the shift an edit replaces, 0 for none.
+func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*model.Shift, except int64) ([]model.Violation, error) {
 	agents := make([]int64, 0, len(in))
 	dates := make([]time.Time, 0, len(in))
 	starts := make([]time.Time, 0, len(in))
@@ -232,7 +363,7 @@ func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*m
 	}
 
 	var facts []shiftFacts
-	if err := tx.Primary().Select(ctx, &facts, shiftFactsSQL, s.ID, agents, dates, starts, ends, int16(model.WorkingScheduleStateActive), s.DomainID); err != nil {
+	if err := tx.Primary().Select(ctx, &facts, shiftFactsSQL, s.ID, agents, dates, starts, ends, int16(model.WorkingScheduleStateActive), s.DomainID, except); err != nil {
 		return nil, err
 	}
 
@@ -290,38 +421,7 @@ func insertShifts(ctx context.Context, tx dbsql.Tx, user *model.SignedInUser, s 
 			"end_at":                    shift.End,
 		}}
 
-		cte := builder.CTE(builder.With("shift").As(builder.Insert(agentWorkingScheduleTable, columns).SQL("RETURNING id")))
-
-		if l := len(shift.Pauses); l > 0 {
-			pauses := make([]map[string]any, 0, l)
-			for _, pause := range shift.Pauses {
-				pauses = append(pauses, map[string]any{
-					"domain_id":                 user.DomainID,
-					"created_by":                user.ID,
-					"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM shift)"),
-					"pause_cause_id":            pause.Cause.SafeID(),
-					"start_at":                  pause.Start,
-					"end_at":                    pause.End,
-				})
-			}
-
-			cte.With(builder.With("pauses").As(builder.Insert(agentWorkingSchedulePauseTable, pauses)))
-		}
-
-		if l := len(shift.Skills); l > 0 {
-			skills := make([]map[string]any, 0, l)
-			for _, skill := range shift.Skills {
-				skills = append(skills, map[string]any{
-					"domain_id":                 user.DomainID,
-					"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM shift)"),
-					"skill_id":                  skill.Skill.ID,
-					"capacity":                  skill.Capacity,
-					"enabled":                   skill.Enabled,
-				})
-			}
-
-			cte.With(builder.With("skills").As(builder.Insert(agentWorkingScheduleSkillTable, skills)))
-		}
+		cte := withChildren(builder.CTE(builder.With("shift").As(builder.Insert(agentWorkingScheduleTable, columns).SQL("RETURNING id"))), user, shift)
 
 		sql, args := builder.Select("shift.id").With(cte.Builder()).From("shift").Build()
 		batch.Queue(sql, args...)
@@ -333,4 +433,40 @@ func insertShifts(ctx context.Context, tx dbsql.Tx, user *model.SignedInUser, s 
 	}
 
 	return ids, nil
+}
+
+// withChildren adds the pauses and skills of the shift that the CTE's shift statement returns.
+func withChildren(cte *builder.CTEQuery, user *model.SignedInUser, shift *model.Shift) *builder.CTEQuery {
+	if l := len(shift.Pauses); l > 0 {
+		pauses := make([]map[string]any, 0, l)
+		for _, pause := range shift.Pauses {
+			pauses = append(pauses, map[string]any{
+				"domain_id":                 user.DomainID,
+				"created_by":                user.ID,
+				"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM shift)"),
+				"pause_cause_id":            pause.Cause.SafeID(),
+				"start_at":                  pause.Start,
+				"end_at":                    pause.End,
+			})
+		}
+
+		cte.With(builder.With("pauses").As(builder.Insert(agentWorkingSchedulePauseTable, pauses)))
+	}
+
+	if l := len(shift.Skills); l > 0 {
+		skills := make([]map[string]any, 0, l)
+		for _, skill := range shift.Skills {
+			skills = append(skills, map[string]any{
+				"domain_id":                 user.DomainID,
+				"agent_working_schedule_id": builder.Format("(SELECT id::bigint FROM shift)"),
+				"skill_id":                  skill.Skill.ID,
+				"capacity":                  skill.Capacity,
+				"enabled":                   skill.Enabled,
+			})
+		}
+
+		cte.With(builder.With("skills").As(builder.Insert(agentWorkingScheduleSkillTable, skills)))
+	}
+
+	return cte
 }
