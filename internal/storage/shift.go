@@ -86,6 +86,7 @@ type shiftSchedule struct {
 	ID        int64
 	DomainID  int64
 	State     model.WorkingScheduleState `db:"state"`
+	Ver       int32                      `db:"ver"`
 	Team      int64                      `db:"team_id"`
 	Calendar  int64                      `db:"calendar_id"`
 	StartDate time.Time                  `db:"start_date_at"`
@@ -116,7 +117,7 @@ const (
 
 // lockSchedule reads the schedule under a row lock; the caller checks its state.
 func lockSchedule(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, lock rowLock) (*shiftSchedule, error) {
-	q := builder.Select("ws.state", "ws.team_id", "ws.calendar_id", "ws.start_date_at", "ws.end_date_at", "tz.sys_name AS time_zone").
+	q := builder.Select("ws.state", "ws.ver", "ws.team_id", "ws.calendar_id", "ws.start_date_at", "ws.end_date_at", "tz.sys_name AS time_zone").
 		From("wfm.working_schedule ws").
 		Join("flow.calendar c", "c.id = ws.calendar_id").
 		Join("flow.calendar_timezones tz", "tz.id = c.timezone_id")
