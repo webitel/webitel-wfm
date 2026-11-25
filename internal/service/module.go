@@ -1,6 +1,10 @@
 package service
 
-import "go.uber.org/fx"
+import (
+	"go.uber.org/fx"
+
+	"github.com/webitel/webitel-wfm/infra/leader"
+)
 
 var Module = fx.Module("service",
 	fx.Provide(
@@ -12,5 +16,6 @@ var Module = fx.Module("service",
 		fx.Annotate(NewForecastCalculation, fx.As(new(ForecastCalculationManager))),
 		fx.Annotate(NewWorkingSchedule, fx.As(new(WorkingScheduleManager))),
 		fx.Annotate(NewAgentWorkingSchedule, fx.As(new(AgentWorkingScheduleManager))),
+		fx.Annotate(NewJobExecutor, fx.ParamTags(``, JobHandlerGroup), fx.As(new(leader.Task)), fx.ResultTags(leader.TaskGroup)),
 	),
 )

@@ -20,7 +20,7 @@ var (
 const jobAttempts = 2
 
 const jobColumns = `id, kind, state, domain_id, working_schedule_id, created_by, created_ip, created_at, scheduled_for,
-    locked_by, locked_until, attempts, started_at, finished_at, error, result`
+    locked_by, locked_until, attempts, started_at, finished_at, error, error_code, result`
 
 // Either unique index leaves no row: an active job of the schedule, or a periodic run already queued.
 const enqueueJobSQL = `
@@ -61,9 +61,11 @@ RETURNING id`
 
 const failJobSQL = `
 UPDATE wfm.job
-SET state = 'failed', error = $3, finished_at = now(), locked_by = NULL, locked_until = NULL
+SET state = 'failed', error_code = $3, error = $4, finished_at = now(), locked_by = NULL, locked_until = NULL
 WHERE id = $1 AND state = 'running' AND locked_by = $2
 RETURNING id`
+
+const heldJobSQL = `SELECT EXISTS (SELECT 1 FROM wfm.job WHERE id = $1 AND state = 'running' AND locked_by = $2)`
 
 const lastScheduleJobSQL = `
 SELECT ` + jobColumns + `
@@ -78,7 +80,8 @@ type JobManager interface {
 	Requeue(ctx context.Context, owner string) ([]int64, error)
 	RecoverExpired(ctx context.Context) ([]int64, error)
 	Complete(ctx context.Context, owner string, id int64, result json.RawMessage) error
-	Fail(ctx context.Context, owner string, id int64, reason string) error
+	Fail(ctx context.Context, owner string, id int64, code, reason string) error
+	Held(ctx context.Context, owner string, id int64) (bool, error)
 	LastOfSchedule(ctx context.Context, domainID, scheduleID int64) (*model.Job, error)
 }
 
@@ -118,8 +121,19 @@ func (j *Job) Complete(ctx context.Context, owner string, id int64, result json.
 	return j.finish(ctx, completeJobSQL, id, owner, result)
 }
 
-func (j *Job) Fail(ctx context.Context, owner string, id int64, reason string) error {
-	return j.finish(ctx, failJobSQL, id, owner, reason)
+// Fail records code, the id of the error, for the front and reason for people.
+func (j *Job) Fail(ctx context.Context, owner string, id int64, code, reason string) error {
+	return j.finish(ctx, failJobSQL, id, owner, code, reason)
+}
+
+// Held tells whether owner still runs the job: a canceled job or a lost lease is no longer its.
+func (j *Job) Held(ctx context.Context, owner string, id int64) (bool, error) {
+	var held bool
+	if err := j.db.Primary().Get(ctx, &held, heldJobSQL, id, owner); err != nil {
+		return false, err
+	}
+
+	return held, nil
 }
 
 func (j *Job) LastOfSchedule(ctx context.Context, domainID, scheduleID int64) (*model.Job, error) {
@@ -148,10 +162,10 @@ func (j *Job) release(ctx context.Context, where string, args ...any) ([]int64, 
 	return ids, nil
 }
 
-func (j *Job) finish(ctx context.Context, sql string, id int64, owner string, value any) error {
+func (j *Job) finish(ctx context.Context, sql string, id int64, owner string, values ...any) error {
 	var done int64
 
-	err := j.db.Primary().Get(ctx, &done, sql, id, owner, value)
+	err := j.db.Primary().Get(ctx, &done, sql, append([]any{id, owner}, values...)...)
 	if errors.Is(err, dbsql.ErrNoRows) {
 		return errors.Wrap(ErrJobLeaseLost, errors.WithValue("id", id), errors.WithValue("owner", owner))
 	}

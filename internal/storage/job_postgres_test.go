@@ -57,8 +57,8 @@ func jobByID(t *testing.T, conn *pgx.Conn, id int64) *model.Job {
 	t.Helper()
 
 	var job model.Job
-	if err := conn.QueryRow(context.Background(), `SELECT state, locked_by, locked_until, attempts, finished_at, error, result FROM wfm.job WHERE id = $1`, id).
-		Scan(&job.State, &job.LockedBy, &job.LockedUntil, &job.Attempts, &job.FinishedAt, &job.Error, &job.Result); err != nil {
+	if err := conn.QueryRow(context.Background(), `SELECT state, locked_by, locked_until, attempts, finished_at, error, error_code, result FROM wfm.job WHERE id = $1`, id).
+		Scan(&job.State, &job.LockedBy, &job.LockedUntil, &job.Attempts, &job.FinishedAt, &job.Error, &job.ErrorCode, &job.Result); err != nil {
 		t.Fatal(err)
 	}
 
@@ -270,12 +270,20 @@ func TestFinishJobOnlyByItsOwnerOnPostgres(t *testing.T) {
 		t.Fatalf("complete by another owner: %v, want %v", err, ErrJobLeaseLost)
 	}
 
-	if err := jobs.Fail(ctx, "b", job.ID, "boom"); !errors.Is(err, ErrJobLeaseLost) {
+	if err := jobs.Fail(ctx, "b", job.ID, "service.job.failed", "boom"); !errors.Is(err, ErrJobLeaseLost) {
 		t.Fatalf("fail by another owner: %v, want %v", err, ErrJobLeaseLost)
 	}
 
 	if got := jobByID(t, conn, job.ID); got.State != model.JobStateRunning || *got.LockedBy != "a" {
 		t.Fatalf("after other owners: %+v, want running under a", got)
+	}
+
+	if mine, err := jobs.Held(ctx, "a", job.ID); !mine || err != nil {
+		t.Fatalf("held by its owner: %v, %v", mine, err)
+	}
+
+	if theirs, err := jobs.Held(ctx, "b", job.ID); theirs || err != nil {
+		t.Fatalf("held by another owner: %v, %v", theirs, err)
 	}
 
 	result := json.RawMessage(`{"created": 2, "deleted": 1}`)
@@ -292,18 +300,22 @@ func TestFinishJobOnlyByItsOwnerOnPostgres(t *testing.T) {
 		t.Fatalf("complete twice: %v, want %v", err, ErrJobLeaseLost)
 	}
 
-	if err := jobs.Fail(ctx, "a", 999, "boom"); !errors.Is(err, ErrJobLeaseLost) {
+	if done, err := jobs.Held(ctx, "a", job.ID); done || err != nil {
+		t.Fatalf("held once done: %v, %v", done, err)
+	}
+
+	if err := jobs.Fail(ctx, "a", 999, "service.job.failed", "boom"); !errors.Is(err, ErrJobLeaseLost) {
 		t.Fatalf("fail an unknown job: %v, want %v", err, ErrJobLeaseLost)
 	}
 
 	enqueue(t, jobs, planningJob(1, 1))
 	failed := claim(t, jobs, "a", time.Minute)
 
-	if err := jobs.Fail(ctx, "a", failed.ID, "boom"); err != nil {
+	if err := jobs.Fail(ctx, "a", failed.ID, "service.job.failed", "boom"); err != nil {
 		t.Fatal(err)
 	}
 
-	if got := jobByID(t, conn, failed.ID); got.State != model.JobStateFailed || *got.Error != "boom" || got.LockedBy != nil || got.FinishedAt == nil {
+	if got := jobByID(t, conn, failed.ID); got.State != model.JobStateFailed || *got.Error != "boom" || *got.ErrorCode != "service.job.failed" || got.LockedBy != nil || got.FinishedAt == nil {
 		t.Fatalf("failed %+v", got)
 	}
 }
@@ -397,7 +409,7 @@ func TestLastJobOfScheduleOnPostgres(t *testing.T) {
 	first := enqueue(t, jobs, planningJob(1, 1))
 	claim(t, jobs, "a", time.Minute)
 
-	if err := jobs.Fail(ctx, "a", first.ID, "boom"); err != nil {
+	if err := jobs.Fail(ctx, "a", first.ID, "service.job.failed", "boom"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -432,7 +444,7 @@ func TestJobOfALostLeaseStaysWithItsNewOwnerOnPostgres(t *testing.T) {
 		t.Fatalf("complete by the old owner: %v, want %v", err, ErrJobLeaseLost)
 	}
 
-	if err := jobs.Fail(ctx, "old", job.ID, "boom"); !errors.Is(err, ErrJobLeaseLost) {
+	if err := jobs.Fail(ctx, "old", job.ID, "service.job.failed", "boom"); !errors.Is(err, ErrJobLeaseLost) {
 		t.Fatalf("fail by the old owner: %v, want %v", err, ErrJobLeaseLost)
 	}
 
