@@ -233,7 +233,7 @@ func TestUpdateWorkingScheduleStateOnPostgres(t *testing.T) {
 		{name: "an older version", id: 1, ver: 2, state: model.WorkingScheduleStatePending, want: ErrWorkingScheduleVersionConflict},
 		{name: "active again, its own shifts and team aside", id: 2, ver: 1, state: model.WorkingScheduleStateActive},
 		{name: "active to archived", id: 2, ver: 2, state: model.WorkingScheduleStateArchived},
-		{name: "out of archived", id: 4, ver: 1, state: model.WorkingScheduleStateDraft, want: ErrWorkingScheduleArchived},
+		{name: "out of archived, at an older version", id: 4, ver: 2, state: model.WorkingScheduleStateDraft, want: ErrWorkingScheduleArchived},
 		{name: "activating an archived one", id: 4, ver: 1, state: model.WorkingScheduleStateActive, want: ErrWorkingScheduleArchived},
 		{name: "another domain", id: 5, ver: 1, state: model.WorkingScheduleStateDraft, want: dbsql.ErrNoRows},
 		{name: "activating in another domain", id: 5, ver: 1, state: model.WorkingScheduleStateActive, want: dbsql.ErrNoRows},

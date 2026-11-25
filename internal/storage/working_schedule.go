@@ -498,12 +498,12 @@ WHERE ws.domain_id = $1
 			return err
 		}
 
-		if schedule.Ver != ver {
-			return ErrWorkingScheduleVersionConflict
+		if !schedule.State.StateWritable() {
+			return errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
 		}
 
-		if !schedule.State.StateWritable() {
-			return ErrWorkingScheduleArchived
+		if schedule.Ver != ver {
+			return ErrWorkingScheduleVersionConflict
 		}
 
 		if activate {
