@@ -16,7 +16,7 @@ import (
 
 // ErrWorkingScheduleEtag: a missing, malformed or foreign etag carries no usable
 // version, so it is a bad request, not the version conflict.
-var ErrWorkingScheduleEtag = errors.InvalidArgument("invalid input: item.etag of this working schedule is required", errors.WithID("handler.working_schedule.etag"))
+var ErrWorkingScheduleEtag = errors.InvalidArgument("invalid input: the etag of this working schedule is required", errors.WithID("handler.working_schedule.etag"))
 
 type WorkingSchedule struct {
 	pb.UnimplementedWorkingScheduleServiceServer
@@ -112,12 +112,12 @@ func (w *WorkingSchedule) UpdateWorkingSchedule(ctx context.Context, req *pb.Upd
 	in := unmarshalWorkingScheduleProto(req.GetItem())
 
 	// Required here, not in the contract: the message is shared with create.
-	tag, err := etag.ExpectEtag(etag.EtagWorkingSchedule, req.GetItem().GetEtag())
-	if err != nil || tag.GetOid() != in.ID {
-		return nil, errors.Wrap(ErrWorkingScheduleEtag, errors.WithCause(err))
+	ver, err := scheduleVersion(in.ID, req.GetItem().GetEtag())
+	if err != nil {
+		return nil, err
 	}
 
-	in.Ver = tag.GetVer()
+	in.Ver = ver
 
 	out, err := w.service.UpdateWorkingSchedule(ctx, s.SignedInUser, in)
 	if err != nil {
@@ -177,6 +177,35 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, 
 	}
 
 	return &pb.UpdateWorkingScheduleRemoveAgentResponse{Id: out}, nil
+}
+
+func (w *WorkingSchedule) UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, req *pb.UpdateWorkingScheduleBlockOutsideActivityRequest) (*pb.UpdateWorkingScheduleBlockOutsideActivityResponse, error) {
+	ver, err := scheduleVersion(req.GetId(), req.GetEtag())
+	if err != nil {
+		return nil, err
+	}
+
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := w.service.UpdateWorkingScheduleBlockOutsideActivity(ctx, read, ver, req.GetBlockOutsideActivity())
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.UpdateWorkingScheduleBlockOutsideActivityResponse{Item: out.MarshalProto()}, nil
+}
+
+// scheduleVersion is the version in the etag of schedule id; any other etag is a bad request, not a conflict.
+func scheduleVersion(id int64, tag string) (int32, error) {
+	t, err := etag.ExpectEtag(etag.EtagWorkingSchedule, tag)
+	if err != nil || t.GetOid() != id {
+		return 0, errors.Wrap(ErrWorkingScheduleEtag, errors.WithCause(err))
+	}
+
+	return t.GetVer(), nil
 }
 
 func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedule {
