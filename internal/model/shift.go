@@ -13,6 +13,7 @@ var (
 	ErrShiftPauseOutside   = errors.InvalidArgument("invalid input: a pause should end after it starts, inside its shift", errors.WithID("model.shift.pause_outside"))
 	ErrShiftPauseOverlap   = errors.InvalidArgument("invalid input: the pauses of a shift should not overlap", errors.WithID("model.shift.pause_overlap"))
 	ErrShiftRequestOverlap = errors.InvalidArgument("invalid input: the shifts of an agent should not overlap", errors.WithID("model.shift.request_overlap"))
+	ErrShiftSkillDuplicate = errors.InvalidArgument("invalid input: a skill should appear once in a shift", errors.WithID("model.shift.skill_duplicate"))
 )
 
 // Shift is [Start, End); the storage sets its working date.
@@ -53,6 +54,15 @@ func (s *Shift) Validate() error {
 		if i > 0 && pause.Start.Before(pauses[i-1].End) {
 			return s.invalid(ErrShiftPauseOverlap)
 		}
+	}
+
+	skills := make(map[int64]bool, len(s.Skills))
+	for _, k := range s.Skills {
+		if skills[k.Skill.ID] {
+			return s.invalid(ErrShiftSkillDuplicate)
+		}
+
+		skills[k.Skill.ID] = true
 	}
 
 	return nil

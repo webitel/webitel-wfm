@@ -117,6 +117,9 @@ func TestCreateTemplateShiftsRefusalsOnPostgres(t *testing.T) {
 	stray := weekdays(1)
 	stray.Pauses = append(stray.Pauses, model.ShiftTemplatePause{Start: 1080, Duration: 15})
 
+	skillTwice := weekdays(1)
+	skillTwice.Skills = []*model.ShiftSkill{{Skill: model.LookupItem{ID: 1}}, {Skill: model.LookupItem{ID: 1}}}
+
 	stranger, inactive := weekdays(3), weekdays(5)
 	stranger.To, inactive.To = stranger.From, inactive.From
 
@@ -144,6 +147,7 @@ func TestCreateTemplateShiftsRefusalsOnPostgres(t *testing.T) {
 		},
 		{name: "two ranges of a day overlap", schedule: 1, tpl: twice, want: model.ErrShiftRequestOverlap},
 		{name: "a pause outside every range", schedule: 1, tpl: stray, want: model.ErrShiftPauseOutside},
+		{name: "a skill twice", schedule: 1, tpl: skillTwice, want: model.ErrShiftSkillDuplicate},
 		{name: "another domain", user: &model.SignedInUser{ID: 2, DomainID: 2}, schedule: 1, tpl: weekdays(1), code: codes.NotFound},
 		{name: "missing", schedule: 99, tpl: weekdays(1), code: codes.NotFound},
 	} {

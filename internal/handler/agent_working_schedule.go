@@ -111,19 +111,7 @@ func (a *AgentWorkingSchedule) UpdateAgentWorkingScheduleShift(ctx context.Conte
 		return nil, err
 	}
 
-	pauses := make([]*model.ShiftPause, 0, len(shift.GetPauses()))
-	for _, p := range shift.GetPauses() {
-		pause := &model.ShiftPause{Start: time.UnixMilli(p.GetStartAt()), End: time.UnixMilli(p.GetEndAt())}
-		if p.GetCause().GetId() > 0 {
-			pause.Cause = &model.LookupItem{ID: p.GetCause().GetId()}
-		}
-
-		pauses = append(pauses, pause)
-	}
-
-	in := &model.Shift{Start: time.UnixMilli(shift.GetStartAt()), End: time.UnixMilli(shift.GetEndAt()), Pauses: pauses, Skills: unmarshalShiftSkills(shift.GetSkills())}
-
-	out, err := a.service.UpdateShift(ctx, s.SignedInUser, req.GetWorkingScheduleId(), shift.GetId(), ver, in)
+	out, err := a.service.UpdateShift(ctx, s.SignedInUser, req.GetWorkingScheduleId(), shift.GetId(), ver, unmarshalShiftProto(shift))
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +152,20 @@ func shiftVersion(id int64, tag string) (int32, error) {
 	}
 
 	return t.GetVer(), nil
+}
+
+func unmarshalShiftProto(in *pb.AgentScheduleShift) *model.Shift {
+	pauses := make([]*model.ShiftPause, 0, len(in.GetPauses()))
+	for _, p := range in.GetPauses() {
+		pause := &model.ShiftPause{Start: time.UnixMilli(p.GetStartAt()), End: time.UnixMilli(p.GetEndAt())}
+		if p.GetCause().GetId() > 0 {
+			pause.Cause = &model.LookupItem{ID: p.GetCause().GetId()}
+		}
+
+		pauses = append(pauses, pause)
+	}
+
+	return &model.Shift{Start: time.UnixMilli(in.GetStartAt()), End: time.UnixMilli(in.GetEndAt()), Pauses: pauses, Skills: unmarshalShiftSkills(in.GetSkills())}
 }
 
 func marshalAgentWorkingScheduleBulkProto(in []*model.AgentWorkingSchedule) []*pb.AgentWorkingSchedule {

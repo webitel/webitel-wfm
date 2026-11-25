@@ -247,7 +247,7 @@ func (a *AgentWorkingSchedule) DeleteShift(ctx context.Context, user *model.Sign
 	return id, nil
 }
 
-// lockShift locks as CreateShifts does, then the shift's row, and refuses another version or an archived schedule.
+// lockShift locks as CreateShifts does, then the shift's row, and refuses an archived schedule or another version.
 func lockShift(ctx context.Context, tx dbsql.Tx, domainID, scheduleID, id int64, ver int32) (*shiftSchedule, int64, error) {
 	var agent int64
 	if err := tx.Primary().Get(ctx, &agent, `SELECT wsa.agent_id
@@ -268,6 +268,10 @@ WHERE aws.domain_id = $1
 		return nil, 0, err
 	}
 
+	if !schedule.State.ShiftsWritable() {
+		return nil, 0, errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
+	}
+
 	// Gone while this waited for the locks: no_rows.
 	var current int32
 	if err := tx.Primary().Get(ctx, &current, "SELECT ver FROM "+agentWorkingScheduleTable+" WHERE domain_id = $1 AND id = $2 FOR UPDATE", domainID, id); err != nil {
@@ -276,10 +280,6 @@ WHERE aws.domain_id = $1
 
 	if current != ver {
 		return nil, 0, ErrShiftVersionConflict
-	}
-
-	if !schedule.State.ShiftsWritable() {
-		return nil, 0, ErrWorkingScheduleArchived
 	}
 
 	return schedule, agent, nil
