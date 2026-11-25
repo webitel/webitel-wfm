@@ -40,6 +40,11 @@ func (s WorkingScheduleState) BlockWritable() bool {
 	return s.ShiftsWritable()
 }
 
+// StateWritable: archived is final; the other states change in any order.
+func (s WorkingScheduleState) StateWritable() bool {
+	return s.ShiftsWritable()
+}
+
 // Deletable: an active schedule is worked by; its state changes first.
 func (s WorkingScheduleState) Deletable() bool {
 	return s == WorkingScheduleStateDraft || s == WorkingScheduleStatePending || s == WorkingScheduleStateArchived

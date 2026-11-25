@@ -198,6 +198,26 @@ func (w *WorkingSchedule) UpdateWorkingScheduleBlockOutsideActivity(ctx context.
 	return &pb.UpdateWorkingScheduleBlockOutsideActivityResponse{Item: out.MarshalProto()}, nil
 }
 
+// shortcut: fill_days_off is not read and filled_days stays 0, until unplanned days are filled.
+func (w *WorkingSchedule) UpdateWorkingScheduleState(ctx context.Context, req *pb.UpdateWorkingScheduleStateRequest) (*pb.UpdateWorkingScheduleStateResponse, error) {
+	ver, err := scheduleVersion(req.GetId(), req.GetEtag())
+	if err != nil {
+		return nil, err
+	}
+
+	read, err := options.NewRead(ctx, options.WithID(req.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := w.service.UpdateWorkingScheduleState(ctx, read, ver, model.WorkingScheduleState(req.GetState().Number()))
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.UpdateWorkingScheduleStateResponse{Item: out.MarshalProto()}, nil
+}
+
 // scheduleVersion is the version in the etag of schedule id; any other etag is a bad request, not a conflict.
 func scheduleVersion(id int64, tag string) (int32, error) {
 	t, err := etag.ExpectEtag(etag.EtagWorkingSchedule, tag)
@@ -228,7 +248,6 @@ func unmarshalWorkingScheduleProto(in *pb.WorkingSchedule) *model.WorkingSchedul
 	return &model.WorkingSchedule{
 		DomainRecord:         model.DomainRecord{ID: in.GetId()},
 		Name:                 in.GetName(),
-		State:                model.WorkingScheduleState(in.GetState().Number()),
 		Team:                 model.LookupItem{ID: in.GetTeam().GetId()},
 		Calendar:             model.LookupItem{ID: in.GetCalendar().GetId()},
 		StartDateAt:          model.DateFromMillis(in.GetStartDateAt()),

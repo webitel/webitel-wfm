@@ -17,7 +17,7 @@ func TestStateRules(t *testing.T) {
 	}
 
 	for state, w := range want {
-		if got := [2]bool{state.ShiftsWritable(), state.Deletable()}; got != w || state.AgentsWritable() != w[0] || state.BlockWritable() != w[0] {
+		if got := [2]bool{state.ShiftsWritable(), state.Deletable()}; got != w || state.AgentsWritable() != w[0] || state.BlockWritable() != w[0] || state.StateWritable() != w[0] {
 			t.Errorf("%s: writable, deletable = %v, agents writable = %v, want %v", state, got, state.AgentsWritable(), w)
 		}
 	}

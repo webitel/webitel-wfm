@@ -20,6 +20,8 @@ import (
 // A schedule state is numbered alike in the database, the model and the
 // contract (Core design §1.3), so it keeps its name both ways across the API.
 func TestWorkingScheduleStateKeepsItsName(t *testing.T) {
+	ctx := grpccontext.SetUser(context.Background(), &model.SignedInUser{ID: 1, DomainID: 2})
+
 	for _, state := range []model.WorkingScheduleState{
 		model.WorkingScheduleStateDraft,
 		model.WorkingScheduleStatePending,
@@ -32,13 +34,13 @@ func TestWorkingScheduleStateKeepsItsName(t *testing.T) {
 			t.Errorf("model %s goes out as %s, want %s", state, got, name)
 		}
 
-		in := unmarshalWorkingScheduleProto(&pb.WorkingSchedule{
-			State:    pb.WorkingScheduleState(pb.WorkingScheduleState_value[name]),
-			Team:     &pb.LookupEntity{},
-			Calendar: &pb.LookupEntity{},
+		svc := &updateService{}
+
+		_, err := NewWorkingSchedule(svc).UpdateWorkingScheduleState(ctx, &pb.UpdateWorkingScheduleStateRequest{
+			Id: 7, State: pb.WorkingScheduleState(pb.WorkingScheduleState_value[name]), Etag: must(etag.EncodeEtag(etag.EtagWorkingSchedule, 7, 3)),
 		})
-		if in.State != state {
-			t.Errorf("%s comes in as model %s, want %s", name, in.State, state)
+		if err != nil || svc.got.ID != 7 || svc.got.Ver != 3 || svc.got.State != state {
+			t.Errorf("%s comes in as model %+v, %v, want %s", name, svc.got, err, state)
 		}
 	}
 }
@@ -102,7 +104,13 @@ func (s *updateService) UpdateWorkingScheduleBlockOutsideActivity(_ context.Cont
 	return s.got, nil
 }
 
-// An update, and the block switch, need the etag of the very schedule they name. Without a usable one
+func (s *updateService) UpdateWorkingScheduleState(_ context.Context, read *options.Read, ver int32, state model.WorkingScheduleState) (*model.WorkingSchedule, error) {
+	s.got = &model.WorkingSchedule{DomainRecord: model.DomainRecord{ID: read.ID()}, Ver: ver, State: state}
+
+	return s.got, nil
+}
+
+// An update, the block switch and a state change need the etag of the very schedule they name. Without a usable one
 // it is a bad request, never the version conflict, and nothing is written.
 func TestUpdateWorkingScheduleRequiresItsEtag(t *testing.T) {
 	ctx := grpccontext.SetUser(context.Background(), &model.SignedInUser{ID: 1, DomainID: 2})
@@ -129,6 +137,11 @@ func TestUpdateWorkingScheduleRequiresItsEtag(t *testing.T) {
 			_, err = NewWorkingSchedule(svc).UpdateWorkingScheduleBlockOutsideActivity(ctx, &pb.UpdateWorkingScheduleBlockOutsideActivityRequest{Id: 7, Etag: tag})
 			if !errors.Is(err, ErrWorkingScheduleEtag) {
 				t.Errorf("block switch: err = %v, want %v", err, ErrWorkingScheduleEtag)
+			}
+
+			_, err = NewWorkingSchedule(svc).UpdateWorkingScheduleState(ctx, &pb.UpdateWorkingScheduleStateRequest{Id: 7, State: pb.WorkingScheduleState_WORKING_SCHEDULE_STATE_ACTIVE, Etag: tag})
+			if !errors.Is(err, ErrWorkingScheduleEtag) {
+				t.Errorf("state: err = %v, want %v", err, ErrWorkingScheduleEtag)
 			}
 
 			if svc.got != nil {

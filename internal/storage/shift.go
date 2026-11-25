@@ -495,13 +495,18 @@ func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*m
 		broke(overlap, ReasonShiftOverlap)
 	}
 
-	slices.SortFunc(out, func(a, b model.Violation) int {
+	return compactViolations(out), nil
+}
+
+// compactViolations orders violations by agent, date and reason, keeping the first of each.
+func compactViolations(out []model.Violation) []model.Violation {
+	slices.SortStableFunc(out, func(a, b model.Violation) int {
 		return cmp.Or(cmp.Compare(a.AgentID, b.AgentID), a.Date.Time.Compare(b.Date.Time), strings.Compare(a.Reason, b.Reason))
 	})
 
 	return slices.CompactFunc(out, func(a, b model.Violation) bool {
 		return a.AgentID == b.AgentID && a.Date.Time.Equal(b.Date.Time) && a.Reason == b.Reason
-	}), nil
+	})
 }
 
 func insertShifts(ctx context.Context, tx dbsql.Tx, user *model.SignedInUser, s *shiftSchedule, in []*model.Shift) ([]int64, error) {

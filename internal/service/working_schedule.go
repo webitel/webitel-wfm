@@ -34,6 +34,7 @@ type WorkingScheduleManager interface {
 	UpdateWorkingScheduleAddAgents(ctx context.Context, read *options.Read, agentIDs []int64) ([]*model.LookupItem, error)
 	UpdateWorkingScheduleRemoveAgent(ctx context.Context, read *options.Read, agentID int64) (int64, error)
 	UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, read *options.Read, ver int32, block bool) (*model.WorkingSchedule, error)
+	UpdateWorkingScheduleState(ctx context.Context, read *options.Read, ver int32, state model.WorkingScheduleState) (*model.WorkingSchedule, error)
 }
 
 type WorkingSchedule struct {
@@ -245,4 +246,8 @@ func (w *WorkingSchedule) UpdateWorkingScheduleRemoveAgent(ctx context.Context, 
 
 func (w *WorkingSchedule) UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, read *options.Read, ver int32, block bool) (*model.WorkingSchedule, error) {
 	return w.storage.UpdateWorkingScheduleBlockOutsideActivity(ctx, read, ver, block)
+}
+
+func (w *WorkingSchedule) UpdateWorkingScheduleState(ctx context.Context, read *options.Read, ver int32, state model.WorkingScheduleState) (*model.WorkingSchedule, error) {
+	return w.storage.UpdateWorkingScheduleState(ctx, read, ver, state)
 }

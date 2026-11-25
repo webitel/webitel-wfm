@@ -3,6 +3,9 @@ package storage
 import (
 	"context"
 	"slices"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
 
@@ -22,7 +25,12 @@ var ErrWorkingScheduleSort = errors.InvalidArgument("working schedules sort by n
 var (
 	ErrWorkingScheduleActive   = errors.FailedPrecondition("an active working schedule is not deleted; change its state first", errors.WithID("storage.working_schedule.active"))
 	ErrWorkingScheduleArchived = errors.FailedPrecondition("an archived working schedule is read only", errors.WithID("storage.working_schedule.archived"))
+
+	ErrWorkingScheduleActivationRefused = errors.FailedPrecondition("the schedule breaks the rules of an active schedule", errors.WithID("storage.working_schedule.activation_refused"))
 )
+
+// ReasonWorkingScheduleTeamActive: the team has another active schedule on overlapping dates; no agent or date.
+const ReasonWorkingScheduleTeamActive = "storage.working_schedule.team_active"
 
 // The sort goes into SQL, so only these; states sort as Active, Pending, Draft, Archived (US_05.01).
 var workingScheduleOrder = map[string]string{
@@ -40,6 +48,7 @@ type WorkingScheduleManager interface {
 	UpdateWorkingScheduleAddAgents(ctx context.Context, read *options.Read, agentIDs []int64) ([]*model.LookupItem, error)
 	UpdateWorkingScheduleRemoveAgent(ctx context.Context, read *options.Read, agentID int64) (int64, error)
 	UpdateWorkingScheduleBlockOutsideActivity(ctx context.Context, read *options.Read, ver int32, block bool) (*model.WorkingSchedule, error)
+	UpdateWorkingScheduleState(ctx context.Context, read *options.Read, ver int32, state model.WorkingScheduleState) (*model.WorkingSchedule, error)
 
 	DeactivatedAgents(ctx context.Context, domainID int64, agentIDs []int64) ([]int64, error)
 }
@@ -62,7 +71,7 @@ func (w *WorkingSchedule) CreateWorkingSchedule(ctx context.Context, user *model
 			"created_by":             user.ID,
 			"updated_by":             user.ID,
 			"name":                   in.Name,
-			"state":                  int32(in.State),
+			"state":                  int32(model.WorkingScheduleStateDraft),
 			"team_id":                in.Team.SafeID(),
 			"calendar_id":            in.Calendar.SafeID(),
 			"start_date_at":          in.StartDateAt,
@@ -449,6 +458,176 @@ func (w *WorkingSchedule) UpdateWorkingScheduleBlockOutsideActivity(ctx context.
 	}
 
 	return out, nil
+}
+
+// UpdateWorkingScheduleState moves the schedule to another state; moving to active first checks the rules of an active schedule.
+func (w *WorkingSchedule) UpdateWorkingScheduleState(ctx context.Context, read *options.Read, ver int32, state model.WorkingScheduleState) (*model.WorkingSchedule, error) {
+	domainID, id := read.User().DomainID, read.ID()
+	activate := state == model.WorkingScheduleStateActive
+
+	var out *model.WorkingSchedule
+
+	err := w.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		// The team's and the agents' locks come before the row, the order shift writes take them in.
+		var locked struct {
+			Team   int64   `db:"team_id"`
+			Agents []int64 `db:"agents"`
+		}
+
+		if activate {
+			if err := tx.Primary().Get(ctx, &locked, `SELECT ws.team_id,
+       array(SELECT wsa.agent_id FROM wfm.working_schedule_agent wsa WHERE wsa.domain_id = $1 AND wsa.working_schedule_id = ws.id) AS agents
+FROM wfm.working_schedule ws
+WHERE ws.domain_id = $1
+  AND ws.id = $2`, domainID, id); err != nil {
+				return err
+			}
+
+			locks := []dbsql.LockKey{dbsql.TeamLock(locked.Team)}
+			for _, agent := range locked.Agents {
+				locks = append(locks, dbsql.OperatorLock(agent))
+			}
+
+			if err := tx.Lock(ctx, locks...); err != nil {
+				return err
+			}
+		}
+
+		schedule, err := lockSchedule(ctx, tx, domainID, id, lockUpdate)
+		if err != nil {
+			return err
+		}
+
+		if !schedule.State.StateWritable() {
+			return errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
+		}
+
+		if schedule.Ver != ver {
+			return ErrWorkingScheduleVersionConflict
+		}
+
+		if activate {
+			violations, err := activationViolations(ctx, tx, schedule, locked.Agents)
+			if err != nil {
+				return err
+			}
+
+			if len(violations) > 0 {
+				return model.Refuse(ErrWorkingScheduleActivationRefused, violations...)
+			}
+		}
+
+		if err := tx.Primary().Exec(ctx, "UPDATE wfm.working_schedule SET state = $1, updated_by = $2, ver = ver + 1 WHERE domain_id = $3 AND id = $4",
+			int16(state), read.User().ID, domainID, id); err != nil {
+			return err
+		}
+
+		out, err = w.read(ctx, tx.Primary(), read)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// Only active schedules count: the team's other ones on the same days, and the agents' shifts in other
+// active schedules on the same working date or at the same time, a night one included.
+const activationTeamSQL = `
+SELECT id, name
+FROM wfm.working_schedule
+WHERE domain_id = $1
+  AND team_id = $2
+  AND id <> $3
+  AND state = $4
+  AND start_date_at <= $6
+  AND end_date_at >= $5
+ORDER BY id`
+
+const activationShiftsSQL = `
+SELECT wsa.agent_id,
+       aws.schedule_at,
+       ws.id                                                       AS schedule_id,
+       ws.name                                                     AS schedule_name,
+       other.id                                                    AS shift_id,
+       other.start_at,
+       other.end_at,
+       other.schedule_at = aws.schedule_at                         AS same_date,
+       other.start_at < aws.end_at AND other.end_at > aws.start_at AS overlaps
+FROM wfm.working_schedule_agent wsa
+         INNER JOIN wfm.agent_working_schedule aws ON aws.working_schedule_agent_id = wsa.id
+         INNER JOIN wfm.working_schedule_agent owsa ON owsa.agent_id = wsa.agent_id
+         INNER JOIN wfm.working_schedule ws ON ws.id = owsa.working_schedule_id
+         INNER JOIN wfm.agent_working_schedule other ON other.working_schedule_agent_id = owsa.id
+WHERE wsa.domain_id = $1
+  AND wsa.working_schedule_id = $2
+  AND ws.domain_id = $1
+  AND ws.id <> $2
+  AND ws.state = $3
+  AND (other.schedule_at = aws.schedule_at OR other.start_at < aws.end_at AND other.end_at > aws.start_at)
+ORDER BY wsa.agent_id, aws.schedule_at, other.start_at`
+
+// activationViolations checks the schedule against the active ones; locked are the agents whose locks are held.
+func activationViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, locked []int64) ([]model.Violation, error) {
+	// An agent added after the locks were taken could get a shift elsewhere unseen; the client rereads.
+	var added bool
+	if err := tx.Primary().Get(ctx, &added, "SELECT EXISTS (SELECT 1 FROM wfm.working_schedule_agent WHERE domain_id = $1 AND working_schedule_id = $2 AND agent_id <> ALL ($3::int8[]))",
+		s.DomainID, s.ID, locked); err != nil {
+		return nil, err
+	}
+
+	if added {
+		return nil, ErrWorkingScheduleVersionConflict
+	}
+
+	active := int16(model.WorkingScheduleStateActive)
+
+	var teams []model.LookupItem
+	if err := tx.Primary().Select(ctx, &teams, activationTeamSQL, s.DomainID, s.Team, s.ID, active, s.StartDate, s.EndDate); err != nil {
+		return nil, err
+	}
+
+	var shifts []struct {
+		AgentID      int64     `db:"agent_id"`
+		Date         time.Time `db:"schedule_at"`
+		ScheduleID   int64     `db:"schedule_id"`
+		ScheduleName string    `db:"schedule_name"`
+		ShiftID      int64     `db:"shift_id"`
+		StartAt      time.Time `db:"start_at"`
+		EndAt        time.Time `db:"end_at"`
+		SameDate     bool      `db:"same_date"`
+		Overlaps     bool      `db:"overlaps"`
+	}
+	if err := tx.Primary().Select(ctx, &shifts, activationShiftsSQL, s.DomainID, s.ID, active); err != nil {
+		return nil, err
+	}
+
+	out := make([]model.Violation, 0, len(teams)+len(shifts))
+	for _, team := range teams {
+		out = append(out, model.Violation{Reason: ReasonWorkingScheduleTeamActive, Schedule: &team})
+	}
+
+	for _, shift := range shifts {
+		at := model.Violation{AgentID: shift.AgentID, Date: pgtype.Date{Time: shift.Date, Valid: true}}
+
+		if shift.SameDate {
+			taken := at
+			taken.Reason, taken.Schedule = ReasonShiftLockedDate, &model.LookupItem{ID: shift.ScheduleID, Name: &shift.ScheduleName}
+			out = append(out, taken)
+		}
+
+		if !shift.Overlaps {
+			continue
+		}
+
+		overlap := at
+		overlap.Reason, overlap.ShiftID, overlap.StartAt, overlap.EndAt = ReasonShiftOverlap, shift.ShiftID, shift.StartAt, shift.EndAt
+		out = append(out, overlap)
+	}
+
+	return compactViolations(out), nil
 }
 
 func (w *WorkingSchedule) DeactivatedAgents(ctx context.Context, domainID int64, agentIDs []int64) ([]int64, error) {
