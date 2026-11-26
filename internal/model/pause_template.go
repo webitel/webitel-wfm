@@ -44,7 +44,7 @@ type PauseTemplateCause struct {
 
 func (p *PauseTemplateCause) MarshalProto() *pb.PauseTemplateCause {
 	return &pb.PauseTemplateCause{
-		Duration: p.Duration,
+		Duration: &p.Duration,
 		Cause:    p.Cause.MarshalProto(),
 	}
 }

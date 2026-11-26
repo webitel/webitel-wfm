@@ -721,7 +721,7 @@ const file_working_condition_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03B\n" +
 	"\xbaH\a\xc8\x01\x01\"\x02 \x00R\x02id\"0\n" +
 	"\x1eDeleteWorkingConditionResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\xa5\t\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xbf\t\n" +
 	"\x10WorkingCondition\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\x12\x1d\n" +
@@ -740,17 +740,17 @@ const file_working_condition_proto_rawDesc = "" +
 	"\x12workdays_per_month\x18\n" +
 	" \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x1f \x00H\x02R\x10workdaysPerMonth\x88\x01\x01\x12+\n" +
 	"\bvacation\x18\v \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xed\x02 \x00H\x03R\bvacation\x88\x01\x01\x120\n" +
+	"\xbaH\a\x1a\x05\x18\xed\x02(\x00H\x03R\bvacation\x88\x01\x01\x120\n" +
 	"\vsick_leaves\x18\f \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xed\x02 \x00H\x04R\n" +
+	"\xbaH\a\x1a\x05\x18\xed\x02(\x00H\x04R\n" +
 	"sickLeaves\x88\x01\x01\x12*\n" +
 	"\bdays_off\x18\r \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xed\x02 \x00H\x05R\adaysOff\x88\x01\x01\x126\n" +
+	"\xbaH\a\x1a\x05\x18\xed\x02(\x00H\x05R\adaysOff\x88\x01\x01\x126\n" +
 	"\x0epause_duration\x18\x0e \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xa0\v \x00H\x06R\rpauseDuration\x88\x01\x01\x128\n" +
+	"\xbaH\a\x1a\x05\x18\xa0\v(\x00H\x06R\rpauseDuration\x88\x01\x01\x128\n" +
 	"\x0epause_template\x18\x0f \x01(\v2\x11.wfm.LookupEntityR\rpauseTemplate\x12=\n" +
-	"\x0eshift_template\x18\x10 \x01(\v2\x11.wfm.LookupEntityH\aR\rshiftTemplate\x88\x01\x01:\xbf\x02\xbaH\xbb\x02\x1a\x89\x01\n" +
-	" working_conditions.working_hours\x123workday_hours should be greater than pause_duration\x1a0this.workday_hours >= (this.pause_duration / 60)\x1a\xac\x01\n" +
+	"\x0eshift_template\x18\x10 \x01(\v2\x11.wfm.LookupEntityH\aR\rshiftTemplate\x88\x01\x01:\xd9\x02\xbaH\xd5\x02\x1a\xa3\x01\n" +
+	" working_conditions.working_hours\x123workday_hours should be greater than pause_duration\x1aJ!has(this.workday_hours) || this.workday_hours * 60 >= this.pause_duration\x1a\xac\x01\n" +
 	"#working_conditions.non_working_days\x12Jsum of vacation, sick_leaves and days_off should not be more that 365 days\x1a9(this.vacation + this.sick_leaves + this.days_off) <= 365B\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_workday_hoursB\x15\n" +
