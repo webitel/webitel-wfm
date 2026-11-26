@@ -193,6 +193,20 @@ func TestJobExecutorRunsJobsOneAtATimeOnPostgres(t *testing.T) {
 	}
 }
 
+func TestJobExecutorLeavesKindsItCannotRunOnPostgres(t *testing.T) {
+	jobs, conn := newJobs(t)
+	id := enqueueDaily(t, jobs, 0)
+
+	planning := jobHandler{kind: model.JobKindPlanning, run: func(context.Context, *model.Job) error { return nil }}
+	_, ticks := start(t, newExecutor(jobs, planning))
+
+	eventually(t, "a few turns", func() bool { return ticks.Load() > 5 })
+
+	if r := rowOf(t, conn, id); r.state != model.JobStateQueued || r.attempts != 0 {
+		t.Errorf("a job with no handler here: %+v, want it queued for another leader", r)
+	}
+}
+
 func TestJobExecutorFailsJobsWithACodeOnPostgres(t *testing.T) {
 	jobs, conn := newJobs(t)
 	forecast := errors.Internal("the forecast procedure failed", errors.WithID("storage.forecast.procedure"))
@@ -208,9 +222,12 @@ func TestJobExecutorFailsJobsWithACodeOnPostgres(t *testing.T) {
 		},
 	}
 
+	var logs strings.Builder
+
 	e := newExecutor(jobs, jobHandler{kind: model.JobKindDailyAggregate, run: func(ctx context.Context, job *model.Job) error { return runs[job.ID](ctx) }})
 	e.timeout = 100 * time.Millisecond
-	start(t, e)
+	e.log = slog.New(slog.NewTextHandler(&logs, nil))
+	stop, _ := start(t, e)
 
 	want := []string{"storage.forecast.procedure", "service.job.failed", "service.job.failed", "service.job.timeout"}
 
@@ -224,8 +241,10 @@ func TestJobExecutorFailsJobsWithACodeOnPostgres(t *testing.T) {
 		}
 	}
 
-	if r := rowOf(t, conn, 3); !strings.HasPrefix(*r.error, "panic: broken handler") {
-		t.Errorf("a panic recorded as %q", *r.error)
+	stop()
+
+	if r := rowOf(t, conn, 3); *r.error != "panic: broken handler" || !strings.Contains(logs.String(), "job handler panicked") || !strings.Contains(logs.String(), "stack=\"goroutine ") {
+		t.Errorf("a panic recorded as %q and logged as\n%s", *r.error, logs.String())
 	}
 }
 
@@ -307,18 +326,29 @@ func TestJobExecutorRequeuesOnTheEndOfTheTermOnPostgres(t *testing.T) {
 		started <- struct{}{}
 
 		<-ctx.Done()
+		// Lingers past the end of the term, while the executor keeps checking the lease.
+		time.Sleep(50 * time.Millisecond)
 
 		return ctx.Err()
 	})
 
+	var logs strings.Builder
+
+	e := newExecutor(jobs, h)
+	e.log = slog.New(slog.NewTextHandler(&logs, nil))
+
 	id := enqueueDaily(t, jobs, 0)
-	stop, _ := start(t, newExecutor(jobs, h))
+	stop, _ := start(t, e)
 
 	<-started
 	stop()
 
 	if r := rowOf(t, conn, id); r.state != model.JobStateQueued || r.owner != nil || r.attempts != 1 {
 		t.Fatalf("a job of an ended term: %+v, want it queued after one attempt", r)
+	}
+
+	if strings.Contains(logs.String(), "could not check") {
+		t.Errorf("a lease check on the ended term logged as a failure:\n%s", logs.String())
 	}
 
 	block.Store(false)
@@ -334,14 +364,15 @@ func TestJobExecutorRequeuesOnTheEndOfTheTermOnPostgres(t *testing.T) {
 func TestJobExecutorTakesBackJobsLeftRunningOnPostgres(t *testing.T) {
 	jobs, conn := newJobs(t)
 	ctx := context.Background()
+	kinds := []model.JobKind{model.JobKindDailyAggregate}
 
 	// Its own job from a term that ended in a crash, and another instance's with an expired lease.
 	mine, theirs := enqueueDaily(t, jobs, 0), enqueueDaily(t, jobs, 1)
-	if _, err := jobs.Claim(ctx, "a", time.Hour); err != nil {
+	if _, err := jobs.Claim(ctx, "a", time.Hour, kinds); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := jobs.Claim(ctx, "b", -time.Second); err != nil {
+	if _, err := jobs.Claim(ctx, "b", -time.Second, kinds); err != nil {
 		t.Fatal(err)
 	}
 
@@ -353,5 +384,120 @@ func TestJobExecutorTakesBackJobsLeftRunningOnPostgres(t *testing.T) {
 		if r := rowOf(t, conn, id); r.attempts != 2 {
 			t.Errorf("job %d done after %d attempts, want 2", id, r.attempts)
 		}
+	}
+}
+
+func TestJobExecutorLogsADoneJobAsDoneOnPostgres(t *testing.T) {
+	jobs, _ := newJobs(t)
+
+	// The handler commits the result, then returns once the executor sees the job no longer running or the term over.
+	for day, poll := range []time.Duration{10 * time.Millisecond, time.Hour} {
+		t.Run(poll.String(), func(t *testing.T) {
+			var logs strings.Builder
+
+			completed := make(chan struct{})
+			e := newExecutor(jobs, jobHandler{kind: model.JobKindDailyAggregate, run: func(ctx context.Context, job *model.Job) error {
+				if err := jobs.Complete(ctx, *job.LockedBy, job.ID, json.RawMessage(`{"days": 1}`)); err != nil {
+					return err
+				}
+
+				close(completed)
+				<-ctx.Done()
+
+				return nil
+			}})
+			e.poll, e.log = poll, slog.New(slog.NewTextHandler(&logs, nil))
+
+			enqueueDaily(t, jobs, day)
+			stop, _ := start(t, e)
+
+			<-completed
+
+			if poll < time.Hour {
+				time.Sleep(10 * poll)
+			}
+
+			stop()
+
+			if !strings.Contains(logs.String(), "job done") || strings.Contains(logs.String(), "level=WARN") {
+				t.Errorf("a done job logged as\n%s", logs.String())
+			}
+		})
+	}
+}
+
+// failingHeld is a job store whose lease check always fails.
+type failingHeld struct{ *storage.Job }
+
+func (failingHeld) Held(context.Context, string, int64) (bool, error) {
+	return false, errors.New("connection refused")
+}
+
+func TestJobExecutorKeepsAJobWhenTheLeaseCheckFailsOnPostgres(t *testing.T) {
+	jobs, conn := newJobs(t)
+
+	var logs strings.Builder
+
+	e := newExecutor(failingHeld{jobs}, completing(jobs, func(context.Context, *model.Job) error {
+		time.Sleep(50 * time.Millisecond)
+
+		return nil
+	}))
+	e.log = slog.New(slog.NewTextHandler(&logs, nil))
+
+	id := enqueueDaily(t, jobs, 0)
+	stop, _ := start(t, e)
+
+	eventually(t, "the job done", func() bool { return rowOf(t, conn, id).state == model.JobStateDone })
+	stop()
+
+	if !strings.Contains(logs.String(), "could not check the job") || !strings.Contains(logs.String(), "connection refused") {
+		t.Errorf("a failed lease check logged as\n%s", logs.String())
+	}
+}
+
+func TestJobExecutorStopsTickingForAHungHandlerOnPostgres(t *testing.T) {
+	jobs, conn := newJobs(t)
+	started, release := make(chan struct{}), make(chan struct{})
+
+	e := newExecutor(jobs, jobHandler{kind: model.JobKindDailyAggregate, run: func(ctx context.Context, _ *model.Job) error {
+		close(started)
+		<-release
+
+		return ctx.Err()
+	}})
+	e.timeout, e.grace = 50*time.Millisecond, 300*time.Millisecond
+
+	id := enqueueDaily(t, jobs, 0)
+	_, ticks := start(t, e)
+
+	<-started
+
+	// Within the grace after the timeout it still ticks; past it, it stops.
+	time.Sleep(2 * e.timeout)
+
+	within := ticks.Load()
+
+	time.Sleep(10 * e.poll)
+
+	if ticks.Load() == within {
+		t.Error("no ticks within the grace after the timeout")
+	}
+
+	time.Sleep(e.timeout + e.grace)
+
+	past := ticks.Load()
+
+	time.Sleep(10 * e.poll)
+
+	if got := ticks.Load(); got != past {
+		t.Errorf("%d ticks from a handler hung past the grace, want none", got-past)
+	}
+
+	close(release)
+	eventually(t, "the job failed", func() bool { return rowOf(t, conn, id).state == model.JobStateFailed })
+
+	if r := rowOf(t, conn, id); *r.code != "service.job.timeout" {
+		t.Errorf("code %s, want service.job.timeout", *r.code)
 	}
 }

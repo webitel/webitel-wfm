@@ -31,6 +31,8 @@ func dailyJob(at time.Time) *model.Job {
 	return &model.Job{Kind: model.JobKindDailyAggregate, ScheduledFor: new(at)}
 }
 
+var jobKinds = []model.JobKind{model.JobKindPlanning, model.JobKindDailyAggregate}
+
 func enqueue(t *testing.T, jobs *Job, job *model.Job) *model.Job {
 	t.Helper()
 
@@ -45,7 +47,7 @@ func enqueue(t *testing.T, jobs *Job, job *model.Job) *model.Job {
 func claim(t *testing.T, jobs *Job, owner string, lease time.Duration) *model.Job {
 	t.Helper()
 
-	job, err := jobs.Claim(context.Background(), owner, lease)
+	job, err := jobs.Claim(context.Background(), owner, lease, jobKinds)
 	if err != nil || job == nil {
 		t.Fatalf("claim by %s: %v, %v", owner, job, err)
 	}
@@ -155,12 +157,24 @@ func TestClaimJobOnPostgres(t *testing.T) {
 	ctx := context.Background()
 	jobs := NewJob(db)
 
-	if job, err := jobs.Claim(ctx, "a", time.Minute); job != nil || err != nil {
+	if job, err := jobs.Claim(ctx, "a", time.Minute, jobKinds); job != nil || err != nil {
 		t.Fatalf("claim from an empty queue: %v, %v", job, err)
 	}
 
 	first := enqueue(t, jobs, planningJob(1, 1))
 	second := enqueue(t, jobs, dailyJob(time.Date(2026, 11, 17, 3, 0, 0, 0, time.UTC)))
+
+	if job, err := jobs.Claim(ctx, "a", time.Minute, nil); job != nil || err != nil {
+		t.Fatalf("claim with no kind: %v, %v", job, err)
+	}
+
+	if job, err := jobs.Claim(ctx, "a", time.Minute, []model.JobKind{model.JobKindDailyAggregate}); err != nil || job == nil || job.ID != second.ID {
+		t.Fatalf("claim of daily jobs: %v, %v; want job %d past the older planning one", job, err, second.ID)
+	}
+
+	if _, err := jobs.Requeue(ctx, "a"); err != nil {
+		t.Fatal(err)
+	}
 
 	before := time.Now()
 	job := claim(t, jobs, "a", 6*time.Minute)
@@ -177,7 +191,7 @@ func TestClaimJobOnPostgres(t *testing.T) {
 		t.Fatalf("claimed %d, want %d", job.ID, second.ID)
 	}
 
-	if job, err := jobs.Claim(ctx, "a", time.Minute); job != nil || err != nil {
+	if job, err := jobs.Claim(ctx, "a", time.Minute, jobKinds); job != nil || err != nil {
 		t.Fatalf("claim with every job taken: %v, %v", job, err)
 	}
 }
@@ -204,7 +218,7 @@ func TestClaimJobSkipsALockedRowOnPostgres(t *testing.T) {
 	wait, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	job, err := jobs.Claim(wait, "a", time.Minute)
+	job, err := jobs.Claim(wait, "a", time.Minute, jobKinds)
 	if err != nil || job == nil || job.ID != free.ID {
 		t.Fatalf("claimed %v, %v; want job %d without waiting", job, err, free.ID)
 	}
@@ -229,7 +243,7 @@ func TestClaimJobOnceUnderRaceOnPostgres(t *testing.T) {
 	for range claimers {
 		wg.Go(func() {
 			for {
-				job, err := jobs.Claim(context.Background(), "a", time.Minute)
+				job, err := jobs.Claim(context.Background(), "a", time.Minute, jobKinds)
 				if err != nil {
 					t.Errorf("claim: %v", err)
 

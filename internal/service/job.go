@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"runtime/debug"
+	"slices"
 	"time"
 
 	"github.com/webitel/webitel-go-kit/pkg/errors"
@@ -38,6 +40,8 @@ type JobExecutor struct {
 
 	poll    time.Duration
 	timeout time.Duration
+	// How long a handler may run past its cancellation; the lease outlives the timeout by it.
+	grace time.Duration
 }
 
 func NewJobExecutor(jobs storage.JobManager, handlers []JobHandler, cfg *config.Config, log *slog.Logger) *JobExecutor {
@@ -48,6 +52,7 @@ func NewJobExecutor(jobs storage.JobManager, handlers []JobHandler, cfg *config.
 		log:      log.With("component", "job_executor"),
 		poll:     time.Second,
 		timeout:  cfg.JobTimeout,
+		grace:    time.Minute,
 	}
 
 	for _, h := range handlers {
@@ -65,6 +70,7 @@ func (e *JobExecutor) Run(ctx context.Context, tick func()) error {
 		return err
 	}
 
+	kinds := slices.Collect(maps.Keys(e.handlers))
 	poll := time.NewTicker(e.poll)
 
 	defer poll.Stop()
@@ -74,8 +80,7 @@ func (e *JobExecutor) Run(ctx context.Context, tick func()) error {
 			return err
 		}
 
-		// The lease outlives the timeout, so another leader never takes a job still running here.
-		job, err := e.jobs.Claim(ctx, e.owner, e.timeout+time.Minute)
+		job, err := e.jobs.Claim(ctx, e.owner, e.timeout+e.grace, kinds)
 		if err != nil {
 			return err
 		}
@@ -108,14 +113,15 @@ func (e *JobExecutor) execute(ctx context.Context, job *model.Job, tick func()) 
 
 	done := make(chan error, 1)
 
-	go func() { done <- e.handle(run, job) }()
+	go func() { done <- e.handle(run, log, job) }()
 
 	poll := time.NewTicker(e.poll)
 	defer poll.Stop()
 
 	var (
-		err  error
-		lost bool
+		err      error
+		lost     bool
+		canceled time.Time
 	)
 
 	for waiting := true; waiting; {
@@ -123,9 +129,21 @@ func (e *JobExecutor) execute(ctx context.Context, job *model.Job, tick func()) 
 		case err = <-done:
 			waiting = false
 		case <-poll.C:
-			tick()
+			if run.Err() != nil && canceled.IsZero() {
+				canceled = time.Now()
+			}
 
-			if held, herr := e.jobs.Held(ctx, e.owner, job.ID); herr == nil && !held {
+			// A handler still running a grace past its cancellation stops the ticks, so the leader goes unhealthy.
+			if canceled.IsZero() || time.Since(canceled) < e.grace {
+				tick()
+			}
+
+			held, herr := e.jobs.Held(ctx, e.owner, job.ID)
+
+			switch {
+			case herr != nil && ctx.Err() == nil:
+				log.Warn("could not check the job is still this instance's", "err", herr)
+			case herr == nil && !held:
 				lost = true
 
 				cancel()
@@ -133,7 +151,10 @@ func (e *JobExecutor) execute(ctx context.Context, job *model.Job, tick func()) 
 		}
 	}
 
+	// The handler completes the job itself, so a nil error means done even if the term or the lease ended meanwhile.
 	switch {
+	case err == nil:
+		log.Info("job done", "duration", time.Since(start))
 	case ctx.Err() != nil:
 		// The term is over: back to the queue now rather than when the lease runs out.
 		requeue, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
@@ -143,8 +164,6 @@ func (e *JobExecutor) execute(ctx context.Context, job *model.Job, tick func()) 
 		log.Warn("job interrupted, back in the queue", "duration", time.Since(start), "err", err, "requeue_err", rerr)
 	case lost:
 		log.Warn("job canceled or its lease lost, its result is not written", "duration", time.Since(start), "err", err)
-	case err == nil:
-		log.Info("job done", "duration", time.Since(start))
 	default:
 		code := errors.ID(err)
 		if errors.Is(run.Err(), context.DeadlineExceeded) {
@@ -158,10 +177,11 @@ func (e *JobExecutor) execute(ctx context.Context, job *model.Job, tick func()) 
 	}
 }
 
-func (e *JobExecutor) handle(ctx context.Context, job *model.Job) (err error) {
+func (e *JobExecutor) handle(ctx context.Context, log *slog.Logger, job *model.Job) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			err = fmt.Errorf("panic: %v\n%s", p, debug.Stack())
+			log.Error("job handler panicked", "panic", p, "stack", string(debug.Stack()))
+			err = fmt.Errorf("panic: %v", p)
 		}
 	}()
 

@@ -39,6 +39,7 @@ SET state        = 'running',
 WHERE id = (SELECT id
             FROM wfm.job
             WHERE state = 'queued'
+              AND kind = ANY ($3)
             ORDER BY id
             LIMIT 1 FOR UPDATE SKIP LOCKED)
 RETURNING ` + jobColumns
@@ -76,7 +77,7 @@ LIMIT 1`
 
 type JobManager interface {
 	Enqueue(ctx context.Context, job *model.Job) (*model.Job, error)
-	Claim(ctx context.Context, owner string, lease time.Duration) (*model.Job, error)
+	Claim(ctx context.Context, owner string, lease time.Duration, kinds []model.JobKind) (*model.Job, error)
 	Requeue(ctx context.Context, owner string) ([]int64, error)
 	RecoverExpired(ctx context.Context) ([]int64, error)
 	Complete(ctx context.Context, owner string, id int64, result json.RawMessage) error
@@ -103,9 +104,10 @@ func (j *Job) Enqueue(ctx context.Context, job *model.Job) (*model.Job, error) {
 	return out, err
 }
 
-// Claim runs the oldest queued job under owner's lease; nil when the queue is empty.
-func (j *Job) Claim(ctx context.Context, owner string, lease time.Duration) (*model.Job, error) {
-	return j.get(ctx, claimJobSQL, owner, lease.Milliseconds())
+// Claim runs the oldest queued job of kinds under owner's lease; nil when there is none.
+// A job of another kind waits for a leader that has its handler.
+func (j *Job) Claim(ctx context.Context, owner string, lease time.Duration, kinds []model.JobKind) (*model.Job, error) {
+	return j.get(ctx, claimJobSQL, owner, lease.Milliseconds(), kinds)
 }
 
 // Requeue releases every job owner runs: on losing the leadership, and at the start of a term for jobs of its last one.
