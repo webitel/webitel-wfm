@@ -514,7 +514,7 @@ func (x *DeletePauseTemplateResponse) GetId() int64 {
 
 type PauseTemplateCause struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Duration      int64                  `protobuf:"varint,3,opt,name=duration,proto3" json:"duration,omitempty"`
+	Duration      *int64                 `protobuf:"varint,3,opt,name=duration,proto3,oneof" json:"duration,omitempty"`
 	Cause         *LookupEntity          `protobuf:"bytes,4,opt,name=cause,proto3,oneof" json:"cause,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -551,8 +551,8 @@ func (*PauseTemplateCause) Descriptor() ([]byte, []int) {
 }
 
 func (x *PauseTemplateCause) GetDuration() int64 {
-	if x != nil {
-		return x.Duration
+	if x != nil && x.Duration != nil {
+		return *x.Duration
 	}
 	return 0
 }
@@ -717,10 +717,12 @@ const file_pause_template_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03B\n" +
 	"\xbaH\a\xc8\x01\x01\"\x02 \x00R\x02id\"-\n" +
 	"\x1bDeletePauseTemplateResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"q\n" +
-	"\x12PauseTemplateCause\x12#\n" +
-	"\bduration\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\bduration\x12,\n" +
-	"\x05cause\x18\x04 \x01(\v2\x11.wfm.LookupEntityH\x00R\x05cause\x88\x01\x01B\b\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\x86\x01\n" +
+	"\x12PauseTemplateCause\x12+\n" +
+	"\bduration\x18\x03 \x01(\x03B\n" +
+	"\xbaH\a\"\x05\x18\xa0\v(\x00H\x00R\bduration\x88\x01\x01\x12,\n" +
+	"\x05cause\x18\x04 \x01(\v2\x11.wfm.LookupEntityH\x01R\x05cause\x88\x01\x01B\v\n" +
+	"\t_durationB\b\n" +
 	"\x06_cause\"\xf3\x02\n" +
 	"\rPauseTemplate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +

@@ -326,3 +326,30 @@ func TestShiftModelDropsDuplicateAgents(t *testing.T) {
 		t.Errorf("rows = %d, first id = %d; want the agent once, as row 1", n, id)
 	}
 }
+
+// Vacation, sick leaves and days off may take the whole year between them, and a pause no more than the workday.
+func TestWorkingConditionChecks(t *testing.T) {
+	db, p := newDB(t)
+	ctx := context.Background()
+
+	if _, err := p.Up(ctx); err != nil {
+		t.Fatalf("up: %v", err)
+	}
+
+	if err := commit(ctx, db, seed, "INSERT INTO wfm.pause_template (id, domain_id, created_by, updated_by, name) VALUES (1, 1, 1, 1, 'pauses')"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	for values, want := range map[string]string{
+		"200, 100, 65, null, null": "",
+		"200, 100, 66, null, null": "working_condition_non_working_days_check",
+		"null, null, null, 1, 60":  "",
+		"null, null, null, 1, 61":  "working_condition_working_hours_check",
+	} {
+		err := commit(ctx, db, `INSERT INTO wfm.working_condition (domain_id, created_by, updated_by, name, pause_template_id, vacation, sick_leaves, days_off, workday_hours, pause_duration)
+VALUES (1, 1, 1, 'conditions', 1, `+values+`)`)
+		if got := refusedBy(t, err); got != want {
+			t.Errorf("%s: refused by %q, want %q", values, got, want)
+		}
+	}
+}
