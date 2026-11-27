@@ -119,7 +119,7 @@ func violationsOf(err error) []string {
 
 	out := make([]string, 0, len(vs))
 	for _, v := range vs {
-		out = append(out, violation(v.OperatorID, v.Date.Time.Format("2006-01-02"), v.Reason))
+		out = append(out, violation(v.AgentID, v.Date.Time.Format("2006-01-02"), v.Reason))
 	}
 
 	return out

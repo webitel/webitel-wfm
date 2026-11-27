@@ -40,26 +40,17 @@ func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.Sig
 		return nil, err
 	}
 
-	locks := make([]dbsql.LockKey, 0, len(in))
+	agents := make([]int64, 0, len(in))
 	for _, shift := range in {
-		locks = append(locks, dbsql.OperatorLock(shift.AgentID))
+		agents = append(agents, shift.AgentID)
 	}
 
 	var ids []int64
 
 	err := a.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
-		// Agents first, then the schedule: activation (WFM-101) locks in this order.
-		if err := tx.Lock(ctx, locks...); err != nil {
-			return err
-		}
-
-		schedule, err := lockSchedule(ctx, tx, user.DomainID, scheduleID, lockShare)
+		schedule, err := lockForShifts(ctx, tx, user.DomainID, scheduleID, agents)
 		if err != nil {
 			return err
-		}
-
-		if !schedule.State.ShiftsWritable() {
-			return errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
 		}
 
 		violations, err := shiftViolations(ctx, tx, schedule, in, 0)
@@ -80,6 +71,98 @@ func (a *AgentWorkingSchedule) CreateShifts(ctx context.Context, user *model.Sig
 	}
 
 	return ids, nil
+}
+
+// CreateTemplateShifts writes a weekly template for several agents. A day with an absence or a date
+// another active schedule holds is skipped and returned; any other broken rule refuses the request.
+func (a *AgentWorkingSchedule) CreateTemplateShifts(ctx context.Context, user *model.SignedInUser, scheduleID int64, tpl *model.WeekTemplate) ([]model.Violation, error) {
+	var skipped []model.Violation
+
+	err := a.db.InTx(ctx, func(ctx context.Context, tx dbsql.Tx) error {
+		schedule, err := lockForShifts(ctx, tx, user.DomainID, scheduleID, tpl.Agents)
+		if err != nil {
+			return err
+		}
+
+		in, err := tpl.Shifts(schedule.zone)
+		if err != nil {
+			return err
+		}
+
+		if err := model.ValidateShifts(in); err != nil {
+			return err
+		}
+
+		violations, err := shiftViolations(ctx, tx, schedule, in, 0)
+		if err != nil {
+			return err
+		}
+
+		type day struct {
+			agent int64
+			date  time.Time
+		}
+
+		off := make(map[day]bool)
+
+		for _, v := range violations {
+			if v.Reason == ReasonShiftAbsence || v.Reason == ReasonShiftLockedDate {
+				off[day{v.AgentID, v.Date.Time}] = true
+				skipped = append(skipped, v)
+			}
+		}
+
+		refused := slices.DeleteFunc(violations, func(v model.Violation) bool {
+			switch v.Reason {
+			case ReasonShiftAbsence, ReasonShiftLockedDate:
+				return true
+			case ReasonShiftOverlap:
+				return off[day{v.AgentID, v.Date.Time}]
+			default:
+				return false
+			}
+		})
+		if len(refused) > 0 {
+			return model.Refuse(ErrShiftsRefused, refused...)
+		}
+
+		in = slices.DeleteFunc(in, func(s *model.Shift) bool { return off[day{s.AgentID, schedule.date(s)}] })
+		if len(in) == 0 {
+			return nil
+		}
+
+		_, err = insertShifts(ctx, tx, user, schedule, in)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return skipped, nil
+}
+
+// lockForShifts takes the agents' locks, then the schedule's row, the order activation locks in, and refuses an archived schedule.
+func lockForShifts(ctx context.Context, tx dbsql.Tx, domainID, scheduleID int64, agents []int64) (*shiftSchedule, error) {
+	locks := make([]dbsql.LockKey, 0, len(agents))
+	for _, agent := range agents {
+		locks = append(locks, dbsql.OperatorLock(agent))
+	}
+
+	if err := tx.Lock(ctx, locks...); err != nil {
+		return nil, err
+	}
+
+	schedule, err := lockSchedule(ctx, tx, domainID, scheduleID, lockShare)
+	if err != nil {
+		return nil, err
+	}
+
+	if !schedule.State.ShiftsWritable() {
+		return nil, errors.Wrap(ErrWorkingScheduleArchived, errors.WithValue("state", schedule.State.String()))
+	}
+
+	return schedule, nil
 }
 
 // UpdateShift replaces a shift whole, its pauses and skills included, under the rules of CreateShifts.
@@ -317,35 +400,47 @@ SELECT EXISTS (SELECT 1
                WHERE a.domain_id = $7
                  AND a.agent_id = r.agent_id
                  AND a.absent_at = r.schedule_at) AS absent,
-       EXISTS (SELECT 1
-               FROM wfm.agent_working_schedule aws
-                        INNER JOIN wfm.working_schedule_agent wsa ON wsa.id = aws.working_schedule_agent_id
-                        INNER JOIN wfm.working_schedule ws ON ws.id = wsa.working_schedule_id
-               WHERE wsa.agent_id = r.agent_id
-                 AND ws.domain_id = $7
-                 AND ws.id <> $1
-                 AND ws.state = $6
-                 AND aws.schedule_at = r.schedule_at) AS date_taken,
-       EXISTS (SELECT 1
-               FROM wfm.agent_working_schedule aws
-                        INNER JOIN wfm.working_schedule_agent wsa ON wsa.id = aws.working_schedule_agent_id
-                        INNER JOIN wfm.working_schedule ws ON ws.id = wsa.working_schedule_id
-               WHERE wsa.agent_id = r.agent_id
-                 AND ws.domain_id = $7
-                 AND (ws.id = $1 OR ws.state = $6)
-                 AND aws.id <> $8
-                 AND aws.start_at < r.end_at
-                 AND aws.end_at > r.start_at) AS overlaps
+       taken.id                       AS taken_id,
+       taken.name                     AS taken_name,
+       overlap.id                     AS overlap_id,
+       overlap.start_at               AS overlap_start,
+       overlap.end_at                 AS overlap_end
 FROM unnest($2::bigint[], $3::date[], $4::timestamptz[], $5::timestamptz[])
          WITH ORDINALITY AS r(agent_id, schedule_at, start_at, end_at, n)
+         LEFT JOIN LATERAL (SELECT ws.id, ws.name
+                            FROM wfm.agent_working_schedule aws
+                                     INNER JOIN wfm.working_schedule_agent wsa ON wsa.id = aws.working_schedule_agent_id
+                                     INNER JOIN wfm.working_schedule ws ON ws.id = wsa.working_schedule_id
+                            WHERE wsa.agent_id = r.agent_id
+                              AND ws.domain_id = $7
+                              AND ws.id <> $1
+                              AND ws.state = $6
+                              AND aws.schedule_at = r.schedule_at
+                            LIMIT 1) taken ON true
+         LEFT JOIN LATERAL (SELECT aws.id, aws.start_at, aws.end_at
+                            FROM wfm.agent_working_schedule aws
+                                     INNER JOIN wfm.working_schedule_agent wsa ON wsa.id = aws.working_schedule_agent_id
+                                     INNER JOIN wfm.working_schedule ws ON ws.id = wsa.working_schedule_id
+                            WHERE wsa.agent_id = r.agent_id
+                              AND ws.domain_id = $7
+                              AND (ws.id = $1 OR ws.state = $6)
+                              AND aws.id <> $8
+                              AND aws.start_at < r.end_at
+                              AND aws.end_at > r.start_at
+                            ORDER BY aws.start_at
+                            LIMIT 1) overlap ON true
 ORDER BY r.n`
 
+// shiftFacts: taken is the other active schedule holding the date, overlap the first shift in the way.
 type shiftFacts struct {
-	Member      bool `db:"member"`
-	Deactivated bool `db:"deactivated"`
-	Absent      bool `db:"absent"`
-	DateTaken   bool `db:"date_taken"`
-	Overlaps    bool `db:"overlaps"`
+	Member       bool       `db:"member"`
+	Deactivated  bool       `db:"deactivated"`
+	Absent       bool       `db:"absent"`
+	TakenID      *int64     `db:"taken_id"`
+	TakenName    *string    `db:"taken_name"`
+	OverlapID    *int64     `db:"overlap_id"`
+	OverlapStart *time.Time `db:"overlap_start"`
+	OverlapEnd   *time.Time `db:"overlap_end"`
 }
 
 // shiftViolations checks the shifts against the schedule; except is the shift an edit replaces, 0 for none.
@@ -370,41 +465,51 @@ func shiftViolations(ctx context.Context, tx dbsql.Tx, s *shiftSchedule, in []*m
 	var out []model.Violation
 
 	for i, f := range facts {
-		broke := func(reason string) {
-			out = append(out, model.Violation{OperatorID: agents[i], Date: pgtype.Date{Time: dates[i], Valid: true}, Reason: reason})
+		at := model.Violation{AgentID: agents[i], Date: pgtype.Date{Time: dates[i], Valid: true}}
+		broke := func(v model.Violation, reason string) {
+			v.Reason = reason
+			out = append(out, v)
 		}
 
 		if !f.Member {
-			broke(ReasonShiftAgentNotInSchedule)
+			broke(at, ReasonShiftAgentNotInSchedule)
 		}
 
 		if f.Deactivated {
-			broke(ReasonShiftAgentDeactivated)
+			broke(at, ReasonShiftAgentDeactivated)
 		}
 
 		if dates[i].Before(s.StartDate) || dates[i].After(s.EndDate) {
-			broke(ReasonShiftOutsideSchedule)
+			broke(at, ReasonShiftOutsideSchedule)
 		}
 
 		if f.Absent {
-			broke(ReasonShiftAbsence)
+			broke(at, ReasonShiftAbsence)
 		}
 
-		if f.DateTaken {
-			broke(ReasonShiftLockedDate)
+		if f.TakenID != nil {
+			taken := at
+			taken.Schedule = &model.LookupItem{ID: *f.TakenID, Name: f.TakenName}
+
+			broke(taken, ReasonShiftLockedDate)
 		}
 
-		if f.Overlaps {
-			broke(ReasonShiftOverlap)
+		if f.OverlapID == nil {
+			continue
 		}
+
+		overlap := at
+		overlap.ShiftID, overlap.StartAt, overlap.EndAt = *f.OverlapID, *f.OverlapStart, *f.OverlapEnd
+
+		broke(overlap, ReasonShiftOverlap)
 	}
 
 	slices.SortFunc(out, func(a, b model.Violation) int {
-		return cmp.Or(cmp.Compare(a.OperatorID, b.OperatorID), a.Date.Time.Compare(b.Date.Time), strings.Compare(a.Reason, b.Reason))
+		return cmp.Or(cmp.Compare(a.AgentID, b.AgentID), a.Date.Time.Compare(b.Date.Time), strings.Compare(a.Reason, b.Reason))
 	})
 
 	return slices.CompactFunc(out, func(a, b model.Violation) bool {
-		return a.OperatorID == b.OperatorID && a.Date.Time.Equal(b.Date.Time) && a.Reason == b.Reason
+		return a.AgentID == b.AgentID && a.Date.Time.Equal(b.Date.Time) && a.Reason == b.Reason
 	}), nil
 }
 
