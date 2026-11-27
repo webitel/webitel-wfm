@@ -79,6 +79,11 @@ func UserLookup(table Table) JSONBuildObjectFields {
 	}
 }
 
+// OptionalLookup is NULL when the reference is unset, so it does not read back as a deleted row.
+func OptionalLookup(table Table) string {
+	return fmt.Sprintf("call_center.cc_get_lookup(%s, %s)", table.Ident("id"), table.Ident("name"))
+}
+
 // JSONBuildObject generates a SQL json_build_object expression.
 func JSONBuildObject(fields JSONBuildObjectFields) string {
 	keys := slices.Sorted(maps.Keys(fields))
