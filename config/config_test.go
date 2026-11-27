@@ -41,6 +41,7 @@ func TestValidate(t *testing.T) {
 				ErrorCooldown:   5 * time.Second,
 				MonitorInterval: 5 * time.Second,
 			},
+			JobTimeout: 5 * time.Minute,
 		}
 	}
 
@@ -59,6 +60,7 @@ func TestValidate(t *testing.T) {
 		"no retry interval":  func(c *Config) { c.LeaderElection.RetryInterval = 0 },
 		"no error cooldown":  func(c *Config) { c.LeaderElection.ErrorCooldown = 0 },
 		"no monitor":         func(c *Config) { c.LeaderElection.MonitorInterval = 0 },
+		"no job timeout":     func(c *Config) { c.JobTimeout = 0 },
 	} {
 		cfg := valid()
 		cfg.Postgres.DSN = "dsn"

@@ -18,6 +18,7 @@ CREATE TABLE wfm.job
     started_at          TIMESTAMP WITH TIME ZONE,
     finished_at         TIMESTAMP WITH TIME ZONE,
     error               TEXT,
+    error_code          TEXT,
     result              JSONB,
 
     FOREIGN KEY (domain_id) REFERENCES directory.wbt_domain (dc) ON DELETE CASCADE,

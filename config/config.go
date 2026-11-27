@@ -26,6 +26,7 @@ type Config struct {
 	Pubsub   appconfig.Pubsub   `mapstructure:"pubsub"`
 
 	LeaderElection LeaderElection `mapstructure:"leader_election"`
+	JobTimeout     time.Duration  `mapstructure:"job_timeout"`
 }
 
 type Service struct {
@@ -120,6 +121,7 @@ func registerServiceFlags(fs *pflag.FlagSet) {
 	fs.Duration("leader_election.retry_interval", 10*time.Second, "how often a standby instance tries to become leader")
 	fs.Duration("leader_election.error_cooldown", 5*time.Second, "pause after a failed consul call or leader term")
 	fs.Duration("leader_election.monitor_interval", 5*time.Second, "how often the leader checks that it still holds the key")
+	fs.Duration("job_timeout", 5*time.Minute, "how long a background job may run; its lease is a minute longer")
 }
 
 func (c *Config) validate() error {
@@ -160,6 +162,10 @@ func (c *Config) validate() error {
 
 	if e := c.LeaderElection; e.RetryInterval <= 0 || e.ErrorCooldown <= 0 || e.MonitorInterval <= 0 {
 		return errors.New("config: leader_election intervals must be positive")
+	}
+
+	if c.JobTimeout <= 0 {
+		return errors.New("config: job_timeout must be positive")
 	}
 
 	return nil

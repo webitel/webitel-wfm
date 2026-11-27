@@ -37,5 +37,6 @@ type Job struct {
 	StartedAt         *time.Time      `db:"started_at"`
 	FinishedAt        *time.Time      `db:"finished_at"`
 	Error             *string         `db:"error"`
+	ErrorCode         *string         `db:"error_code"`
 	Result            json.RawMessage `db:"result"`
 }
