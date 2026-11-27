@@ -85,7 +85,7 @@ func (a *AgentWorkingConditions) read(ctx context.Context, node dbsql.Node, read
 			case "pause_template":
 				joinPauseTemplate()
 
-				field = b.Alias(b.JSONBuildObject(b.Lookup(pauseTemplate, "id", "name")), field)
+				field = b.Alias(b.OptionalLookup(pauseTemplate), field)
 			}
 
 			base.SelectMore(field)

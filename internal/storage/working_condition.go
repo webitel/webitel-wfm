@@ -204,7 +204,7 @@ func (w *WorkingCondition) search(ctx context.Context, node dbsql.Node, search *
 			case "shift_template":
 				joinShiftTemplate()
 
-				field = b.Alias(b.JSONBuildObject(b.Lookup(shiftTemplate, "id", "name")), field)
+				field = b.Alias(b.OptionalLookup(shiftTemplate), field)
 			}
 
 			base.SelectMore(field)
